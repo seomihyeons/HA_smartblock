@@ -8,6 +8,7 @@ export function buildBaseOptions(values) {
   return opts;
 }
 
+
 /** 공통: FROM과 같은 값은 TO에서 숨기기 (단, '(any)'는 항상 허용) */
 export function filterToAgainstFrom(block, baseOptions) {
   const from = block?.getFieldValue('FROM') || '';

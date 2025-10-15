@@ -50,8 +50,9 @@ function makeStateTriggerBlock(workspace, t, eid) {
   const b = workspace.newBlock(TYPE);
   const eidField = firstField(b, ['ENTITY','ENTITY_ID']);
   set(b, eidField, eid || t.entity || '');
-  set(b, 'FROM', t.from);
-  set(b, 'TO',   t.to);
+  if (t.from === undefined || t.from === null || t.from === '') { set(b, 'FROM', '(any)'); }
+  else { set(b, 'FROM', t.from); }
+  set(b, 'TO', t.to);
   if (t.for && canCreate('ha_event_for_hms') && b.getInput && b.getInput('FOR')) {
     const sub = workspace.newBlock('ha_event_for_hms');
     set(sub, 'H', t.for.hours ?? 0);

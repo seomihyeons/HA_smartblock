@@ -1,0 +1,13 @@
+- alias: 'L15 If temp - humidity/2 > 20 → Notify'
+  triggers:
+    - trigger: state
+      entity_id: sensor.living_room_temperature
+  conditions:
+    - condition: template
+      value_template: >
+        {{ states('sensor.living_room_temperature')|float
+           - (states('sensor.living_room_humidity')|float / 2) > 20 }}
+  actions:
+    - action: notify.iphone_seunghak
+      data:
+        message: "Derived climate condition met"

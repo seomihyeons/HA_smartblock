@@ -1,0 +1,9 @@
+- alias: 'L14 Sunset +5s → Living Light On'
+  triggers:
+    - trigger: sun
+      event: sunset
+      offset: "00:00:05"
+  actions:
+    - action: light.turn_on
+      target:
+        entity_id: light.living_room_light

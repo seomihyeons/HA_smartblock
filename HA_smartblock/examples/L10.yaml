@@ -1,0 +1,14 @@
+- alias: 'L10 Dishwasher Idle & No Motion → Notify'
+  triggers:
+    - trigger: numeric_state
+      entity_id: sensor.dishwasher_power
+      below: 1.0
+  conditions:
+    - not:
+      - condition: state
+        entity_id: binary_sensor.living_room_motion
+        state: 'on'
+  actions:
+    - action: notify.discord
+      data:
+        message: "Dishwasher idle and no motion detected"

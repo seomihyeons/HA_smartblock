@@ -1,0 +1,9 @@
+- alias: 'L04 Weather Temp ≥ 28 → TV On'
+  triggers:
+    - trigger: numeric_state
+      entity_id: sensor.weather_forecast_temperature
+      above: 28
+  actions:
+    - action: switch.turn_on
+      target:
+        entity_id: switch.tv_power
