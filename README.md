@@ -1,6 +1,5 @@
 # HA Smart Block  
 **Visual Round-Trip Programming Environment for Home Assistant**  
-Department of Artificial Intelligence, Chonnam National University
 
 
 
