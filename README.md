@@ -26,3 +26,13 @@ Thus, **HA Smart Block provides a true Round-Trip editing environment**:
 YAML ⇄ Visual Blocks ⇄ YAML.
 
 ![HA Block](https://github.com/seomihyeons/HA_smartblock/blob/main/ha_smartblock.png)
+
+## How to Access the Program
+
+To run the **HA Smart Block** program locally, first download or clone this repository from GitHub.  
+After extracting or cloning the files, open a terminal (PowerShell or VS Code terminal) and navigate to the following path: `/blockly/HA_smartblock`.
+
+Once inside the directory, install dependencies if needed and execute the command below to launch the program:  
+```bash
+npm run start
+
