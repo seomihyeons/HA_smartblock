@@ -35,4 +35,10 @@ After extracting or cloning the files, open a terminal (PowerShell or VS Code te
 Once inside the directory, install dependencies if needed and execute the command below to launch the program:  
 ```bash
 npm run start
+```
 
+
+# Demo Video
+
+You can watch a demonstration of **HA Smart Block** in action on YouTube:  
+[Watch the Demo Video](https://youtu.be/jua_SjaCClo?si=6nmnx814JoCcibmV)
