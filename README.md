@@ -25,4 +25,4 @@ and conversely, users can import existing YAML files to view and modify them as 
 Thus, **HA Smart Block provides a true Round-Trip editing environment**:  
 YAML ⇄ Visual Blocks ⇄ YAML.
 
-![HA Block](https://github.com/seomihyeons/HA_smartblock/blob/main/interface.png)
+![HA Block](https://github.com/seomihyeons/HA_smartblock/blob/main/ha_smartblock.png)
