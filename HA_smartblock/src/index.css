@@ -38,3 +38,16 @@ code {
 #output {
   height: 50%;
 }
+
+/* index.css */
+#titleRow {
+  display: flex;
+  align-items: baseline; /* h2와 텍스트 베이스라인 맞춤 */
+  gap: .5rem;
+}
+#titleRow h2 {
+  margin: 0;            /* h2 기본 상하 마진 제거 */
+}
+#titleRow span {
+  line-height: 1;       /* 필요 시 높이 보정 */
+}

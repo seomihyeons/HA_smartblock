@@ -78,10 +78,8 @@ document.addEventListener('yaml-imported', (e) => {
     const yamlText = e.detail.text;
     const internal = yamlTextToInternalJson(yamlText);
 
-    // ① 화면에 내부 JSON 표시
     showImportDebugJson(internal);
 
-    // ② 블록 렌더 시도 (그림이 안 떠도 JSON은 남아 확인 가능)
     renderAutomationToWorkspace(ws, internal, { clearBefore: true });
   } catch (err) {
     console.error(err);
