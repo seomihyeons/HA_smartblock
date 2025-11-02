@@ -37,6 +37,14 @@ Once inside the directory, install dependencies if needed and execute the comman
 npm run start
 ```
 
+## Related Repository
+
+For **Home Assistant Automation Analysis**, please refer to the following repository:  
+[HA Analyzer (Home Assistant Automation Analyzer)](https://github.com/kwanghoon/haanalyzer)
+
+This repository provides methods for **analyzing and detecting conflicts**  
+(*redundancy, inconsistency, circularity*) among multiple Home Assistant automations.  
+
 
 ## Demo Video
 
