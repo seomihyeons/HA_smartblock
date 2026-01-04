@@ -24,10 +24,12 @@ export const toolbox = {
         { "kind": "block", "type": "ha_event_lock_state" },
         { "kind": "block", "type": "ha_event_numeric_state_sensor" },
         { "kind": "label", "text": "Time" },
+        { "kind": "block", "type": "ha_event_time_state" }, 
         { "kind": "block", "type": "ha_event_for_hms" },
         { "kind": "label", "text": "Sun" },
         { "kind": "block", "type": "ha_event_sun" },
         { "kind": "block", "type": "ha_event_offset" },
+        { "kind": "block", "type": "ha_event_sun_state" }, 
       ]
     },
     {
@@ -44,6 +46,8 @@ export const toolbox = {
         { "kind": "block", "type": "condition_state_media_player" },
         { "kind": "block", "type": "condition_state_binary_sensor" },
         { "kind": "block", "type": "condition_state_climate" },
+        { "kind": "block", "type": "condition_state_input_boolean" },
+        { "kind": "block", "type": "condition_state_cover" },
         { "kind": "label", "text": "Numeric State" },
         { "kind": "block", "type": "condition_numeric_state_entity" },
         { "kind": "block", "type": "condition_numeric_state_attribute" }
@@ -59,6 +63,7 @@ export const toolbox = {
         { "kind": "block", "type": "action_switch" },
         { "kind": "block", "type": "action_lock" },
         { "kind": "block", "type": "action_media_player" },
+        { "kind": "block", "type": "action_cover" },
         { "kind": "label", "text": "Delay" },
         { "kind": "block", "type": "action_delay" },
         { "kind": "label", "text": "Logic" },
@@ -66,7 +71,12 @@ export const toolbox = {
         { "kind": 'block', "type": 'action_if_then' },
         { "kind": "label", "text": "Notify" },
         { "kind": 'block', "type": 'action_notify' },
-        { "kind": 'block', "type": 'action_notify_title' }
+        { "kind": 'block', "type": 'action_message' },
+        { "kind": 'block', "type": 'action_notify_message_text' },
+        { "kind": 'block', "type": 'action_notify_message_template' }, 
+        { "kind": "label", "text": "Group" },
+        { "kind": 'block', "type": 'action_group_entities' },
+        { "kind": 'block', "type": 'action_group_entity_item' }
       ]
     }
   ]

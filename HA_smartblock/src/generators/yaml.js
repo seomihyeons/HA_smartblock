@@ -1,7 +1,6 @@
 // src/generators/yaml.js
 
 import * as Blockly from 'blockly';
-
 export const yamlGenerator = new Blockly.CodeGenerator('YAML');
 
 const Order = {
@@ -174,25 +173,28 @@ yamlGenerator.forBlock['ha_event_for_hms'] = function (block) {
 };
 
 // Event: time trigger
+// src/generators/event_time_state.js
 yamlGenerator.forBlock['ha_event_time_state'] = function (block, generator) {
   const hour12 = Number(block.getFieldValue('HOUR') || 0);
   const minute = Number(block.getFieldValue('MIN') || 0);
   const period = block.getFieldValue('PERIOD') || 'AM';
 
+  // 12시간제를 24시간제로 변환
   let h = hour12 % 12;
   if (period === 'PM') h += 12;
   const HH = String(h).padStart(2, '0');
   const MM = String(minute).padStart(2, '0');
 
+  // 기본 time trigger YAML
   let code = `- trigger: time\n`;
   code += `  at: '${HH}:${MM}:00'\n`;
 
+  // 오른쪽에 붙는 EXTRA input (예: 주/월 제약 블록에서 나오는 YAML)
   const extra = generator.valueToCode(block, 'EXTRA', 0 /* Order.ATOMIC */) || '';
-  if (extra) {
-    code += generator.prefixLines(extra, '  ');
-  }
+  if (extra) { code += generator.prefixLines(extra, '  '); }
+  
   return code;
-};
+  };
 
 // action: sun
 yamlGenerator.forBlock['ha_event_sun'] = function (block, generator) {
@@ -222,6 +224,26 @@ yamlGenerator.forBlock['ha_event_offset'] = function (block) {
   return [`"${hhmmss}"`, Order.ATOMIC];
 };
 
+yamlGenerator.forBlock['ha_event_sun_state'] = function (block) {
+  const from = block.getFieldValue('FROM') || '';
+  const to = block.getFieldValue('TO') || '';
+
+  const lines = [];
+  lines.push('- trigger: state');
+  lines.push('  entity_id: sun.sun');
+
+  // "(any)" 선택 시 FROM 값은 '' 이라서 생략
+  if (from) {
+    lines.push(`  from: '${from}'`);
+  }
+  if (to) {
+    lines.push(`  to: '${to}'`);
+  }
+
+  // statementToCode로 이어붙을 때를 대비해서 끝에 개행 추가
+  return lines.join('\n') + '\n';
+};
+
 /* ===== Conditions ===== */
 // Condition: template (AND/OR/NOT group)
 yamlGenerator.forBlock['condition_logic'] = function (block) {
@@ -238,6 +260,8 @@ const CONDITION_STATE_DOMAINS = [
   'media_player',
   'binary_sensor',
   'climate',
+  'input_boolean',
+  'cover',
 ];
 
 for (const domain of CONDITION_STATE_DOMAINS) {
@@ -316,7 +340,7 @@ yamlGenerator.forBlock['action_delay'] = function (block) {
 };
 
 // Action: entity
-const ACTION_DOMAINS = ['light', 'switch', 'lock', 'media_player', 'climate'];
+const ACTION_DOMAINS = ['light', 'switch', 'lock', 'media_player', 'climate', 'cover'];
 for (const domain of ACTION_DOMAINS) {
   yamlGenerator.forBlock[`action_${domain}`] = function (block) {
     const entityId = block.getFieldValue('ENTITY_ID') || '';
@@ -389,30 +413,112 @@ yamlGenerator.forBlock['action_if_then'] = function (block) {
 
 // Action: notify
 yamlGenerator.forBlock['action_notify'] = function (block, generator) {
-  //const svc = (block.getFieldValue('TARGET') || 'notify.notify').trim();
-  const uiTarget = (block.getFieldValue('TARGET') || 'notify').trim(); // e.g., 'mobile_app_iphone', 'telegram', 'notify'
+  const uiTarget = (block.getFieldValue('TARGET') || 'notify').trim();
   const svc = uiTarget.startsWith('notify.') ? uiTarget : `notify.${uiTarget}`;
-  const msg = (block.getFieldValue('MESSAGE') || '').trim();
-  if (!msg) return `- # notify skipped: empty message\n`;
 
-  
-  const titleCode = generator.valueToCode(block, 'TITLE', 0) || '';
-  let code = `- action: ${svc}\n  data:\n`;
-  if ( msg != `message` ) {
-    code += `    message: ${JSON.stringify(msg)}\n`;
-  };
-  
-  if (titleCode.trim()) {
-    code += `    title: ${titleCode}\n`;
-  }
+  const inner = (generator.statementToCode(block, 'MESSAGE_BLOCKS') || '').replace(/\s+$/, '');
+
+  if (!inner) { return ``; }
+
+  let code = `- action: ${svc}\n`;
+  code += `  data:\n`;
+  code += inner;
+
   return code;
 };
 
-// Action: notify_title
-yamlGenerator.forBlock['action_notify_title'] = function (block) {
-  const t = (block.getFieldValue('TITLE') || '').trim();
-  return [JSON.stringify(t), Order.ATOMIC];
+// Action: message (컨테이너)
+yamlGenerator.forBlock['action_message'] = function (block, generator) {
+  const parts = [];
+
+  let child = block.getInputTargetBlock('MESSAGE_BLOCKS');
+  while (child) {
+    switch (child.type) {
+      case 'action_notify_message_text': {
+        const t = (child.getFieldValue('TEXT') || '');
+        if (t!= "input message")
+          { parts.push(t); }
+        break;
+      }
+      case 'action_notify_message_template': {
+        const kind = child.getFieldValue('TEMPLATE_KIND');
+        let expr = '';
+
+        switch (kind) {
+          case 'TRIGGER_ENTITY_ID': expr = ' {{ trigger.entity_id }} '; break;
+          case 'TRIGGER_FRIENDLY_NAME': expr = ' {{ trigger.to_state.attributes.friendly_name }} '; break;
+          case 'TRIGGER_NEW_STATE': expr = ' {{ trigger.to_state.state }} '; break;
+          case 'TRIGGER_OLD_STATE': expr = ' {{ trigger.from_state.state }} '; break;
+
+          case 'NOW': expr = ' {{ now() }} '; break;
+          case 'DATE': expr = ' {{ now().date() }} '; break;
+          case 'TIME_HM': expr = " {{ now().strftime('%H:%M') }} "; break;
+          case 'WEEKDAY': expr = "{{ now().strftime('%A') }}"; break;
+
+          case 'USER_NAME': expr = ' {{ user.name }} '; break;
+          case 'USER_LANG': expr = ' {{ user.language }} '; break;
+          case 'USER_ID': expr = ' {{ user.id }} '; break;
+
+          default: expr = '';
+        }
+
+        if (expr) { parts.push(expr); }
+        break;
+      }
+      default: break;
+    }
+
+    child = child.getNextBlock();
+  }
+  const msg = parts.join('');
+  if (!msg) { return ''; }
+
+  return `  message: ${JSON.stringify(msg)}\n`;
 };
+
+yamlGenerator.forBlock['action_notify_message_text'] = function (block, generator) {
+  return ''; 
+};
+
+yamlGenerator.forBlock['action_notify_message_template'] = function (block, generator) {
+  return '';
+};
+
+// Action Group: action_group_entities
+yamlGenerator.forBlock['action_group_entities'] = function (block) {
+  // 1) 도메인(light/cover) + 서비스(open_cover / turn_on 등) 읽기
+  const domain = block.getFieldValue('DOMAIN') || 'cover';
+  const serviceSuffix = block.getFieldValue('SERVICE') || '';
+  const service = serviceSuffix ? `${domain}.${serviceSuffix}` : domain;
+
+  // 2) 하위 entity 블록들을 순회하면서 entity_id 수집
+  const entities = [];
+  let child = block.getInputTargetBlock('ENTITIES');
+  while (child) {
+    const eid = child.getFieldValue('ENTITY_ID');
+    if (eid) {
+      entities.push(eid);   // '-'(value:'')는 자동으로 건너뜀
+    }
+    child = child.getNextBlock();
+  }
+
+  // 엔티티가 하나도 없으면 아무 것도 생성하지 않도록 처리
+  if (entities.length === 0) {
+    return '';
+  }
+
+  // 3) YAML 문자열 생성
+  let yaml = `- action: ${service}\n`;
+  yaml += '  data:\n';
+  yaml += '    entity_id:\n';
+  for (const eid of entities) {
+    yaml += `      - ${eid}\n`;
+  }
+
+  return yaml;
+};
+
+
 
 // chain next blocks
 yamlGenerator.scrub_ = function (block, code, thisOnly) {
