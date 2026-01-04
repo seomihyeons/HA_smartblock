@@ -1,25 +1,25 @@
 // src/export_code.js
 
-/** 내부 유틸: 개행 보존하며 YAML 텍스트 가져오기 */
+// 내부 유틸: 개행 보존하며 YAML 텍스트 가져오기
 function getYamlText(outputId) {
   const el = document.getElementById(outputId);
   // <pre> 요소면 innerText가 가장 안전하게 줄바꿈을 보존합니다.
   return el ? el.innerText : '';
 }
 
-/** 내부 유틸: 파일명 안전화 */
+// 내부 유틸: 파일명 안전화
 function toSafeFilename(name, fallback = 'automation') {
   const base = (name || '').trim() || fallback;
   return base.replace(/[\\/:*?"<>|]/g, '_');
 }
 
-/** 내부 유틸: YAML의 alias 추출(따옴표 제거) */
+// 내부 유틸: YAML의 alias 추출(따옴표 제거)
 function extractAliasForFilename(yaml) {
   const m = yaml.match(/^\s*-?\s*alias:\s*['"]?(.+?)['"]?\s*$/m);
   return m ? m[1].replace(/^['"]|['"]$/g, '') : null;
 }
 
-/** 내부 유틸: 파일 다운로드 */
+// 내부 유틸: 파일 다운로드
 function downloadYamlFile(yaml, filename) {
   const blob = new Blob([yaml], { type: 'text/yaml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -34,7 +34,7 @@ function downloadYamlFile(yaml, filename) {
   }, 0);
 }
 
-/**
+/*
  * YAML 내보내기 / 복사 버튼을 outputId(예: 'generatedCode') 요소 바로 아래에 붙입니다.
  * ws(Blockly.Workspace)를 넘기면 변경 시에도 버튼이 항상 존재하도록 보장합니다.
  */

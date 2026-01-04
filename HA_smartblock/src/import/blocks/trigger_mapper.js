@@ -115,6 +115,28 @@ function makeHAEventTriggerBlock(workspace, t) {
   return b;
 }
 
+// sun.sun 전용 state 트리거 → ha_event_sun_state
+function makeSunStateTriggerBlock(workspace, t) {
+  if (!canCreate('ha_event_sun_state')) return null;
+
+  const b = workspace.newBlock('ha_event_sun_state');
+
+  // FROM: YAML에서 from이 없으면 "(any)" → 블록 값은 '' (options의 value가 '' 이므로)
+  const fromVal =
+    t.from === undefined || t.from === null || t.from === ''
+      ? ''          // 드롭다운 옵션 중 '(any)' 의 value 가 '' 이라고 가정
+      : String(t.from);
+
+  const toVal = t.to == null ? '' : String(t.to);
+
+  set(b, 'FROM', fromVal);
+  set(b, 'TO', toVal);
+
+  b.initSvg?.();
+  b.render?.();
+  return b;
+}
+
 /* ========== 엔트리 포인트 ========== */
 
 export function createTriggerBlock(t, workspace) {
@@ -152,9 +174,20 @@ export function createTriggerBlock(t, workspace) {
     return single;
   }
 
-  // ④ state — entity_id 배열이면 분해
+    // ④ state — entity_id 기반 트리거
   if (platform === 'state') {
     const entities = toArray(t.entity_id ?? t.entity ?? []);
+
+    // ④-1. sun.sun 전용: ha_event_sun_state 로 매핑
+    //   - 우리가 만든 ha_event_sun_state 블록을 사용
+    //   - from / to 만 사용하므로 entity_id 는 블록에서 고정값 sun.sun 으로 처리
+    if (entities.length === 1 && entities[0] === 'sun.sun' && canCreate('ha_event_sun_state')) {
+      const b = makeSunStateTriggerBlock(workspace, t);
+      setIdIfPresent(b, t);
+      return b;
+    }
+
+    // ④-2. 일반 state 트리거 (light/switch/lock/binary_sensor 등)
     if (entities.length > 1) {
       // 엔티티별로 도메인이 다를 수 있으므로 각자 타입을 골라 만듭니다.
       const head = makeStateTriggerBlock(workspace, t, entities[0]);
@@ -166,6 +199,7 @@ export function createTriggerBlock(t, workspace) {
       if (head) setIdIfPresent(head, t); // id는 head에만
       return head;
     }
+
     const single = makeStateTriggerBlock(workspace, t, entities[0] ?? '');
     setIdIfPresent(single, t);
     return single;
