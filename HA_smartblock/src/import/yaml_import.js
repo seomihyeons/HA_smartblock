@@ -1,22 +1,17 @@
 // src/import/yaml_import.js
+
 // 경량 파서 + 정규화 (외부 의존성 없음)
-
 export function yamlTextToInternalJson(yamlText) {
-  // 1) 원시 파싱
+  // 원시 파싱
   let obj = parseYamlLite(yamlText);
-
-  // 2) 루트 풀기: {items:[...]} → [...], 단일이면 {} 그대로
+  // 루트 풀기: {items:[...]} → [...], 단일이면 {} 그대로
   obj = unwrapRoot(obj);
-
-  // 3) Home Assistant 자동화는 보통 목록의 첫 요소이거나 단일 객체
+  // Home Assistant 자동화는 보통 목록의 첫 요소이거나 단일 객체
   const auto = Array.isArray(obj) ? (obj[0] || {}) : obj;
-
-  // 4) 내부 구조 정규화
+  // 내부 구조 정규화
   const normalized = normalizeAutomationObject(auto);
-
-  // 🔎 디버그: entity 배열이 제대로 들어왔는지 확인용(원하면 끄세요)
+  // 디버그: entity 배열이 제대로 들어왔는지 확인용
   // console.log('[DEBUG] actions(normalized)=', JSON.stringify(normalized.actions, null, 2));
-
   return normalized;
 }
 
@@ -283,12 +278,12 @@ function normalizeSingleCondition(c) {
     delete out.entity;
   }
 
-  // ✅ entity_id 배열 표준화 (단일/배열/{items:[...]}/중복키 보정/쉼표 문자열 모두 흡수)
+  // entity_id 배열 표준화 (단일/배열/{items:[...]}/중복키 보정/쉼표 문자열 모두 흡수)
   if (out.entity_id != null) {
     out.entity_id = normalizeEntityList(out.entity_id);
   }
 
-  // ✅ state 조건: state를 배열 허용 (엔티티 1개에 여러 상태 OR / match:any에 대비)
+  // state 조건: state를 배열 허용 (엔티티 1개에 여러 상태 OR / match:any에 대비)
   if ((out.condition || out.platform || out.type || 'state') === 'state') {
     // state 값이 to 로만 온 경우 보정
     if (out.state == null && out.to != null) out.state = out.to;
@@ -307,7 +302,6 @@ function normalizeSingleCondition(c) {
   // numeric_state는 별도 추가 정규화 없음(값은 condition_mapper에서 사용)
   return out;
 }
-
 
 function normalizeConditions(conds) {
   const list = toArray(conds);
@@ -329,7 +323,7 @@ function normalizeAutomationObject(obj) {
     if (out.for != null) out.for = normalizeFor(out.for);
     if (out.target) out.target = normalizeTarget(out.target);
 
-    // ✅ 루트 레벨 entity_id도 배열로 표준화 (state/numeric_state 등)
+    // 루트 레벨 entity_id도 배열로 표준화 (state/numeric_state 등)
     if (out.entity_id != null) {
       out.entity_id = normalizeEntityList(out.entity_id);
     }

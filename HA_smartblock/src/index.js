@@ -27,8 +27,10 @@ import {eventBinarySensorStateBlocks} from './blocks/event/event_binary_sensor_s
 import {eventSwitchStateBlocks} from './blocks/event/event_switch_state';
 import {eventLockStateBlocks} from './blocks/event/event_lock_state';
 import {eventNumericSensorBlocks} from './blocks/event/event_sensor_state';
+import {eventTimeStateBlocks} from './blocks/event/event_time_state';
 import {eventForBlocks} from './blocks/event/event_for';
 import {haEventSunBlocks} from './blocks/event/event_sun' ;
+import { eventSunStateBlocks } from './blocks/event/event_sun_state';
 
 import {conditionLogicBlocks} from './blocks/condition/condition_logic';
 import {conditionStateBlocks} from './blocks/condition/condition_entity_state';
@@ -39,6 +41,7 @@ import {actionEntityBlocks} from './blocks/action/action_entity';
 import {actionDelayBlocks} from './blocks/action/action_delay';
 import {actionIfBlocks} from './blocks/action/action_if';
 import {actionNotifyBlocks} from './blocks/action/action_notify';
+import {actionGroupBlocks} from './blocks/action/action.group'; 
 
 // Register the blocks and generator with Blockly
 Blockly.common.defineBlocks(ruleBlocks); 
@@ -49,8 +52,10 @@ Blockly.common.defineBlocks(eventBinarySensorStateBlocks);
 Blockly.common.defineBlocks(eventSwitchStateBlocks);
 Blockly.common.defineBlocks(eventLockStateBlocks);
 Blockly.common.defineBlocks(eventNumericSensorBlocks);
+Blockly.common.defineBlocks(eventTimeStateBlocks);
 Blockly.common.defineBlocks(eventForBlocks);
 Blockly.common.defineBlocks(haEventSunBlocks);
+Blockly.common.defineBlocks(eventSunStateBlocks); 
 
 Blockly.common.defineBlocks(conditionLogicBlocks); 
 Blockly.common.defineBlocks(conditionStateBlocks);
@@ -60,7 +65,8 @@ Blockly.common.defineBlocks(conditionNumericStateAttributeBlocks);
 Blockly.common.defineBlocks(actionEntityBlocks);
 Blockly.common.defineBlocks(actionDelayBlocks);
 Blockly.common.defineBlocks(actionIfBlocks); 
-Blockly.common.defineBlocks(actionNotifyBlocks); 
+Blockly.common.defineBlocks(actionNotifyBlocks);
+Blockly.common.defineBlocks(actionGroupBlocks); 
 
 const codeDiv = document.getElementById('generatedCode');
 const blocklyDiv = document.getElementById('blocklyDiv');
