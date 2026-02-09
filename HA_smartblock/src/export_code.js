@@ -1,5 +1,7 @@
 // src/export_code.js
 
+import { pushYamlToHomeAssistant } from './homeassistant/push_automation';
+
 // 내부 유틸: 개행 보존하며 YAML 텍스트 가져오기
 function getYamlText(outputId) {
   const el = document.getElementById(outputId);
@@ -59,8 +61,14 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null) {
     copyBtn.textContent = 'Copy YAML';
     copyBtn.style.marginLeft = '6px';
 
+    const pushBtn = document.createElement('button');
+    pushBtn.id = 'pushHaBtn';
+    pushBtn.textContent = 'Push to HA';
+    pushBtn.style.marginLeft = '6px'; //추가됨
+
     wrap.appendChild(exportBtn);
     wrap.appendChild(copyBtn);
+    wrap.appendChild(pushBtn); //추가됨
     host.parentNode.insertBefore(wrap, host.nextSibling);
 
     exportBtn.addEventListener('click', () => {
@@ -89,6 +97,29 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null) {
         alert('클립보드 복사에 실패했습니다.');
       }
     });
+
+    pushBtn.addEventListener('click', async () => {
+      const yaml = getYamlText(outputId);
+      if (!yaml.trim()) return alert('보낼 YAML이 없습니다.');
+
+      pushBtn.disabled = true;
+      const prev = pushBtn.textContent;
+      pushBtn.textContent = 'Pushing...';
+
+      try {
+        const result = await pushYamlToHomeAssistant(yaml, {});
+        pushBtn.textContent = 'Pushed!';
+        setTimeout(() => (pushBtn.textContent = prev), 1200);
+        alert(`Home Assistant에 반영 완료!\n- id: ${result.id}\n- alias: ${result.alias}`);
+      } catch (e) {
+        console.error(e);
+        alert(`HA 푸시 실패\n${e?.message || e}`);
+        pushBtn.textContent = prev;
+      } finally {
+        pushBtn.disabled = false;
+      }
+    });
+
   }
 
   // 첫 로드 시 버튼 보장

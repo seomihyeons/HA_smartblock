@@ -7,7 +7,6 @@ const Order = {
   ATOMIC: 0,
 };
 
-// Home Assistant YAML style: 2-space indent
 yamlGenerator.INDENT = '  ';
 
 /* ===== Common value blocks ===== */
@@ -26,7 +25,42 @@ yamlGenerator.forBlock['logic_boolean'] = function (block) {
   return [(block.getFieldValue('BOOL') === 'TRUE') ? 'true' : 'false', Order.ATOMIC];
 };
 
+yamlGenerator.forBlock['ha_triggers_raw'] = function (block) {
+  const raw = normalizeRawYaml(block.getFieldValue('YAML') ?? '');
+  return raw || '';
+};
+
+yamlGenerator.forBlock['ha_conditions_raw'] = function (block) {
+  const raw = normalizeRawYaml(block.getFieldValue('YAML') ?? '');
+  return raw || '';
+};
+
+yamlGenerator.forBlock['ha_actions_raw'] = function (block) {
+  const raw = normalizeRawYaml(block.getFieldValue('YAML') ?? '');
+  return raw || '';
+};
+
 /* ===== Home Assistant custom blocks ===== */
+function emitRawLines(block) {
+  const raw = String(block.getFieldValue('RAW_LINES') || '').replace(/\r\n/g, '\n');
+  if (!raw.trim()) return '';
+  const lines = raw.split('\n');
+  while (lines.length && lines[lines.length - 1] === '') lines.pop();
+  return lines.join('\n') + '\n';
+}
+
+yamlGenerator.forBlock['ha_event_raw_lines'] = function (block) {
+  return emitRawLines(block);
+};
+yamlGenerator.forBlock['ha_condition_raw_lines'] = function (block) {
+  return emitRawLines(block);
+};
+yamlGenerator.forBlock['ha_action_raw_lines'] = function (block) {
+  return emitRawLines(block);
+};
+
+
+
 // EA container block (Event-Action)
 yamlGenerator.forBlock['event_action'] = function (block, generator) {
   const alias = block.getFieldValue('ALIAS') || '';
@@ -55,11 +89,14 @@ yamlGenerator.forBlock['event_condition_action'] = function (block, generator) {
   if (id && id != "(Optional)") { code += `  id: '${id}'\n`; }
 
   code += `\n  triggers:\n`; code += generator.prefixLines(eventCode, `  `);
-  if (conditionCode) { code += `\n  conditions:\n`; code += generator.prefixLines(conditionCode, `  `); }
+  if (conditionCode && conditionCode.trim()) {
+    code += `\n  conditions:\n`; code += generator.prefixLines(conditionCode, `  `);
+  }
   code += `\n  actions:\n`; code += generator.prefixLines(actionCode, `  `);
 
   return code;
 };
+
 
 // Event: Home Assistant lifecycle (homeassistant trigger)
 yamlGenerator.forBlock['ha_event_homeassistant'] = function (block) {
@@ -76,68 +113,58 @@ yamlGenerator.forBlock['ha_event_homeassistant'] = function (block) {
   return code;
 };
 
-// Event: generic light state trigger
-yamlGenerator.forBlock['ha_event_light_state'] = function (block) {
-  const entityId = block.getFieldValue('ENTITY') || '';
-  const from = block.getFieldValue('FROM') || '';
-  const to   = block.getFieldValue('TO')   || '';
-  const forValue = yamlGenerator.valueToCode(block, 'FOR', 0) || '';
 
-  let code = `- trigger: state\n`;
-  if (entityId) code += `  entity_id: ${entityId}\n`;
-  if (from)     code += `  from: '${from}'\n`;
-  if (to)       code += `  to: '${to}'\n`;
-  if (forValue.trim()) { code += `  for: ${forValue}\n`; }
+/* ===== Events (compact) ===== */
+import { STATE_DOMAINS } from '../data/options.js';
 
-  return code;
-};
+/* ===== Events (unified, compact) ===== */
 
-// Event: binary state trigger
-yamlGenerator.forBlock['ha_event_binary_state'] = function (block) {
-  const entityId = block.getFieldValue('ENTITY') || '';
-  const from = block.getFieldValue('FROM') || '';
-  const to = block.getFieldValue('TO') || '';
-  const forValue = yamlGenerator.valueToCode(block, 'FOR', 0) || '';
+// Event: state trigger (event_${domain}_state)
+for (const domain of (STATE_DOMAINS || []).filter(d => d !== 'sensor')) {
+  yamlGenerator.forBlock[`event_${domain}_state`] = function (block, generator) {
+    const entityId = block.getFieldValue('ENTITY_ID') || '';
+    const from = block.getFieldValue('FROM') || '';
+    const to   = block.getFieldValue('TO')   || '';
+    const forValue = generator.valueToCode(block, 'FOR', 0) || '';
 
-  let code = `- trigger: state\n`;
-  code += `  entity_id: ${entityId}\n`;
-  if (from) code += `  from: '${from}'\n`;
-  if (to)   code += `  to: '${to}'\n`;
-  if (forValue.trim()) { code += `  for: ${forValue}\n`; }
+    if (!entityId) return '';
 
-  return code;
-};
+    const i = yamlGenerator.INDENT;
+    const lines = [
+      `- trigger: state`,
+      `${i}entity_id: ${entityId}`,
+    ];
 
-// Event: switch state trigger
-yamlGenerator.forBlock['ha_event_switch_state'] = function (block) {
-  const entityId = block.getFieldValue('ENTITY') || '';
-  const from = block.getFieldValue('FROM') || '';
-  const to = block.getFieldValue('TO') || '';
-  const forValue = yamlGenerator.valueToCode(block, 'FOR', 0) || '';
+    if (from) lines.push(`${i}from: '${from}'`);
+    if (to)   lines.push(`${i}to: '${to}'`);
+    if (forValue.trim()) lines.push(`${i}for: ${forValue}`);
 
-  let code = `- trigger: state\n`;
-  code += `  entity_id: ${entityId}\n`;
-  if (from) code += `  from: '${from}'\n`;
-  if (to)   code += `  to: '${to}'\n`;
-  if (forValue.trim()) { code += `  for: ${forValue}\n`; }
+    lines.push('');
+    return lines.join('\n');
+  };
+}
 
-  return code;
-};
+// Event: numeric_state (sensor)
+yamlGenerator.forBlock['event_sensor_numeric_state'] = function (block, generator) {
+  const entityId = block.getFieldValue('ENTITY_ID') || '';
+  if (!entityId) return '';
 
-// Event: lock state trigger
-yamlGenerator.forBlock['ha_event_lock_state'] = function (block) {
-  const entityId = block.getFieldValue('ENTITY') || '';
-  const from = block.getFieldValue('FROM') || '';
-  const to = block.getFieldValue('TO') || '';
+  const above = Number(block.getFieldValue('ABOVE'));
+  const below = Number(block.getFieldValue('BELOW'));
+  const forValue = generator.valueToCode(block, 'FOR', 0) || '';
 
-  const forValue = yamlGenerator.valueToCode(block, 'FOR', 0) || '';
-  let code = `- trigger: state\n`;
-  code += `  entity_id: ${entityId}\n`;
-  if (from) code += `  from: '${from}'\n`;
-  if (to) code += `  to: '${to}'\n`;
-  if (forValue.trim()) { code += `  for: ${forValue}\n`; }
+  const i = yamlGenerator.INDENT;
+  const lines = [
+    `- trigger: numeric_state`,
+    `${i}entity_id: ${entityId}`,
+  ];
 
-  return code;
+  if (!Number.isNaN(above) && above !== 0) lines.push(`${i}above: ${above}`);
+  if (!Number.isNaN(below) && below !== 0) lines.push(`${i}below: ${below}`);
+  if (forValue.trim()) lines.push(`${i}for: ${forValue}`);
+
+  lines.push('');
+  return lines.join('\n');
 };
 
 // Event: numeric_state (sensor)
@@ -192,9 +219,9 @@ yamlGenerator.forBlock['ha_event_time_state'] = function (block, generator) {
   // 오른쪽에 붙는 EXTRA input (예: 주/월 제약 블록에서 나오는 YAML)
   const extra = generator.valueToCode(block, 'EXTRA', 0 /* Order.ATOMIC */) || '';
   if (extra) { code += generator.prefixLines(extra, '  '); }
-  
+
   return code;
-  };
+};
 
 // action: sun
 yamlGenerator.forBlock['ha_event_sun'] = function (block, generator) {
@@ -247,9 +274,20 @@ yamlGenerator.forBlock['ha_event_sun_state'] = function (block) {
 /* ===== Conditions ===== */
 // Condition: template (AND/OR/NOT group)
 yamlGenerator.forBlock['condition_logic'] = function (block) {
-  const logic = block.getFieldValue('LOGIC').toLowerCase();
-  const innerConds = yamlGenerator.statementToCode(block, 'SUBCONDITIONS') || '';
-  return `- ${logic}:\n${innerConds}`;
+  const logic = String(block.getFieldValue('LOGIC') || 'and').toLowerCase();
+  const inner = yamlGenerator.statementToCode(block, 'SUBCONDITIONS') || '';
+  if (!inner.trim()) return '';
+
+  const i = yamlGenerator.INDENT;   // '  '
+  const ii = i + i;                // '    '
+  const body = inner.trimEnd().replace(/^/gm, ii);
+
+  return [
+    `- condition: ${logic}`,
+    `${i}conditions:`,
+    body,
+    ''
+  ].join('\n');
 };
 
 // Condition: entity state
@@ -262,6 +300,7 @@ const CONDITION_STATE_DOMAINS = [
   'climate',
   'input_boolean',
   'cover',
+  'sun'
 ];
 
 for (const domain of CONDITION_STATE_DOMAINS) {
@@ -324,7 +363,6 @@ yamlGenerator.forBlock['condition_numeric_state_attribute'] = function (block) {
   return lines.join('\n');
 };
 
-
 /* ===== Actions ===== */
 // Action: delay
 yamlGenerator.forBlock['action_delay'] = function (block) {
@@ -341,8 +379,9 @@ yamlGenerator.forBlock['action_delay'] = function (block) {
 
 // Action: entity
 const ACTION_DOMAINS = ['light', 'switch', 'lock', 'media_player', 'climate', 'cover'];
+
 for (const domain of ACTION_DOMAINS) {
-  yamlGenerator.forBlock[`action_${domain}`] = function (block) {
+  yamlGenerator.forBlock[`action_${domain}`] = function (block, generator) {
     const entityId = block.getFieldValue('ENTITY_ID') || '';
     const action = block.getFieldValue('ACTION') || '';
     if (!entityId || !action) return '';
@@ -354,10 +393,37 @@ for (const domain of ACTION_DOMAINS) {
     lines.push(`- action: ${domain}.${action}`);
     lines.push(`${i}target:`);
     lines.push(`${ii}entity_id: ${entityId}`);
+
+    const dataCode = block.getInput('DATA')
+      ? generator.statementToCode(block, 'DATA')
+      : '';
+
+    if (dataCode.trim()) {
+      lines.push(`${i}data:`);
+      lines.push(generator.prefixLines(dataCode, ii));
+    }
+
     lines.push('');
     return lines.join('\n');
   };
 }
+
+yamlGenerator.forBlock['action_data_brightness_pct'] = function(block) {
+  const v = Number(block.getFieldValue('VALUE') || 0);
+  return `brightness_pct: ${v}\n`;
+};
+
+yamlGenerator.forBlock['action_data_transition'] = function(block) {
+  const v = Number(block.getFieldValue('SECONDS') || 0);
+  return `transition: ${v}\n`;
+};
+
+yamlGenerator.forBlock['action_data_kv_text'] = function(block) {
+  const k = (block.getFieldValue('KEY') || '').trim();
+  const v = (block.getFieldValue('VALUE') || '').trim();
+  if (!k) return '';
+  return `${k}: ${JSON.stringify(v)}\n`;
+};
 
 // Action: if-then-else
 function indentAll(s, pad) {
@@ -379,7 +445,7 @@ yamlGenerator.forBlock['action_if_else'] = function (block) {
   lines.push(`- choose:`);
   lines.push(`${i}- conditions:`);          // choose 항목 (when) 시작
   lines.push(indentAll(ifConds, ii));       // 조건 리스트(각 줄은 "- ..." 형태) → ii 들여쓰기
-  lines.push(`${ii}sequence:`);              // sequence는 conditions와 같은 깊이(i)
+  lines.push(`${ii}sequence:`);             // sequence는 conditions와 같은 깊이
   lines.push(indentAll(thenSeq, ii));       // 액션 리스트 → ii 들여쓰기
 
   if (elseSeq.trim()) {
@@ -416,28 +482,27 @@ yamlGenerator.forBlock['action_notify'] = function (block, generator) {
   const uiTarget = (block.getFieldValue('TARGET') || 'notify').trim();
   const svc = uiTarget.startsWith('notify.') ? uiTarget : `notify.${uiTarget}`;
 
-  const inner = (generator.statementToCode(block, 'MESSAGE_BLOCKS') || '').replace(/\s+$/, '');
-
-  if (!inner) { return ``; }
+  const innerRaw = generator.statementToCode(block, 'MESSAGE_BLOCKS') || '';
+  const inner = innerRaw.replace(/\s+$/, '');
+  if (!inner.trim()) return '';
 
   let code = `- action: ${svc}\n`;
   code += `  data:\n`;
-  code += inner;
-
+  code += generator.prefixLines(inner, '    ');
   return code;
 };
 
 // Action: message (컨테이너)
 yamlGenerator.forBlock['action_message'] = function (block, generator) {
   const parts = [];
+  const extraLines = [];
 
   let child = block.getInputTargetBlock('MESSAGE_BLOCKS');
   while (child) {
     switch (child.type) {
       case 'action_notify_message_text': {
         const t = (child.getFieldValue('TEXT') || '');
-        if (t!= "input message")
-          { parts.push(t); }
+        if (t != "input message") { parts.push(t); }
         break;
       }
       case 'action_notify_message_template': {
@@ -465,23 +530,121 @@ yamlGenerator.forBlock['action_message'] = function (block, generator) {
         if (expr) { parts.push(expr); }
         break;
       }
+      case 'action_notify_tag': {
+        // blockToCode 쓰면 scrub_ 때문에 next가 붙어 중복될 수 있어서
+        // forBlock 직접 호출
+        const fn = generator.forBlock['action_notify_tag'];
+        if (fn) {
+          const tagYaml = fn(child, generator);
+          if (tagYaml) extraLines.push(tagYaml);
+        }
+        break;
+      }
+
       default: break;
     }
 
     child = child.getNextBlock();
   }
+
   const msg = parts.join('');
-  if (!msg) { return ''; }
+  let out = '';
+  if (msg) out += `message: ${JSON.stringify(msg)}\n`;
+  for (const l of extraLines) out += l;
 
-  return `  message: ${JSON.stringify(msg)}\n`;
+  return out;
 };
 
-yamlGenerator.forBlock['action_notify_message_text'] = function (block, generator) {
-  return ''; 
+yamlGenerator.forBlock['action_notify_message_text'] = function () { return ''; };
+yamlGenerator.forBlock['action_notify_message_template'] = function () { return ''; };
+
+// Notify Tag Payload: data.data(...)
+yamlGenerator.forBlock['action_notify_tag'] = function (block, generator) {
+  const tagName = (block.getFieldValue('TAG_NAME') || '').trim();
+
+  // TAG_BLOCKS 체인에서 값 수집
+  let entityId = '';
+  const actions = [];
+  let currentAction = null;
+
+  let child = block.getInputTargetBlock('TAG_BLOCKS');
+  while (child) {
+    switch (child.type) {
+      case 'notify_tag': {
+        const eid = (child.getFieldValue('ENTITY_ID') || '').trim();
+        if (eid) entityId = eid; // overwrite
+        break;
+      }
+      case 'notify_action': {
+        const aid = (child.getFieldValue('ACTION_ID') || '').trim();
+        if (aid) {
+          currentAction = { action: aid };
+          actions.push(currentAction);
+        } else {
+          currentAction = null;
+        }
+        break;
+      }
+      case 'notify_prop_title': {
+        const t = (child.getFieldValue('TITLE') || '').trim();
+        if (t && currentAction) currentAction.title = t;
+        break;
+      }
+      case 'notify_prop_destructive': {
+        const v = (child.getFieldValue('DESTRUCTIVE') === 'true');
+        if (currentAction) currentAction.destructive = v;
+        break;
+      }
+      case 'notify_prop_activationMode': {
+        const m = (child.getFieldValue('MODE') || '').trim();
+        if (m && currentAction) currentAction.activationMode = m;
+        break;
+      }
+      default:
+        break;
+    }
+    child = child.getNextBlock();
+  }
+
+  // 아무 내용도 없으면 출력 X
+  const hasAny = (tagName || entityId || actions.length > 0);
+  if (!hasAny) return '';
+
+  // ⚠️ 여기서 반환하는 코드는 "notify의 data:" 바로 아래 들어갈 코드.
+  // statementToCode가 자동으로 들여쓰기 2칸을 더해줌.
+  let code = `data:\n`; // <= 여기! (data: 아래에 data: 하나 더)
+  if (tagName) code += `  tag: ${JSON.stringify(tagName)}\n`;
+  if (entityId) code += `  entity_id: ${entityId}\n`;
+
+  if (actions.length > 0) {
+    code += `  actions:\n`;
+    for (const a of actions) {
+      code += `    - action: ${JSON.stringify(a.action)}\n`;
+      if (a.title) code += `      title: ${JSON.stringify(a.title)}\n`;
+      if (typeof a.destructive === 'boolean') code += `      destructive: ${a.destructive ? 'true' : 'false'}\n`;
+      if (a.activationMode) code += `      activationMode: ${a.activationMode}\n`;
+    }
+  }
+
+  return code;
 };
 
-yamlGenerator.forBlock['action_notify_message_template'] = function (block, generator) {
-  return '';
+/* --- Props: button properties --- */
+yamlGenerator.forBlock['notify_prop_title'] = function (block) {
+  const title = (block.getFieldValue('TITLE') || '').trim();
+  if (!title) return '';
+  return `title: ${JSON.stringify(title)}\n`;
+};
+
+yamlGenerator.forBlock['notify_prop_destructive'] = function (block) {
+  const v = (block.getFieldValue('DESTRUCTIVE') === 'true') ? 'true' : 'false';
+  return `destructive: ${v}\n`;
+};
+
+yamlGenerator.forBlock['notify_prop_activationMode'] = function (block) {
+  const mode = (block.getFieldValue('MODE') || 'background').trim();
+  if (!mode) return '';
+  return `activationMode: ${mode}\n`;
 };
 
 // Action Group: action_group_entities
@@ -517,8 +680,6 @@ yamlGenerator.forBlock['action_group_entities'] = function (block) {
 
   return yaml;
 };
-
-
 
 // chain next blocks
 yamlGenerator.scrub_ = function (block, code, thisOnly) {

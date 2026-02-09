@@ -171,15 +171,15 @@ function normalizeFor(v) {
     const m = v.match(/^(\d{2}):(\d{2}):(\d{2})$/);
     if (m) return { hours: +m[1], minutes: +m[2], seconds: +m[3] };
     if (/^\d+$/.test(v)) {
-      const s = +v; return { hours: (s/3600)|0, minutes: ((s%3600)/60)|0, seconds: s%60 };
+      const s = +v; return { hours: (s / 3600) | 0, minutes: ((s % 3600) / 60) | 0, seconds: s % 60 };
     }
     return { hours: 0, minutes: 0, seconds: 0 };
   }
   if (typeof v === 'number') {
-    const s = v|0; return { hours: (s/3600)|0, minutes: ((s%3600)/60)|0, seconds: s%60 };
+    const s = v | 0; return { hours: (s / 3600) | 0, minutes: ((s % 3600) / 60) | 0, seconds: s % 60 };
   }
   if (typeof v === 'object' && v !== null)
-    return { hours: +(v.hours||0), minutes: +(v.minutes||0), seconds: +(v.seconds||0) };
+    return { hours: +(v.hours || 0), minutes: +(v.minutes || 0), seconds: +(v.seconds || 0) };
   return null;
 }
 
@@ -251,7 +251,7 @@ function normalizeSingleCondition(c) {
   // 이미 {or}/{and}/{not} 논리 노드면 재귀 정리
   if (Array.isArray(c.or) || Array.isArray(c.and) || Array.isArray(c.not)) {
     const out = { ...c };
-    if (out.or)  out.or  = toArray(out.or).map(normalizeSingleCondition);
+    if (out.or) out.or = toArray(out.or).map(normalizeSingleCondition);
     if (out.and) out.and = toArray(out.and).map(normalizeSingleCondition);
     if (out.not) out.not = toArray(out.not).map(normalizeSingleCondition);
     return out;
@@ -261,7 +261,7 @@ function normalizeSingleCondition(c) {
   if (c.condition === 'or' || c.condition === 'and' || c.condition === 'not') {
     const inner = toArray(c.conditions);
     const arr = inner.map(normalizeSingleCondition);
-    if (c.condition === 'or')  return { or: arr };
+    if (c.condition === 'or') return { or: arr };
     if (c.condition === 'and') return { and: arr };
     return { not: arr };
   }
@@ -309,7 +309,7 @@ function normalizeConditions(conds) {
 }
 
 /* ---------- 자동화 전체 정규화 ---------- */
-function normalizeAutomationObject(obj) {
+export function normalizeAutomationObject(obj) {
   const o = { ...obj };
 
   if (o.alias != null && typeof o.alias !== 'string') o.alias = String(o.alias);
@@ -319,43 +319,38 @@ function normalizeAutomationObject(obj) {
   o.triggers = o.triggers.map((t) => {
     const out = { ...t };
 
-    // 공통 보정
     if (out.for != null) out.for = normalizeFor(out.for);
     if (out.target) out.target = normalizeTarget(out.target);
 
-    // 루트 레벨 entity_id도 배열로 표준화 (state/numeric_state 등)
     if (out.entity_id != null) {
       out.entity_id = normalizeEntityList(out.entity_id);
     }
 
-    // sun 트리거 보정: 플랫폼 강제 + offset 정규화
     const plat = out.platform || out.trigger || out.type;
     if (plat === 'sun' || out.event === 'sunrise' || out.event === 'sunset') {
       out.platform = 'sun';
-      if (out.offset != null) out.offset = normalizeSunOffset(out.offset); // 0이면 null
+      if (out.offset != null) out.offset = normalizeSunOffset(out.offset);
     }
 
     return out;
   });
   delete o.trigger;
 
-    // conditions
-    o.conditions = normalizeConditions(o.conditions != null ? o.conditions : o.condition);
-    delete o.condition;
+  // conditions
+  o.conditions = normalizeConditions(o.conditions != null ? o.conditions : o.condition);
+  delete o.condition;
 
   // actions
   o.actions = toArray(o.actions != null ? o.actions : o.action);
   o.actions = o.actions.map(a => {
     const na = { ...a, for: normalizeFor(a?.for), target: normalizeTarget(a?.target) };
-
-    // 루트 레벨 entity_id도 표준화 (target 없이 오는 YAML 대응)
     if (na.entity_id != null) {
       na.entity_id = normalizeEntityList(na.entity_id);
     }
-
     return na;
   });
   delete o.action;
 
   return o;
 }
+

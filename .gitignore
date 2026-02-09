@@ -1,3 +1,7 @@
 node_modules/
 dist/
 .DS_Store
+.env
+product
+HA_smartblock/xhome_workspace/
+HA_smartblock/src/data/test_entities.json

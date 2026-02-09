@@ -7,7 +7,7 @@ export const toolbox = {
       "categorystyle": "rule_category",
       "contents": [
         { "kind": "block", "type": "event_action" },
-        { "kind": "block", "type": "event_condition_action" }
+        { "kind": "block", "type": "event_condition_action" },
       ]
     },
     {
@@ -18,11 +18,11 @@ export const toolbox = {
         { "kind": "label", "text": "Home Assistant" },
         { "kind": "block", "type": "ha_event_homeassistant" },
         { "kind": "label", "text": "State" },
-        { "kind": "block", "type": "ha_event_light_state" },
-        { "kind": "block", "type": "ha_event_binary_state" },
-        { "kind": "block", "type": "ha_event_switch_state" },
-        { "kind": "block", "type": "ha_event_lock_state" },
-        { "kind": "block", "type": "ha_event_numeric_state_sensor" },
+        { "kind": "block", "type": "event_light_state" },
+        { "kind": "block", "type": "event_binary_sensor_state" },
+        { "kind": "block", "type": "event_switch_state" },
+        { "kind": "block", "type": "event_lock_state" },
+        { "kind": "block", "type": "event_sensor_numeric_state" },
         { "kind": "label", "text": "Time" },
         { "kind": "block", "type": "ha_event_time_state" }, 
         { "kind": "block", "type": "ha_event_for_hms" },
@@ -48,6 +48,7 @@ export const toolbox = {
         { "kind": "block", "type": "condition_state_climate" },
         { "kind": "block", "type": "condition_state_input_boolean" },
         { "kind": "block", "type": "condition_state_cover" },
+        { "kind": "block", "type": "condition_state_sun" },
         { "kind": "label", "text": "Numeric State" },
         { "kind": "block", "type": "condition_numeric_state_entity" },
         { "kind": "block", "type": "condition_numeric_state_attribute" }
@@ -64,6 +65,13 @@ export const toolbox = {
         { "kind": "block", "type": "action_lock" },
         { "kind": "block", "type": "action_media_player" },
         { "kind": "block", "type": "action_cover" },
+        { "kind": "label", "text": "Group" },
+        { "kind": 'block', "type": 'action_group_entities' },
+        { "kind": 'block', "type": 'action_group_entity_item' },
+        { "kind": "label", "text": "Data" },
+        { "kind": "block", "type": "action_data_brightness_pct" },
+        { "kind": "block", "type": "action_data_transition" },
+        { "kind": "block", "type": "action_data_kv_text" },
         { "kind": "label", "text": "Delay" },
         { "kind": "block", "type": "action_delay" },
         { "kind": "label", "text": "Logic" },
@@ -74,9 +82,14 @@ export const toolbox = {
         { "kind": 'block', "type": 'action_message' },
         { "kind": 'block', "type": 'action_notify_message_text' },
         { "kind": 'block', "type": 'action_notify_message_template' }, 
-        { "kind": "label", "text": "Group" },
-        { "kind": 'block', "type": 'action_group_entities' },
-        { "kind": 'block', "type": 'action_group_entity_item' }
+        { "kind": "label", "text": "Notify Tag" },
+        { "kind": 'block', "type": 'action_notify_tag' }, 
+        { "kind": 'block', "type": 'notify_tag' }, 
+        { "kind": 'block', "type": 'notify_action' }, 
+        { "kind": 'block', "type": 'notify_prop_title' }, 
+        { "kind": 'block', "type": 'notify_prop_destructive' }, 
+        { "kind": 'block', "type": 'notify_prop_activationMode' }, 
+        
       ]
     }
   ]

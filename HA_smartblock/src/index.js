@@ -5,72 +5,76 @@
  */
 
 import * as Blockly from 'blockly';
-import {save, load} from './serialization';
+import { save, load } from './serialization';
 import { setupYamlExportButtons } from './export_code';
 import { setupYamlImportButton } from './import/import_button';
 import { yamlTextToInternalJson } from './import/yaml_import';
 import { renderAutomationToWorkspace } from './import/yamlToBlocks';
+import './blocks/extensions.js';
+
 
 import './index.css';
-import {yamlGenerator} from './generators/yaml';
+import { yamlGenerator } from './generators/yaml';
 
 //toolbox
-import {toolbox} from './toolbox';
+import { toolbox } from './toolbox';
 import { customTheme } from './utils/custom_theme.js';
 
 // blocks
-import {ruleBlocks} from './blocks/rule_blocks';
+import './blocks/extensions';
 
-import {haEventStateBlocks} from './blocks/event/event_HA_state'; 
-import {eventLightStateBlocks} from './blocks/event/event_light_state';
-import {eventBinarySensorStateBlocks} from './blocks/event/event_binary_sensor_state';
-import {eventSwitchStateBlocks} from './blocks/event/event_switch_state';
-import {eventLockStateBlocks} from './blocks/event/event_lock_state';
-import {eventNumericSensorBlocks} from './blocks/event/event_sensor_state';
-import {eventTimeStateBlocks} from './blocks/event/event_time_state';
-import {eventForBlocks} from './blocks/event/event_for';
-import {haEventSunBlocks} from './blocks/event/event_sun' ;
+import { ruleBlocks } from './blocks/rule_blocks';
+import { rawLinesBlocks } from './blocks/raw_lines';
+Blockly.common.defineBlocks(rawLinesBlocks);
+
+import { haEventStateBlocks } from './blocks/event/event_HA_state';
+import { eventEntityBlocks } from './blocks/event/event_entity.js';
+import { eventNumericSensorBlocks } from './blocks/event/event_sensor_state';
+import { eventTimeStateBlocks } from './blocks/event/event_time_state';
+import { eventForBlocks } from './blocks/event/event_for';
+import { haEventSunBlocks } from './blocks/event/event_sun';
 import { eventSunStateBlocks } from './blocks/event/event_sun_state';
 
-import {conditionLogicBlocks} from './blocks/condition/condition_logic';
-import {conditionStateBlocks} from './blocks/condition/condition_entity_state';
-import {conditionNumericStateEntityBlocks} from './blocks/condition/condition_numeric_state_entity';
-import {conditionNumericStateAttributeBlocks } from './blocks/condition/condition_numeric_state_attribute';
+import { conditionLogicBlocks } from './blocks/condition/condition_logic';
+import { conditionStateBlocks } from './blocks/condition/condition_entity_state';
+import { conditionNumericStateEntityBlocks } from './blocks/condition/condition_numeric_state_entity';
+import { conditionNumericStateAttributeBlocks } from './blocks/condition/condition_numeric_state_attribute';
 
-import {actionEntityBlocks} from './blocks/action/action_entity';
-import {actionDelayBlocks} from './blocks/action/action_delay';
-import {actionIfBlocks} from './blocks/action/action_if';
-import {actionNotifyBlocks} from './blocks/action/action_notify';
-import {actionGroupBlocks} from './blocks/action/action.group'; 
+import { actionEntityBlocks } from './blocks/action/action_entity';
+import { actionDelayBlocks } from './blocks/action/action_delay';
+import { actionIfBlocks } from './blocks/action/action_if';
+import { actionNotifyBlocks } from './blocks/action/action_notify';
+import { actionGroupBlocks } from './blocks/action/action.group';
+import { actionNotifyTagBlocks } from './blocks/action/action_notify_tag.js';
+import { actionDataBlocks } from './blocks/action/action_data.js';
 
 // Register the blocks and generator with Blockly
-Blockly.common.defineBlocks(ruleBlocks); 
+Blockly.common.defineBlocks(ruleBlocks);
 
 Blockly.common.defineBlocks(haEventStateBlocks);
-Blockly.common.defineBlocks(eventLightStateBlocks);
-Blockly.common.defineBlocks(eventBinarySensorStateBlocks); 
-Blockly.common.defineBlocks(eventSwitchStateBlocks);
-Blockly.common.defineBlocks(eventLockStateBlocks);
+Blockly.common.defineBlocks(eventEntityBlocks);
 Blockly.common.defineBlocks(eventNumericSensorBlocks);
 Blockly.common.defineBlocks(eventTimeStateBlocks);
 Blockly.common.defineBlocks(eventForBlocks);
 Blockly.common.defineBlocks(haEventSunBlocks);
-Blockly.common.defineBlocks(eventSunStateBlocks); 
+Blockly.common.defineBlocks(eventSunStateBlocks);
 
-Blockly.common.defineBlocks(conditionLogicBlocks); 
+Blockly.common.defineBlocks(conditionLogicBlocks);
 Blockly.common.defineBlocks(conditionStateBlocks);
 Blockly.common.defineBlocks(conditionNumericStateEntityBlocks);
 Blockly.common.defineBlocks(conditionNumericStateAttributeBlocks);
 
 Blockly.common.defineBlocks(actionEntityBlocks);
+Blockly.common.defineBlocks(actionDataBlocks);
 Blockly.common.defineBlocks(actionDelayBlocks);
-Blockly.common.defineBlocks(actionIfBlocks); 
+Blockly.common.defineBlocks(actionIfBlocks);
 Blockly.common.defineBlocks(actionNotifyBlocks);
-Blockly.common.defineBlocks(actionGroupBlocks); 
+Blockly.common.defineBlocks(actionGroupBlocks);
+Blockly.common.defineBlocks(actionNotifyTagBlocks);
 
 const codeDiv = document.getElementById('generatedCode');
 const blocklyDiv = document.getElementById('blocklyDiv');
-const ws = Blockly.inject(blocklyDiv, {toolbox, theme: customTheme,});
+const ws = Blockly.inject(blocklyDiv, { toolbox, theme: customTheme, });
 
 window.Blockly = Blockly;
 window.ws = ws;
@@ -95,33 +99,33 @@ document.addEventListener('yaml-imported', (e) => {
 
 
 const runCode = () => {
-    try {
-        const code = yamlGenerator.workspaceToCode(ws);
-        console.log('생성된 YAML 코드:', code);
-        codeDiv.innerText = code;
-    } catch (error) {
-        console.error('코드 생성 실패:', error);
-        codeDiv.innerText = '코드 생성 실패: ' + error.message;
-    }
+  try {
+    const code = yamlGenerator.workspaceToCode(ws);
+    console.log('생성된 YAML 코드:', code);
+    codeDiv.innerText = code;
+  } catch (error) {
+    console.error('코드 생성 실패:', error);
+    codeDiv.innerText = '코드 생성 실패: ' + error.message;
+  }
 };
 
 load(ws);
 runCode();
 
 ws.addChangeListener((e) => {
-    if (e.isUiEvent) return;
-    save(ws);
+  if (e.isUiEvent) return;
+  save(ws);
 });
 
 ws.addChangeListener((e) => {
-    if (
-        e.isUiEvent ||
-        e.type == Blockly.Events.FINISHED_LOADING ||
-        ws.isDragging()
-    ) {
-        return;
-    }
-    runCode();
+  if (
+    e.isUiEvent ||
+    e.type == Blockly.Events.FINISHED_LOADING ||
+    ws.isDragging()
+  ) {
+    return;
+  }
+  runCode();
 });
 
 function ensureImportDebugPanel() {
@@ -150,7 +154,6 @@ function ensureImportDebugPanel() {
     panel.appendChild(sum);
     panel.appendChild(pre);
 
-    // YAML 미리보기(#generatedCode) 위에 디버그 패널을 배치
     host.parentNode.insertBefore(panel, host);
   }
   return document.getElementById('importDebugPre');
@@ -165,3 +168,17 @@ function showImportDebugJson(obj) {
     pre.textContent = String(obj);
   }
 }
+
+import { pullAutomationIndexWithEditability } from './homeassistant/pull_automation';
+
+(async () => {
+  const r = await pullAutomationIndexWithEditability({ concurrency: 3 });
+
+  console.log('ALL=', r.all);
+  console.log('editable count=', r.all.filter(x => x.editable).length);
+})();
+
+import { setupHaPullPanel } from './homeassistant/ha_pull_panel';
+
+// ... ws 생성 코드 아래에:
+setupHaPullPanel({ ws });
