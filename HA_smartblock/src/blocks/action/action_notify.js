@@ -9,6 +9,7 @@ export const actionNotifyBlocks = Blockly.common.createBlockDefinitionsFromJsonA
     args0: [ { type: 'field_dropdown', name: 'TARGET', options: getNotifyTargetOptions }, ],
     message1: '%1',
     args1: [ { type: 'input_statement', name: 'MESSAGE_BLOCKS', check: 'HA_NOTIFY' }, ],
+    //message2: 'tag %1',  args2: [ { type: 'input_statement', name: 'TAG_BLOCKS', check: 'HA_NOTIFY_TAG' },  ],
     previousStatement: 'HA_ACTION',
     nextStatement: 'HA_ACTION',
     colour: '#E3CC57',

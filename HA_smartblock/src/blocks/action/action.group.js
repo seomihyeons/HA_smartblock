@@ -58,7 +58,7 @@ export const actionGroupBlocks =
       ],
       message1: '%1',
       args1: [
-        { type: 'input_statement', name: 'ENTITIES', check: 'HA_ENTITY_ITEM' },
+        { type: 'input_statement', name: 'ENTITIES', check: 'HA_ACTION' },
       ],
       previousStatement: 'HA_ACTION',
       nextStatement: 'HA_ACTION',
@@ -73,8 +73,8 @@ export const actionGroupBlocks =
       args0: [
         { type: 'field_dropdown', name: 'ENTITY_ID', options: getGroupEntityOptions },
       ],
-      previousStatement: 'HA_ENTITY_ITEM',
-      nextStatement: 'HA_ENTITY_ITEM',
+      previousStatement: 'HA_ACTION',
+      nextStatement: 'HA_ACTION',
       colour: '#E3CC57',
       tooltip: '그룹 액션이 적용될 엔티티를 선택합니다.',
       helpUrl: '',

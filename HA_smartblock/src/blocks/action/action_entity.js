@@ -23,5 +23,6 @@ export const actionEntityBlocks =
       colour: '#E3CC57',
       tooltip: `${domain} 엔티티에 대한 액션을 실행합니다.`,
       helpUrl: '',
+      mutator: 'ha_action_optional_data',
     }))
   );
