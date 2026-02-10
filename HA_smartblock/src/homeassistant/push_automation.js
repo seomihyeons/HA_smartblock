@@ -1,9 +1,6 @@
 // src/push_automation.js
 import YAML from 'js-yaml';
 
-//export const HA_BASE_URL = 'http://192.168.0.129:8123';
-//export const HA_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiIyMzUxZWUxNDVhMzU0NWRhYmUxMmRhMDk3YjhhNjJhOSIsImlhdCI6MTc2OTM2ODA2MSwiZXhwIjoyMDg0NzI4MDYxfQ.rLfVAuwFV3f856kdG9HDGfhOZpSRy3iEss7BdXIEIio';
-
 export const HA_BASE_URL = __HA_BASE_URL__;
 export const HA_TOKEN = __HA_TOKEN__;
 
