@@ -12,17 +12,14 @@ import { yamlTextToInternalJson } from './import/yaml_import';
 import { renderAutomationToWorkspace } from './import/yamlToBlocks';
 import './blocks/extensions.js';
 
-//comflict_analyzer
 import { initConflictAnalyzerUI } from "./homeassistant/conflict_analyzer/debug_ui";
 
 import './index.css';
 import { yamlGenerator } from './generators/yaml';
 
-//toolbox
 import { toolbox } from './toolbox';
 import { customTheme } from './utils/custom_theme.js';
 
-// blocks
 import './blocks/extensions';
 
 import { ruleBlocks } from './blocks/rule_blocks';
@@ -50,7 +47,6 @@ import { actionGroupBlocks } from './blocks/action/action.group';
 import { actionNotifyTagBlocks } from './blocks/action/action_notify_tag.js';
 import { actionDataBlocks } from './blocks/action/action_data.js';
 
-// Register the blocks and generator with Blockly
 Blockly.common.defineBlocks(ruleBlocks);
 
 Blockly.common.defineBlocks(haEventStateBlocks);
@@ -131,7 +127,7 @@ ws.addChangeListener((e) => {
 });
 
 function ensureImportDebugPanel() {
-  const host = document.getElementById('generatedCode'); // YAML 미리보기 pre
+  const host = document.getElementById('generatedCode');
   if (!host) return null;
 
   let panel = document.getElementById('importDebugPanel');
@@ -182,7 +178,6 @@ import { pullAutomationIndexWithEditability } from './homeassistant/pull_automat
 
 import { setupHaPullPanel } from './homeassistant/ha_pull_panel';
 
-// ... ws 생성 코드 아래에:
 setupHaPullPanel({ ws });
 
 

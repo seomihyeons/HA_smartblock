@@ -1,4 +1,3 @@
-// src/homeassistant/conflict_analyzer/debug_modal.js
 import { runConflictAnalyzerYamlOnly } from "./run_conflict_analyzer_yaml";
 
 function qs(id) { return document.getElementById(id); }
@@ -38,12 +37,10 @@ export function initConflictAnalyzerModal() {
         setText("");
         append("[1/4] Pulling automations from Home Assistant...\n");
 
-        // 1) 최신 snapshot: automation들 가져와서 YAML로 합치기
         const { yamlText, meta } = await runConflictAnalyzerYamlOnly();
         append(`[2/4] Selected automations: ${meta.count} (enabledOnly=${meta.onlyEnabled})\n`);
         append("[3/4] Sending to analyzer server...\n");
 
-        // 2) 분석 job 시작
         const startRes = await fetch("/analyze/start", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -53,7 +50,6 @@ export function initConflictAnalyzerModal() {
 
         append("[4/4] Running Python analyzer...\n\n");
 
-        // 3) SSE로 로그 스트림 수신
         const es = new EventSource(`/analyze/stream/${encodeURIComponent(jobId)}`);
 
         es.addEventListener("log", (ev) => {

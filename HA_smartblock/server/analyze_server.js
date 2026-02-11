@@ -1,4 +1,3 @@
-// HA_smartblock/server/analyze_server.js
 import express from "express";
 import { spawn } from "child_process";
 import path from "path";
@@ -28,7 +27,7 @@ function buildHaBaseUrl() {
 }
 
 app.post("/analyze", (req, res) => {
-    const mode = req.body?.mode || "yaml"; // "ha" or "yaml"
+    const mode = req.body?.mode || "yaml";
 
     const haBase = buildHaBaseUrl();
     const haToken = process.env.HA_TOKEN || "";

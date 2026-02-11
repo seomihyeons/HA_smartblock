@@ -8,11 +8,6 @@ function appendLine(el, line) {
     el.textContent = cur + (cur.endsWith("\n") || cur.length === 0 ? "" : "\n") + line;
 }
 
-/**
- * Convert analyzer JSON output into a human-friendly message.
- * - Keeps summary numbers
- * - If there are issues, prints them in a readable way
- */
 function formatReport(report) {
     if (!report) return "No report.";
 
@@ -26,7 +21,6 @@ function formatReport(report) {
     txt += `Actions: ${s.actions ?? 0}\n`;
     txt += `Rule edges: ${s.edges ?? 0}\n\n`;
 
-    // inconsistency_issues is the key your analyzer currently returns in summary
     const incCount = s.inconsistency_issues ?? issues.length ?? 0;
 
     if (!issues.length && incCount === 0) {
@@ -38,7 +32,6 @@ function formatReport(report) {
     txt += `⚠ Detected ${incCount} inconsistency issue(s)\n\n`;
 
     if (!issues.length) {
-        // Sometimes summary says there are issues but list is empty (edge case)
         txt += "(No detailed issue list provided by analyzer.)";
         return txt;
     }
@@ -53,7 +46,6 @@ function formatReport(report) {
         txt += "\n";
     });
 
-    // Short explanation for the common inconsistency case
     txt += "Explanation: Two rules triggered by the same event produce conflicting actions.";
     return txt;
 }
