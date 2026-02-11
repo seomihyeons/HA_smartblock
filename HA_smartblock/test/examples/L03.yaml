@@ -1,0 +1,14 @@
+- alias: 'L03 Window Open & Daily Power > 1.0 → Notify'
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.window_office_contact
+      from: 'off'
+      to: 'on'
+  conditions:
+    - condition: numeric_state
+      entity_id: sensor.power_consumption_today
+      above: 1
+  actions:
+    - action: notify.line
+      data:
+        message: "Window open while high daily power usage"

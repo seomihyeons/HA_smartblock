@@ -1,17 +1,11 @@
-// src/push_automation.js
 import YAML from 'js-yaml';
 
-export const HA_BASE_URL = __HA_BASE_URL__;
-export const HA_TOKEN = __HA_TOKEN__;
-
-// YAML의 plural 키를 HA 스타일로 맞춤 (네가 쓰는 YAML 포맷에 맞춰 둠)
 const KEY_NORMALIZE = {
     triggers: 'trigger',
     conditions: 'condition',
     actions: 'action',
 };
 
-// 단일/배열 통일
 const arrify = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
 
 function normalizeAutomationPayload(obj) {
@@ -19,7 +13,6 @@ function normalizeAutomationPayload(obj) {
 
     const out = { ...obj };
 
-    // triggers/conditions/actions -> trigger/condition/action
     for (const [from, to] of Object.entries(KEY_NORMALIZE)) {
         if (out[from] != null && out[to] == null) {
             out[to] = out[from];
@@ -27,7 +20,6 @@ function normalizeAutomationPayload(obj) {
         }
     }
 
-    // trigger/condition/action을 배열로 통일
     if ('trigger' in out) out.trigger = arrify(out.trigger);
     if ('condition' in out) out.condition = arrify(out.condition);
     if ('action' in out) out.action = arrify(out.action);
@@ -38,9 +30,29 @@ function normalizeAutomationPayload(obj) {
 }
 
 function parseYamlToSingleAutomation(yamlText) {
-    const loaded = YAML.load(yamlText);
+    const loaded = YAML.load(yamlText, {
+        schema: YAML.SAFE_SCHEMA,
+        json: true,
+    });
 
-    // "- alias: ..." 형태면 리스트로 파싱될 수 있음
+    if (loaded && typeof loaded === 'object') {
+        const hasForbiddenKey = (obj) => {
+            if (!obj || typeof obj !== 'object') return false;
+            if (Array.isArray(obj)) {
+                return obj.some(hasForbiddenKey);
+            }
+            const keys = Object.keys(obj);
+            for (const k of keys) {
+                if (k === '__proto__' || k === 'constructor' || k === 'prototype') return true;
+                if (hasForbiddenKey(obj[k])) return true;
+            }
+            return false;
+        };
+        if (hasForbiddenKey(loaded)) {
+            throw new Error('Malicious YAML detected: forbidden property names');
+        }
+    }
+
     if (Array.isArray(loaded)) {
         if (loaded.length !== 1) {
             throw new Error(`자동화가 ${loaded.length}개로 파싱됨. (지금은 1개만 푸시 지원)`);
@@ -61,7 +73,6 @@ function genId(prefix = 'sb_') {
 
 export async function pushYamlToHomeAssistant(yamlText, { id } = {}) {
     if (!yamlText || !yamlText.trim()) throw new Error('YAML이 비어있습니다.');
-    if (!HA_BASE_URL || !HA_TOKEN) throw new Error('HA_BASE_URL/HA_TOKEN이 설정되지 않았습니다.');
 
     const raw = parseYamlToSingleAutomation(yamlText);
     const payload = normalizeAutomationPayload(raw);
@@ -69,16 +80,15 @@ export async function pushYamlToHomeAssistant(yamlText, { id } = {}) {
     payload.id = payload.id || id || genId();
     payload.alias = payload.alias || 'SmartBlock Automation';
 
-    // UI(스토리지) 자동화 config 엔드포인트(커뮤니티에서 이 경로를 언급)
-    const url = `${HA_BASE_URL.replace(/\/$/, '')}/api/config/automation/config/${encodeURIComponent(payload.id)}`;
+    const url = `/ha/api/config/automation/config/${encodeURIComponent(payload.id)}`;
 
     const res = await fetch(url, {
         method: 'POST',
         headers: {
-            Authorization: `Bearer ${HA_TOKEN}`,
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
+        credentials: 'include',
     });
 
     const text = await res.text();

@@ -1,0 +1,11 @@
+- alias: 'L02 Front Door Open 1m → Notify'
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.front_door_contact
+      from: 'off'
+      to: 'on'
+      for: "00:01:00"
+  actions:
+    - action: notify.mobile_app_galaxy_s24
+      data:
+        message: "Front door left open for 1 minute"

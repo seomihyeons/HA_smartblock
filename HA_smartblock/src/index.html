@@ -1,21 +1,50 @@
-
 <!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <title>Home Assistant Automation Builder</title>
-    <link rel="stylesheet" href="./index.css" />
-  </head>
-  <body>
-    <div id="pageContainer">
-      <div id="outputPane">
-        <div id="titleRow">
-          <h2>YAML</h2><span>for home assistant automation</span>
-        </div>
-        <pre id="generatedCode"><code></code></pre>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Home Assistant Automation Builder</title>
+  <link rel="stylesheet" href="./index.css" />
+</head>
+
+<body>
+  <div id="pageContainer">
+    <div id="outputPane">
+      <div id="titleRow">
+        <h2>YAML</h2><span>for home assistant automation</span>
       </div>
-      <div id="blocklyDiv"></div>
+      <pre id="generatedCode"><code></code></pre>
     </div>
-    <script src="./index.js"></script>
-  </body>
+
+    <div id="blocklyDiv"></div>
+  </div>
+
+  <!-- Debug floating button (kept outside blocklyDiv) -->
+  <button id="btnDebug" class="floating-btn" type="button" title="Debug / Analyze" aria-label="Debug / Analyze">
+    🛠
+  </button>
+
+  <!-- Debug modal -->
+  <div id="debugModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="debugModalTitle">
+    <div id="debugModalBackdrop" class="modal-backdrop" aria-hidden="true"></div>
+
+    <div class="modal-panel">
+      <div class="modal-header">
+        <div class="modal-title" id="debugModalTitle">Conflict Analyzer (E-A)</div>
+        <div class="modal-actions">
+          <button id="debugRun" type="button">Run</button>
+          <button id="debugCopy" type="button">Copy</button>
+          <button id="debugModalClose" type="button" aria-label="Close">×</button>
+        </div>
+      </div>
+
+      <pre id="debugOutput" class="modal-output">(no output)</pre>
+    </div>
+  </div>
+
+  <!-- script is last -->
+  <script src="./index.js"></script>
+</body>
+
 </html>

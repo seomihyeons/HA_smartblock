@@ -1,0 +1,18 @@
+- alias: 'L05 Locked & All Lights Off → Secured Notify'
+  triggers:
+    - trigger: state
+      entity_id: lock.front_door_lock
+      from: 'unlocked'
+      to: 'locked'
+  conditions:
+    - and:
+      - condition: state
+        entity_id: light.living_room_light
+        state: 'off'
+      - condition: state
+        entity_id: light.kitchen_light
+        state: 'off'
+  actions:
+    - action: notify.mobile_app_iphone_seunghak
+      data:
+        message: "House secured: lights off, door locked"

@@ -1,8 +1,8 @@
 import json
 from dotenv import load_dotenv
 import os
-import ssl
 import websocket
+from urllib.parse import urlparse
 
 # =========================
 # CONFIG
@@ -10,15 +10,27 @@ import websocket
 
 load_dotenv()
 
-HA_IP = os.getenv("HA_IP")
-HA_PORT = int(os.getenv("HA_PORT", "8123"))
+HA_BASE_URL = os.getenv("HA_BASE_URL")  # 예: http://100.78.25.15:8123
 ACCESS_TOKEN = os.getenv("HA_TOKEN")
 
-if not HA_IP or not ACCESS_TOKEN:
-    raise RuntimeError("HA_IP 또는 HA_TOKEN이 .env에 설정되지 않았습니다.")
+if not HA_BASE_URL or not ACCESS_TOKEN:
+    raise RuntimeError("HA_BASE_URL 또는 HA_TOKEN이 .env에 설정되지 않았습니다.")
 
 OUT_FILE = os.path.join(os.path.dirname(__file__), "test_entities.json")
 REQ_ID = 1
+
+def to_ws_url(base_url: str) -> str:
+    """
+    http(s)://host:port -> ws(s)://host:port/api/websocket
+    """
+    p = urlparse(base_url)
+
+    if p.scheme not in ("http", "https"):
+        raise ValueError(f"HA_BASE_URL scheme must be http or https: {base_url}")
+
+    ws_scheme = "wss" if p.scheme == "https" else "ws"
+    netloc = p.netloc  # host:port 포함
+    return f"{ws_scheme}://{netloc}/api/websocket"
 
 # =========================
 # WebSocket handlers
@@ -69,7 +81,7 @@ def on_close(ws, code, msg):
 # Main
 # =========================
 if __name__ == "__main__":
-    url = f"ws://{HA_IP}:{HA_PORT}/api/websocket"
+    url = to_ws_url(HA_BASE_URL)
     print("➡️ connecting:", url)
 
     ws = websocket.WebSocketApp(
