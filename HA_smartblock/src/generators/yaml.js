@@ -115,7 +115,7 @@ yamlGenerator.forBlock['ha_event_homeassistant'] = function (block) {
 
 
 /* ===== Events (compact) ===== */
-import { STATE_DOMAINS } from '../data/options.js';
+import { STATE_DOMAINS, ACTION_DOMAINS } from '../data/options.js';
 
 /* ===== Events (unified, compact) ===== */
 
@@ -291,19 +291,7 @@ yamlGenerator.forBlock['condition_logic'] = function (block) {
 };
 
 // Condition: entity state
-const CONDITION_STATE_DOMAINS = [
-  'light',
-  'switch',
-  'lock',
-  'media_player',
-  'binary_sensor',
-  'climate',
-  'input_boolean',
-  'cover',
-  'sun'
-];
-
-for (const domain of CONDITION_STATE_DOMAINS) {
+for (const domain of (STATE_DOMAINS || [])) {
   yamlGenerator.forBlock[`condition_state_${domain}`] = function (block) {
     const entityId = block.getFieldValue('ENTITY_ID') || '';
     const state    = block.getFieldValue('STATE') || '';
@@ -378,9 +366,7 @@ yamlGenerator.forBlock['action_delay'] = function (block) {
 };
 
 // Action: entity
-const ACTION_DOMAINS = ['light', 'switch', 'lock', 'media_player', 'climate', 'cover'];
-
-for (const domain of ACTION_DOMAINS) {
+for (const domain of (ACTION_DOMAINS || [])) {
   yamlGenerator.forBlock[`action_${domain}`] = function (block, generator) {
     const entityId = block.getFieldValue('ENTITY_ID') || '';
     const action = block.getFieldValue('ACTION') || '';

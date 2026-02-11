@@ -99,12 +99,219 @@ export const DOMAIN_SPEC = {
     ],
   },
 
+  fan: {
+    actions: [
+      ['on', 'turn_on'],
+      ['off', 'turn_off'],
+    ],
+    states: [
+      ['on', 'on'],
+      ['off', 'off'],
+    ],
+  },
+
+  camera: {
+    states: [
+      ['idle', 'idle'],
+      ['recording', 'recording'],
+      ['streaming', 'streaming'],
+      ['off', 'off'],
+    ],
+  },
+
+  sensor: {
+    states: [
+      ['(any)', ''],
+      ['unknown', 'unknown'],
+      ['unavailable', 'unavailable'],
+    ],
+  },
+
+  person: {
+    states: [
+      ['home', 'home'],
+      ['not_home', 'not_home'],
+    ],
+  },
+
   input_boolean: {
     states: [
       ['on', 'on'],
       ['off', 'off'],
     ],
   },
+
+  input_number: {
+    actions: [
+      ['set value', 'set_value'],
+    ],
+    states: [
+      ['(any)', ''],
+      ['unknown', 'unknown'],
+      ['unavailable', 'unavailable'],
+    ],
+  },
+
+  input_select: {
+    actions: [
+      ['select option', 'select_option'],
+      ['next', 'select_next'],
+      ['previous', 'select_previous'],
+    ],
+    states: [
+      ['(any)', ''],
+      ['unknown', 'unknown'],
+      ['unavailable', 'unavailable'],
+    ],
+  },
+
+  input_text: {
+    actions: [
+      ['set value', 'set_value'],
+    ],
+    states: [
+      ['(any)', ''],
+      ['unknown', 'unknown'],
+      ['unavailable', 'unavailable'],
+    ],
+  },
+
+  automation: {
+    actions: [
+      ['turn on', 'turn_on'],
+      ['turn off', 'turn_off'],
+      ['trigger', 'trigger'],
+    ],
+    states: [
+      ['on', 'on'],
+      ['off', 'off'],
+    ],
+  },
+
+  alarm_control_panel: {
+    actions: [
+      ['arm home', 'alarm_arm_home'],
+      ['arm away', 'alarm_arm_away'],
+      ['arm night', 'alarm_arm_night'],
+      ['arm vacation', 'alarm_arm_vacation'],
+      ['disarm', 'alarm_disarm'],
+      ['trigger', 'alarm_trigger'],
+    ],
+    states: [
+      ['disarmed', 'disarmed'],
+      ['armed home', 'armed_home'],
+      ['armed away', 'armed_away'],
+      ['armed night', 'armed_night'],
+      ['armed vacation', 'armed_vacation'],
+      ['pending', 'pending'],
+      ['arming', 'arming'],
+      ['triggered', 'triggered'],
+    ],
+  },
+
+  button: {
+    actions: [
+      ['press', 'press'],
+    ],
+    states: [
+      ['(any)', ''],
+      ['unknown', 'unknown'],
+      ['unavailable', 'unavailable'],
+    ],
+  },
+
+  calendar: {
+    states: [
+      ['on', 'on'],
+      ['off', 'off'],
+    ],
+  },
+
+  event: {
+    states: [
+      ['(any)', ''],
+      ['unknown', 'unknown'],
+      ['unavailable', 'unavailable'],
+    ],
+  },
+
+  group: {
+    actions: [
+      ['turn on', 'turn_on'],
+      ['turn off', 'turn_off'],
+    ],
+    states: [
+      ['on', 'on'],
+      ['off', 'off'],
+    ],
+  },
+
+  humidifier: {
+    actions: [
+      ['on', 'turn_on'],
+      ['off', 'turn_off'],
+      ['set humidity', 'set_humidity'],
+      ['set mode', 'set_mode'],
+    ],
+    states: [
+      ['on', 'on'],
+      ['off', 'off'],
+    ],
+  },
+
+  persistent_notification: {
+    actions: [
+      ['dismiss', 'dismiss'],
+    ],
+    states: [
+      ['(any)', ''],
+      ['unknown', 'unknown'],
+      ['unavailable', 'unavailable'],
+    ],
+  },
+
+  select: {
+    actions: [
+      ['select option', 'select_option'],
+      ['next', 'select_next'],
+      ['previous', 'select_previous'],
+    ],
+    states: [
+      ['(any)', ''],
+      ['unknown', 'unknown'],
+      ['unavailable', 'unavailable'],
+    ],
+  },
+
+  vacuum: {
+    actions: [
+      ['start', 'start'],
+      ['pause', 'pause'],
+      ['stop', 'stop'],
+      ['return to base', 'return_to_base'],
+      ['clean spot', 'clean_spot'],
+    ],
+    states: [
+      ['docked', 'docked'],
+      ['cleaning', 'cleaning'],
+      ['paused', 'paused'],
+      ['idle', 'idle'],
+      ['returning', 'returning'],
+      ['error', 'error'],
+    ],
+  },
+
+  valve: {
+    actions: [
+      ['open', 'open'],
+      ['close', 'close'],
+    ],
+    states: [
+      ['open', 'open'],
+      ['closed', 'closed'],
+    ],
+  },
+
   sun: {
     states: [
       ['above horizon', 'above_horizon'],
@@ -254,6 +461,8 @@ export const NOTIFY_TEMPLATE_KINDS = [
 export const GROUP_ACTION_DOMAINS = [
   ['cover', 'cover'],
   ['light', 'light'],
+  ['switch', 'switch'],
+  ['fan', 'fan'],
 ];
 
 export const GROUP_DOMAIN_TO_SERVICE_OPTIONS = {
@@ -263,6 +472,14 @@ export const GROUP_DOMAIN_TO_SERVICE_OPTIONS = {
     ['stop', 'stop_cover'],
   ],
   light: [
+    ['on', 'turn_on'],
+    ['off', 'turn_off'],
+  ],
+  switch: [
+    ['on', 'turn_on'],
+    ['off', 'turn_off'],
+  ],
+  fan: [
     ['on', 'turn_on'],
     ['off', 'turn_off'],
   ],
