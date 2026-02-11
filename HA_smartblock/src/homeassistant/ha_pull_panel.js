@@ -136,7 +136,7 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
         let selectedId = '';
 
         function renderList() {
-            listBox.innerHTML = '';
+            listBox.textContent = '';
 
             if (!cache.length) {
                 const empty = el('div', { innerText: '(no automations)' });

@@ -1,9 +1,6 @@
 // src/push_automation.js
 import YAML from 'js-yaml';
 
-export const HA_BASE_URL = __HA_BASE_URL__;
-export const HA_TOKEN = __HA_TOKEN__;
-
 // YAML의 plural 키를 HA 스타일로 맞춤 (네가 쓰는 YAML 포맷에 맞춰 둠)
 const KEY_NORMALIZE = {
     triggers: 'trigger',
@@ -38,7 +35,16 @@ function normalizeAutomationPayload(obj) {
 }
 
 function parseYamlToSingleAutomation(yamlText) {
-    const loaded = YAML.load(yamlText);
+    const loaded = YAML.load(yamlText, {
+        schema: YAML.SAFE_SCHEMA,
+        json: true,
+    });
+
+    if (loaded && typeof loaded === 'object') {
+        if ('__proto__' in loaded || 'constructor' in loaded || 'prototype' in loaded) {
+            throw new Error('Malicious YAML detected: forbidden property names');
+        }
+    }
 
     // "- alias: ..." 형태면 리스트로 파싱될 수 있음
     if (Array.isArray(loaded)) {
@@ -61,7 +67,6 @@ function genId(prefix = 'sb_') {
 
 export async function pushYamlToHomeAssistant(yamlText, { id } = {}) {
     if (!yamlText || !yamlText.trim()) throw new Error('YAML이 비어있습니다.');
-    if (!HA_BASE_URL || !HA_TOKEN) throw new Error('HA_BASE_URL/HA_TOKEN이 설정되지 않았습니다.');
 
     const raw = parseYamlToSingleAutomation(yamlText);
     const payload = normalizeAutomationPayload(raw);
@@ -70,15 +75,15 @@ export async function pushYamlToHomeAssistant(yamlText, { id } = {}) {
     payload.alias = payload.alias || 'SmartBlock Automation';
 
     // UI(스토리지) 자동화 config 엔드포인트(커뮤니티에서 이 경로를 언급)
-    const url = `${HA_BASE_URL.replace(/\/$/, '')}/api/config/automation/config/${encodeURIComponent(payload.id)}`;
+    const url = `/ha/api/config/automation/config/${encodeURIComponent(payload.id)}`;
 
     const res = await fetch(url, {
         method: 'POST',
         headers: {
-            Authorization: `Bearer ${HA_TOKEN}`,
             'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
+        credentials: 'include',
     });
 
     const text = await res.text();

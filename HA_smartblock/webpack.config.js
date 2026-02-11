@@ -1,6 +1,5 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const webpack = require('webpack');
 const dotenv = require('dotenv');
 
 dotenv.config();
@@ -19,15 +18,6 @@ const config = {
   // Enable webpack-dev-server to get hot refresh of the app.
   devServer: {
     static: './build',
-    proxy: {
-      '/ha': {
-        target: process.env.HA_BASE_URL,   // http://192.168.0.129:8123
-        changeOrigin: true,
-        secure: false,
-        ws: true,
-        pathRewrite: { '^/ha': '' },
-      },
-    },
   },
   module: {
     rules: [
@@ -44,10 +34,6 @@ const config = {
     // created above added in a script tag.
     new HtmlWebpackPlugin({
       template: 'src/index.html',
-    }),
-    new webpack.DefinePlugin({
-      __HA_BASE_URL__: JSON.stringify(process.env.HA_BASE_URL),
-      __HA_TOKEN__: JSON.stringify(process.env.HA_TOKEN),
     }),
   ],
 };
@@ -76,6 +62,12 @@ module.exports = (env, argv) => {
           secure: false,
           ws: true,
           pathRewrite: { '^/ha': '' },
+          onProxyReq: (proxyReq) => {
+            const token = process.env.HA_TOKEN;
+            if (token) {
+              proxyReq.setHeader('Authorization', `Bearer ${token}`);
+            }
+          },
         },
 
         '/analyze': {

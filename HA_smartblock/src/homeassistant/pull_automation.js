@@ -1,13 +1,10 @@
 // src/homeassistant/pull_automation.js
 
-const TOKEN = (typeof __HA_TOKEN__ !== 'undefined' && __HA_TOKEN__) ? __HA_TOKEN__ : '';
 const API_BASE = '/ha/api';
 
 async function haFetch(path) {
-    if (!TOKEN) throw new Error('Missing __HA_TOKEN__');
-
     const res = await fetch(`${API_BASE}${path}`, {
-        headers: { Authorization: `Bearer ${TOKEN}` },
+        credentials: 'include',
     });
 
     if (!res.ok) {
