@@ -65,11 +65,12 @@ yamlGenerator.forBlock['ha_action_raw_lines'] = function (block) {
 yamlGenerator.forBlock['event_action'] = function (block, generator) {
   const alias = block.getFieldValue('ALIAS') || '';
   const id = block.getFieldValue('ID') || '';
+  const escapeSq = (s) => String(s).replace(/'/g, "''");
   const eventCode = generator.statementToCode(block, 'EVENT');
   const actionCode = generator.statementToCode(block, 'ACTION');
 
-  let code = `- alias: '${alias}'\n`;
-  if (id && id != "(Optional)") { code += `  id: '${id}'\n`; }
+  let code = `- alias: '${escapeSq(alias)}'\n`;
+  if (id && id != "(Optional)") { code += `  id: '${escapeSq(id)}'\n`; }
 
   code += `\n  triggers:\n`; code += generator.prefixLines(eventCode, `  `);
   code += `\n  actions:\n`; code += generator.prefixLines(actionCode, `  `);
@@ -81,12 +82,13 @@ yamlGenerator.forBlock['event_action'] = function (block, generator) {
 yamlGenerator.forBlock['event_condition_action'] = function (block, generator) {
   const alias = block.getFieldValue('ALIAS') || '';
   const id = block.getFieldValue('ID') || '';
+  const escapeSq = (s) => String(s).replace(/'/g, "''");
   const eventCode = generator.statementToCode(block, 'EVENT');
   const conditionCode = generator.statementToCode(block, 'CONDITION');
   const actionCode = generator.statementToCode(block, 'ACTION');
 
-  let code = `- alias: '${alias}'\n`;
-  if (id && id != "(Optional)") { code += `  id: '${id}'\n`; }
+  let code = `- alias: '${escapeSq(alias)}'\n`;
+  if (id && id != "(Optional)") { code += `  id: '${escapeSq(id)}'\n`; }
 
   code += `\n  triggers:\n`; code += generator.prefixLines(eventCode, `  `);
   if (conditionCode && conditionCode.trim()) {
@@ -295,15 +297,16 @@ for (const domain of (STATE_DOMAINS || [])) {
   yamlGenerator.forBlock[`condition_state_${domain}`] = function (block) {
     const entityId = block.getFieldValue('ENTITY_ID') || '';
     const state    = block.getFieldValue('STATE') || '';
-    if (!entityId || !state) return '';
+    if (!entityId) return '';
 
     const i = yamlGenerator.INDENT;
-    return [
+    const lines = [
       `- condition: state`,
       `${i}entity_id: ${entityId}`,
-      `${i}state: '${String(state)}'`,
-      ''
-    ].join('\n');
+    ];
+    if (state) lines.push(`${i}state: '${String(state)}'`);
+    lines.push('');
+    return lines.join('\n');
   };
 }
 
@@ -664,7 +667,7 @@ yamlGenerator.forBlock['action_group_entities'] = function (block) {
     yaml += `      - ${eid}\n`;
   }
 
-  return yaml;
+  return yaml + '\n';
 };
 
 // chain next blocks
