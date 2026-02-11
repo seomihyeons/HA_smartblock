@@ -1,0 +1,11 @@
+- alias: 'L12 Unlock 30s → TV Power On'
+  triggers:
+    - trigger: state
+      entity_id: lock.front_door_lock
+      from: 'locked'
+      to: 'unlocked'
+      for: "00:00:30"
+  actions:
+    - action: switch.turn_on
+      target:
+        entity_id: switch.tv_power

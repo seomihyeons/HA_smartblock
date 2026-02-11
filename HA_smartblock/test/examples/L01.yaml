@@ -1,0 +1,10 @@
+- alias: 'L01 Motion → Living Light On'
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.living_room_motion
+      from: 'off'
+      to: 'on'
+  actions:
+    - action: light.turn_on
+      target:
+        entity_id: light.living_room_light

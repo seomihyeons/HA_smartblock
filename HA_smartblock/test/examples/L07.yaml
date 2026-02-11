@@ -1,0 +1,11 @@
+- alias: 'L07 Coffee Maker On → Delay 10s → Notify'
+  triggers:
+    - trigger: state
+      entity_id: switch.coffee_maker
+      from: 'off'
+      to: 'on'
+  actions:
+    - delay: "00:00:10"
+    - action: notify.mobile_app_galaxy_s24
+      data:
+        message: "Coffee maker turned on"

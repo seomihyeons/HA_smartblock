@@ -42,12 +42,156 @@ code {
 /* index.css */
 #titleRow {
   display: flex;
-  align-items: baseline; /* h2와 텍스트 베이스라인 맞춤 */
+  align-items: baseline;
+  /* h2와 텍스트 베이스라인 맞춤 */
   gap: .5rem;
 }
+
 #titleRow h2 {
-  margin: 0;            /* h2 기본 상하 마진 제거 */
+  margin: 0;
+  /* h2 기본 상하 마진 제거 */
 }
+
 #titleRow span {
-  line-height: 1;       /* 필요 시 높이 보정 */
+  line-height: 1;
+  /* 필요 시 높이 보정 */
+}
+
+/* btnDebug: Blockly 위로 올리고 클릭 가능하게 강제 */
+#btnDebug {
+  position: fixed !important;
+  right: 28px !important;
+  bottom: 110px !important;
+  z-index: 2147483647 !important;
+  /* 최상단급 */
+  pointer-events: auto !important;
+
+  width: 70px !important;
+  height: 70px !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  cursor: pointer !important;
+  font-size: 55px !important;
+  line-height: 1 !important;
+  opacity: 0.25 !important;
+}
+
+/* ===== Debug Modal (override, do NOT touch #btnDebug) ===== */
+#debugModal {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  display: flex;
+  align-items: flex-end;
+  /* right-bottom */
+  justify-content: flex-end;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+#debugModal.hidden {
+  display: none !important;
+}
+
+#debugModal #debugModalBackdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.18);
+  /* light grey overlay */
+}
+
+#debugModal .modal-panel {
+  position: relative;
+  width: 720px;
+  height: 520px;
+  background: #f3f4f6;
+  /* grey */
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  z-index: 1;
+}
+
+#debugModal .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #f3f4f6;
+  border-bottom: 1px solid #e5e7eb;
+  /* only ONE line */
+}
+
+#debugModal .modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+#debugModal .modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ✅ Force “basic button look” (Run/Copy/Close) */
+#debugModal .modal-actions button {
+  appearance: auto;
+  -webkit-appearance: button;
+
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #111827;
+}
+
+#debugModal .modal-actions button:hover {
+  background: #f9fafb;
+}
+
+#debugModal .modal-actions button:active {
+  transform: translateY(1px);
+}
+
+#debugModal .modal-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Close 버튼(×)만 정사각형 */
+#debugModal #debugModalClose {
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  padding: 0;
+  /* square */
+}
+
+/* output */
+#debugModal #debugOutput.modal-output {
+  flex: 1;
+  margin: 0;
+  padding: 14px 16px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 12px;
+  color: #111827;
+  background: #f3f4f6;
+  /* match panel */
 }

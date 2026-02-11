@@ -63,24 +63,25 @@ module.exports = (env, argv) => {
     // production, choose a different one from https://webpack.js.org/configuration/devtool
     config.devtool = 'eval-cheap-module-source-map';
 
-
-    // ✅ devServer를 development에서 "완전 정의"
     config.devServer = {
       host: '0.0.0.0',
       port: 8080,
       hot: true,
       historyApiFallback: true,
 
-      // ✅ HtmlWebpackPlugin이 index.html을 메모리에서 서빙하므로 static 없어도 됨
-      // static: { directory: path.resolve(__dirname, 'public') },
-
       proxy: {
         '/ha/api': {
-          target: process.env.HA_BASE_URL,   // http://192.168.0.129:8123
+          target: process.env.HA_BASE_URL,
           changeOrigin: true,
           secure: false,
           ws: true,
-          pathRewrite: { '^/ha': '' },       // /ha/api/... -> /api/...
+          pathRewrite: { '^/ha': '' },
+        },
+
+        '/analyze': {
+          target: 'http://localhost:8787',
+          changeOrigin: true,
+          secure: false,
         },
       },
     };

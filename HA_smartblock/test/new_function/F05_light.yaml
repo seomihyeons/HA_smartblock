@@ -1,0 +1,66 @@
+- alias: Lights - Set Default Color Temp 370
+  id: 'lights_set_default_color_temp_370'
+  
+  mode: parallel
+  triggers:
+    - trigger: state
+      entity_id:
+        - light.globe
+        - light.USER1s_nightstand
+        - light.USER2s_nightstand
+        - light.bedroom_lamp
+        - light.closet_lamp
+        - light.office_lamp
+        - light.USER1_office_desk_lamp
+        - light.USER1_office_desk_accent
+        - light.living_room_lamps
+      from: 'off'
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 6
+
+  conditions:
+    - condition: state
+      entity_id: alarm_control_panel.alarm
+      state: 'disarmed'
+    - condition: state
+      entity_id: input_boolean.livingroom_rainbow
+      state: 'off'
+    - condition: state
+      entity_id: input_boolean.bedroom_rainbow
+      state: 'off'
+    - condition: state
+      entity_id: input_boolean.office_rainbow
+      state: 'off'
+    - condition: state
+      entity_id: input_boolean.USER1_s_office_do_not_disturb
+      state: 'off'
+    - condition: or
+      conditions:
+      - condition: state
+        entity_id: binary_sensor.basement_drain_water_sensor_liquid_detected
+        state: 'off'
+      - condition: state
+        entity_id: binary_sensor.kitchen_sink_water_sensor
+        state: 'off'
+      - condition: state
+        entity_id: binary_sensor.bathroom_sink_water_sensor
+        state: 'off'
+      - condition: state
+        entity_id: binary_sensor.upstairs_bathrooom_water_sensor
+        state: 'off'
+      - condition: state
+        entity_id: binary_sensor.utility_sink_water_sensor
+        state: 'off'
+      - condition: state
+        entity_id: binary_sensor.washing_machine_water_sensor
+        state: 'off'
+
+  actions:
+    - action: light.turn_on
+      target:
+        entity_id: "{{ trigger.entity_id }}"
+      data:
+        color_temp: 370

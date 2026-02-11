@@ -12,6 +12,8 @@ import { yamlTextToInternalJson } from './import/yaml_import';
 import { renderAutomationToWorkspace } from './import/yamlToBlocks';
 import './blocks/extensions.js';
 
+//comflict_analyzer
+import { initConflictAnalyzerUI } from "./homeassistant/conflict_analyzer/debug_ui";
 
 import './index.css';
 import { yamlGenerator } from './generators/yaml';
@@ -182,3 +184,9 @@ import { setupHaPullPanel } from './homeassistant/ha_pull_panel';
 
 // ... ws 생성 코드 아래에:
 setupHaPullPanel({ ws });
+
+
+
+window.addEventListener("DOMContentLoaded", () => {
+  initConflictAnalyzerUI();
+});
