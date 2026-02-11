@@ -211,7 +211,7 @@ function toHMS(v) {
   return { hours: 0, minutes: 0, seconds: 0 };
 }
 
-// cover/light + data.entity_id 리스트 → action_group_entities로 변환
+// group domain + data/target entity_id 리스트 → action_group_entities로 변환
 function createGroupActionBlock(a, workspace, domain, method) {
   if (!canCreate('action_group_entities') || !canCreate('action_group_entity_item')) {
     console.warn('[import] group action blocks not available');
@@ -223,7 +223,7 @@ function createGroupActionBlock(a, workspace, domain, method) {
   if (b.getField('DOMAIN')) setAndVerifyDropdown(b, 'DOMAIN', domain) || b.setFieldValue(domain, 'DOMAIN');
   if (b.getField('SERVICE')) setAndVerifyDropdown(b, 'SERVICE', method) || b.setFieldValue(method, 'SERVICE');
 
-  const entities = toArray(a.data?.entity_id ?? []);
+  const entities = toArray(a.data?.entity_id ?? a.target?.entity_id ?? []);
   entities.forEach((eid) => {
     const child = workspace.newBlock('action_group_entity_item');
     if (child.getField('ENTITY_ID')) {
@@ -447,23 +447,16 @@ export function createActionNode(a, workspace) {
     return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
   }
 
-  // 1) cover/light + data.entity_id 리스트 → group 블록
-  if ((domain === 'cover' || domain === 'light') && a.data && a.data.entity_id != null) {
+  // 1) group domain + data/target entity_id 리스트 → group 블록
+  const supportsGroup = ['cover', 'light', 'switch', 'fan'].includes(domain);
+  const groupEntityIds = a.data?.entity_id ?? a.target?.entity_id;
+  if (supportsGroup && groupEntityIds != null) {
     const groupBlock = createGroupActionBlock(a, workspace, domain, method);
     if (groupBlock) return groupBlock;
   }
 
-  // 2) single entity 액션
-  const map = {
-    'light': 'action_light',
-    'switch': 'action_switch',
-    'lock': 'action_lock',
-    'media_player': 'action_media_player',
-    'climate': 'action_climate',
-    'cover': 'action_cover',
-  };
-
-  const TYPE = map[domain];
+  // 2) single entity 액션: action_<domain> 블록이 있으면 동적으로 사용
+  const TYPE = `action_${domain}`;
   if (!TYPE || !canCreate(TYPE)) {
     return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
   }

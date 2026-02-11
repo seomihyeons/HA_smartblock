@@ -43,7 +43,7 @@ function toHMSString(forObj) {
 
 // dropdown(field_dropdown)에 set을 시도한 뒤, 실제로 값이 반영됐는지 확인.
 // (options에 없는 값을 set하면 Blockly가 기본값으로 떨어질 수 있음)
-function setAndVerifyDropdown(block, fieldName, value) {
+function setAndVerifyDropdown(block, fieldName, value, { allowUnknown = false } = {}) {
   if (!block || !fieldName) return false;
   const f = block.getField(fieldName);
   if (!f) return false;
@@ -52,9 +52,18 @@ function setAndVerifyDropdown(block, fieldName, value) {
 
   const hasOptions = typeof f.getOptions === 'function';
   if (hasOptions) {
-    const opts = f.getOptions().map((o) => String(o?.[1] ?? ''));
     const want = String(value ?? '');
-    const cur = String(f.getValue?.() ?? '');
+    let opts = f.getOptions().map((o) => String(o?.[1] ?? ''));
+    let cur = String(f.getValue?.() ?? '');
+
+    if (allowUnknown && want && !opts.includes(want)) {
+      const rawOpts = f.getOptions();
+      f.menuGenerator_ = [...rawOpts, [want, want]];
+      block.setFieldValue(want, fieldName);
+      opts = f.getOptions().map((o) => String(o?.[1] ?? ''));
+      cur = String(f.getValue?.() ?? '');
+    }
+
     return opts.includes(want) && cur === want;
   }
 
@@ -124,7 +133,7 @@ function makeStateTriggerBlock(workspace, t, eid) {
   }
 
   // FROM / TO도 dropdown일 수 있음 → 검증 실패 시 RAW로
-  if (!setAndVerifyDropdown(b, 'FROM', fromVal)) {
+  if (!setAndVerifyDropdown(b, 'FROM', fromVal, { allowUnknown: true })) {
     disposeIfPossible(b);
     return safeRaw(workspace, 'event', [
       `- trigger: state`,
@@ -134,7 +143,7 @@ function makeStateTriggerBlock(workspace, t, eid) {
       ...(forStr ? [`  for: "${forStr}"`] : []),
     ]);
   }
-  if (!setAndVerifyDropdown(b, 'TO', toVal)) {
+  if (!setAndVerifyDropdown(b, 'TO', toVal, { allowUnknown: true })) {
     disposeIfPossible(b);
     return safeRaw(workspace, 'event', [
       `- trigger: state`,

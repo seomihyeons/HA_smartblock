@@ -122,7 +122,7 @@ import { STATE_DOMAINS, ACTION_DOMAINS } from '../data/options.js';
 /* ===== Events (unified, compact) ===== */
 
 // Event: state trigger (event_${domain}_state)
-for (const domain of (STATE_DOMAINS || []).filter(d => d !== 'sensor')) {
+for (const domain of (STATE_DOMAINS || [])) {
   yamlGenerator.forBlock[`event_${domain}_state`] = function (block, generator) {
     const entityId = block.getFieldValue('ENTITY_ID') || '';
     const from = block.getFieldValue('FROM') || '';

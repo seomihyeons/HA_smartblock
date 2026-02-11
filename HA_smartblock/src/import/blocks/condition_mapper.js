@@ -42,7 +42,7 @@ function domainFromEntityId(eid) {
 
 // dropdown(field_dropdown)에 set을 시도한 뒤, 실제로 값이 반영됐는지 확인.
 // (options에 없는 값을 set하면 Blockly가 기본값으로 떨어질 수 있음)
-function setAndVerifyDropdown(block, fieldName, value) {
+function setAndVerifyDropdown(block, fieldName, value, { allowUnknown = false } = {}) {
   if (!block || !fieldName) return false;
   const f = block.getField(fieldName);
   if (!f) return false;
@@ -53,9 +53,18 @@ function setAndVerifyDropdown(block, fieldName, value) {
   const cur = String(f.getValue?.() ?? '');
 
   if (hasOptions) {
-    const opts = f.getOptions().map((o) => String(o?.[1] ?? ''));
     const want = String(value ?? '');
-    return opts.includes(want) && cur === want;
+    let opts = f.getOptions().map((o) => String(o?.[1] ?? ''));
+
+    if (allowUnknown && want && !opts.includes(want)) {
+      const rawOpts = f.getOptions();
+      f.menuGenerator_ = [...rawOpts, [want, want]];
+      block.setFieldValue(want, fieldName);
+      opts = f.getOptions().map((o) => String(o?.[1] ?? ''));
+    }
+
+    const nextCur = String(f.getValue?.() ?? '');
+    return opts.includes(want) && nextCur === want;
   }
 
   return cur === String(value ?? '');
@@ -125,7 +134,7 @@ function makeStateCondBlock(workspace, conditionObj, eid) {
   }
 
   // STATE dropdown 검증 (options에 없으면 기본값으로 떨어지므로 RAW)
-  const okState = setAndVerifyDropdown(b, 'STATE', stateVal ?? '');
+  const okState = setAndVerifyDropdown(b, 'STATE', stateVal ?? '', { allowUnknown: true });
   if (!okState) {
     b.dispose(true);
     return rawStateLine();

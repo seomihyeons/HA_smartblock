@@ -27,7 +27,6 @@ const labelOf = (domain) => (domain === 'binary_sensor' ? 'binary sensor' : doma
 export const eventEntityBlocks =
   Blockly.common.createBlockDefinitionsFromJsonArray([
     ...STATE_DOMAINS
-      .filter(d => d !== 'sensor') // sensor는 numeric_state로 따로
       .map(domain => ({
         type: `event_${domain}_state`,
         message0: `${labelOf(domain)} %1 from %2 to %3 %4`,
