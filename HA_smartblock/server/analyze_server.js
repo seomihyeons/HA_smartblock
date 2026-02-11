@@ -1,6 +1,11 @@
 // HA_smartblock/server/analyze_server.js
 import express from "express";
 import { spawn } from "child_process";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -8,7 +13,10 @@ dotenv.config();
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 
-const PY_PATH = "../src/homeassistant/conflict_analyzer/ha_eca_conflict_analyzer.py";
+const PY_PATH = path.resolve(
+    __dirname,
+    "../src/homeassistant/conflict_analyzer/ha_eca_conflict_analyzer.py"
+);
 const PY_CMD = "python";
 
 function buildHaBaseUrl() {

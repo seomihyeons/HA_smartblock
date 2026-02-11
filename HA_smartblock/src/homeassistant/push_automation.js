@@ -41,7 +41,19 @@ function parseYamlToSingleAutomation(yamlText) {
     });
 
     if (loaded && typeof loaded === 'object') {
-        if ('__proto__' in loaded || 'constructor' in loaded || 'prototype' in loaded) {
+        const hasForbiddenKey = (obj) => {
+            if (!obj || typeof obj !== 'object') return false;
+            if (Array.isArray(obj)) {
+                return obj.some(hasForbiddenKey);
+            }
+            const keys = Object.keys(obj);
+            for (const k of keys) {
+                if (k === '__proto__' || k === 'constructor' || k === 'prototype') return true;
+                if (hasForbiddenKey(obj[k])) return true;
+            }
+            return false;
+        };
+        if (hasForbiddenKey(loaded)) {
             throw new Error('Malicious YAML detected: forbidden property names');
         }
     }
