@@ -1,6 +1,6 @@
 // src/blocks/condition/condition_numeric_state_entity.js
 import * as Blockly from 'blockly';
-import { dummyEntities } from '../../data/entities.js';
+import { dummyEntities } from '../../data/entities_index.js';
 
 // 숫자형 엔티티만 필터링
 function getNumericEntities() {

@@ -1,6 +1,6 @@
 // src/blocks/condition/condition_numeric_state_attribute.js
 import * as Blockly from 'blockly';
-import { dummyEntities } from '../../data/entities.js';
+import { dummyEntities } from '../../data/entities_index.js';
 
 function getEntitiesWithNumericAttributes() {
   return dummyEntities.filter(entity => {

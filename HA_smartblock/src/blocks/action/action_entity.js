@@ -1,6 +1,6 @@
 // src/blocks/action/action_entity.js
 import * as Blockly from 'blockly';
-import { dummyEntities } from '../../data/entities.js';
+import { dummyEntities } from '../../data/entities_index.js';
 import { ACTION_DOMAINS, getActions } from '../../data/options.js';
 
 function getEntityOptions(domain) {

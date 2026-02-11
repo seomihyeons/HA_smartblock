@@ -4,7 +4,7 @@
 // (Action / Condition / Event / Notify / Group Action)
 // ------------------------------------------------------------
 
-import { dummyEntities, notifyDevices } from './entities.js';
+import { dummyEntities, notifyDevices } from './entities_index.js';
 
 /* ============================================================
  * DOMAIN SPEC (actions / states)

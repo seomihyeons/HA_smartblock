@@ -1,6 +1,6 @@
 // src/blocks/event/event_entity.js
 import * as Blockly from 'blockly';
-import { dummyEntities } from '../../data/entities.js';
+import { dummyEntities } from '../../data/entities_index.js';
 import { STATE_DOMAINS, getStates } from '../../data/options.js';
 
 function getEntityOptions(domain, { numericOnly = false } = {}) {
