@@ -123,42 +123,88 @@ function buildNotifyTagBlocks(nested, notifyBlock, workspace) {
   }
 
   // (3) actions[]: notify_action + props
-  if (!actions.length) return;
-  if (!canCreate('notify_action')) return;
+  if (actions.length && canCreate('notify_action')) {
+    for (const act of actions) {
+      if (!act || typeof act !== 'object') continue;
 
-  for (const act of actions) {
-    if (!act || typeof act !== 'object') continue;
+      const actionId = act.action ?? '';
+      const title = act.title ?? '';
+      const destructive = act.destructive;
+      const activationMode = act.activationMode ?? '';
 
-    const actionId = act.action ?? '';
-    const title = act.title ?? '';
-    const destructive = act.destructive;
-    const activationMode = act.activationMode ?? '';
+      const aBlk = workspace.newBlock('notify_action');
+      if (aBlk.getField('ACTION_ID')) aBlk.setFieldValue(String(actionId), 'ACTION_ID');
+      else if (aBlk.getField('TITLE')) aBlk.setFieldValue(String(actionId), 'TITLE');
+      aBlk.initSvg(); aBlk.render();
+      appendStmt(tagBlk, aBlk, 'TAG_BLOCKS');
 
-    const aBlk = workspace.newBlock('notify_action');
-    if (aBlk.getField('ACTION_ID')) aBlk.setFieldValue(String(actionId), 'ACTION_ID');
-    else if (aBlk.getField('TITLE')) aBlk.setFieldValue(String(actionId), 'TITLE');
-    aBlk.initSvg(); aBlk.render();
-    appendStmt(tagBlk, aBlk, 'TAG_BLOCKS');
+      if (title && canCreate('notify_prop_title')) {
+        const p = workspace.newBlock('notify_prop_title');
+        if (p.getField('TITLE')) p.setFieldValue(String(title), 'TITLE');
+        p.initSvg(); p.render();
+        appendStmt(tagBlk, p, 'TAG_BLOCKS');
+      }
 
-    if (title && canCreate('notify_prop_title')) {
-      const p = workspace.newBlock('notify_prop_title');
-      if (p.getField('TITLE')) p.setFieldValue(String(title), 'TITLE');
-      p.initSvg(); p.render();
-      appendStmt(tagBlk, p, 'TAG_BLOCKS');
+      if (typeof destructive === 'boolean' && canCreate('notify_prop_destructive')) {
+        const p = workspace.newBlock('notify_prop_destructive');
+        if (p.getField('DESTRUCTIVE')) p.setFieldValue(destructive ? 'true' : 'false', 'DESTRUCTIVE');
+        p.initSvg(); p.render();
+        appendStmt(tagBlk, p, 'TAG_BLOCKS');
+      }
+
+      if (activationMode && canCreate('notify_prop_activationMode')) {
+        const p = workspace.newBlock('notify_prop_activationMode');
+        if (p.getField('MODE')) p.setFieldValue(String(activationMode), 'MODE');
+        p.initSvg(); p.render();
+        appendStmt(tagBlk, p, 'TAG_BLOCKS');
+      }
     }
+  }
 
-    if (typeof destructive === 'boolean' && canCreate('notify_prop_destructive')) {
-      const p = workspace.newBlock('notify_prop_destructive');
-      if (p.getField('DESTRUCTIVE')) p.setFieldValue(destructive ? 'true' : 'false', 'DESTRUCTIVE');
-      p.initSvg(); p.render();
-      appendStmt(tagBlk, p, 'TAG_BLOCKS');
+}
+
+function buildNotifyPushBlocks(nested, notifyBlock, workspace) {
+  if (!nested || typeof nested !== 'object') return;
+  const push = (nested.push && typeof nested.push === 'object') ? nested.push : null;
+  if (!push || !canCreate('notify_push')) return;
+
+  if (push.sound && typeof push.sound === 'object') {
+    const pBlk = workspace.newBlock('notify_push');
+    if (pBlk.getField('PUSH_KIND')) pBlk.setFieldValue('sound', 'PUSH_KIND');
+    pBlk.initSvg(); pBlk.render();
+    appendStmt(notifyBlock, pBlk, 'MESSAGE_BLOCKS');
+
+    if (push.sound.name != null && canCreate('notify_push_name')) {
+      const nBlk = workspace.newBlock('notify_push_name');
+      if (nBlk.getField('NAME')) nBlk.setFieldValue(String(push.sound.name), 'NAME');
+      nBlk.initSvg(); nBlk.render();
+      appendStmt(pBlk, nBlk, 'PUSH_BLOCKS');
     }
+    if ((push.sound.critical != null || push.sound.volume != null) && canCreate('notify_push_critical')) {
+      const cBlk = workspace.newBlock('notify_push_critical');
+      if (push.sound.critical != null && cBlk.getField('CRITICAL')) {
+        cBlk.setFieldValue(String(push.sound.critical), 'CRITICAL');
+      }
+      if (push.sound.volume != null && cBlk.getField('VOLUME')) {
+        cBlk.setFieldValue(String(push.sound.volume), 'VOLUME');
+      }
+      cBlk.initSvg(); cBlk.render();
+      appendStmt(pBlk, cBlk, 'PUSH_BLOCKS');
+    }
+  }
 
-    if (activationMode && canCreate('notify_prop_activationMode')) {
-      const p = workspace.newBlock('notify_prop_activationMode');
-      if (p.getField('MODE')) p.setFieldValue(String(activationMode), 'MODE');
-      p.initSvg(); p.render();
-      appendStmt(tagBlk, p, 'TAG_BLOCKS');
+  if (push.badge != null && canCreate('notify_push')) {
+    const pBlk = workspace.newBlock('notify_push');
+    if (pBlk.getField('PUSH_KIND')) pBlk.setFieldValue('badge', 'PUSH_KIND');
+    pBlk.initSvg(); pBlk.render();
+    appendStmt(notifyBlock, pBlk, 'MESSAGE_BLOCKS');
+
+    if (canCreate('notify_push_critical')) {
+      const bBlk = workspace.newBlock('notify_push_critical');
+      if (bBlk.getField('CRITICAL')) bBlk.setFieldValue(String(push.badge), 'CRITICAL');
+      if (bBlk.getField('VOLUME')) bBlk.setFieldValue('0', 'VOLUME');
+      bBlk.initSvg(); bBlk.render();
+      appendStmt(pBlk, bBlk, 'PUSH_BLOCKS');
     }
   }
 }
@@ -500,6 +546,7 @@ export function createActionNode(a, workspace) {
     // nested payload: data.data
     const nested = a?.data?.data;
     if (nested) {
+      buildNotifyPushBlocks(nested, b, workspace);
       buildNotifyTagBlocks(nested, b, workspace);
     }
 

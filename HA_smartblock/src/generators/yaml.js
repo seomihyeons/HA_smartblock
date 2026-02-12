@@ -505,6 +505,53 @@ yamlGenerator.forBlock['action_notify'] = function (block, generator) {
 
   const extraLines = [];
   const messageParts = [];
+  const buildPushYaml = (pushBlock) => {
+    const kind = (pushBlock.getFieldValue('PUSH_KIND') || '').trim();
+    if (!kind) return '';
+
+    if (kind === 'sound') {
+      const sound = {};
+      let p = pushBlock.getInputTargetBlock('PUSH_BLOCKS');
+      while (p) {
+        if (p.type === 'notify_push_name') {
+          const n = (p.getFieldValue('NAME') || '').trim();
+          if (n) sound.name = n;
+        } else if (p.type === 'notify_push_critical') {
+          const critical = Number(p.getFieldValue('CRITICAL'));
+          const volume = Number(p.getFieldValue('VOLUME'));
+          if (!Number.isNaN(critical)) sound.critical = critical;
+          if (!Number.isNaN(volume)) sound.volume = volume;
+        }
+        p = p.getNextBlock();
+      }
+      if (!Object.keys(sound).length) return '';
+      let y = `push:\n`;
+      y += `  sound:\n`;
+      if (sound.name != null) y += `    name: ${String(sound.name)}\n`;
+      if (sound.critical != null) y += `    critical: ${sound.critical}\n`;
+      if (sound.volume != null) y += `    volume: ${sound.volume}\n`;
+      return y;
+    }
+
+    if (kind === 'badge') {
+      let badge = null;
+      let p = pushBlock.getInputTargetBlock('PUSH_BLOCKS');
+      while (p) {
+        if (p.type === 'notify_push_critical') {
+          const n = Number(p.getFieldValue('CRITICAL'));
+          if (!Number.isNaN(n)) badge = n;
+          break;
+        }
+        p = p.getNextBlock();
+      }
+      if (badge == null) return '';
+      let y = `push:\n`;
+      y += `  badge: ${badge}\n`;
+      return y;
+    }
+
+    return '';
+  };
   let child = block.getInputTargetBlock('MESSAGE_BLOCKS');
   while (child) {
     if (child.type === 'action_notify_message_text') {
@@ -569,6 +616,10 @@ yamlGenerator.forBlock['action_notify'] = function (block, generator) {
         if (tagYaml) extraLines.push(tagYaml);
       }
     }
+    if (child.type === 'notify_push') {
+      const pushYaml = buildPushYaml(child);
+      if (pushYaml) extraLines.unshift(pushYaml);
+    }
     child = child.getNextBlock();
   }
 
@@ -578,8 +629,11 @@ yamlGenerator.forBlock['action_notify'] = function (block, generator) {
   let code = `- action: ${svc}\n`;
   code += `  data:\n`;
   code += `    message: ${JSON.stringify(message)}\n`;
-  for (const l of extraLines) {
-    code += generator.prefixLines(l, '    ');
+  if (extraLines.length) {
+    code += `    data:\n`;
+    for (const l of extraLines) {
+      code += generator.prefixLines(l, '      ');
+    }
   }
   return code;
 };
@@ -596,7 +650,6 @@ yamlGenerator.forBlock['action_notify_tag'] = function (block, generator) {
   let entityId = '';
   const actions = [];
   let currentAction = null;
-
   let child = block.getInputTargetBlock('TAG_BLOCKS');
   while (child) {
     switch (child.type) {
@@ -640,24 +693,26 @@ yamlGenerator.forBlock['action_notify_tag'] = function (block, generator) {
   const hasAny = (tagName || entityId || actions.length > 0);
   if (!hasAny) return '';
 
-  // ⚠️ 여기서 반환하는 코드는 "notify의 data:" 바로 아래 들어갈 코드.
-  // statementToCode가 자동으로 들여쓰기 2칸을 더해줌.
-  let code = `data:\n`; // <= 여기! (data: 아래에 data: 하나 더)
-  if (tagName) code += `  tag: ${JSON.stringify(tagName)}\n`;
-  if (entityId) code += `  entity_id: ${entityId}\n`;
+  // notify의 data.data(payload) 본문만 반환한다.
+  let code = ``;
+  if (tagName) code += `tag: ${JSON.stringify(tagName)}\n`;
+  if (entityId) code += `entity_id: ${entityId}\n`;
 
   if (actions.length > 0) {
-    code += `  actions:\n`;
+    code += `actions:\n`;
     for (const a of actions) {
-      code += `    - action: ${JSON.stringify(a.action)}\n`;
-      if (a.title) code += `      title: ${JSON.stringify(a.title)}\n`;
-      if (typeof a.destructive === 'boolean') code += `      destructive: ${a.destructive ? 'true' : 'false'}\n`;
-      if (a.activationMode) code += `      activationMode: ${a.activationMode}\n`;
+      code += `  - action: ${JSON.stringify(a.action)}\n`;
+      if (a.title) code += `    title: ${JSON.stringify(a.title)}\n`;
+      if (typeof a.destructive === 'boolean') code += `    destructive: ${a.destructive ? 'true' : 'false'}\n`;
+      if (a.activationMode) code += `    activationMode: ${a.activationMode}\n`;
     }
   }
 
   return code;
 };
+yamlGenerator.forBlock['notify_push'] = function () { return ''; };
+yamlGenerator.forBlock['notify_push_name'] = function () { return ''; };
+yamlGenerator.forBlock['notify_push_critical'] = function () { return ''; };
 
 /* --- Props: button properties --- */
 yamlGenerator.forBlock['notify_prop_title'] = function (block) {
