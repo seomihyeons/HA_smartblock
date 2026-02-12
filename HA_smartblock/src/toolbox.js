@@ -70,6 +70,8 @@ export const toolbox = {
         { kind: 'block', type: 'action_data_transition' },
         { kind: 'block', type: 'action_data_color' },
         { kind: 'block', type: 'action_data_effect' },
+        { kind: 'block', type: 'action_data_announce' },
+        { kind: 'block', type: 'action_data_media_content_type' },
         { kind: 'block', type: 'action_data_kv_text' },
         { kind: 'label', text: 'Delay' },
         { kind: 'block', type: 'action_delay' },

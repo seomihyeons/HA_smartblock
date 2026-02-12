@@ -46,6 +46,7 @@ export const DOMAIN_SPEC = {
 
   media_player: {
     actions: [
+      ['play media', 'play_media'],
       ['play', 'media_play'],
       ['pause', 'media_pause'],
       ['stop', 'media_stop'],
@@ -463,6 +464,7 @@ export const GROUP_ACTION_DOMAINS = [
   ['light', 'light'],
   ['switch', 'switch'],
   ['fan', 'fan'],
+  ['media_player', 'media_player'],
 ];
 
 export const GROUP_DOMAIN_TO_SERVICE_OPTIONS = {
@@ -482,6 +484,16 @@ export const GROUP_DOMAIN_TO_SERVICE_OPTIONS = {
   fan: [
     ['on', 'turn_on'],
     ['off', 'turn_off'],
+  ],
+  media_player: [
+    ['play media', 'play_media'],
+    ['play', 'media_play'],
+    ['pause', 'media_pause'],
+    ['stop', 'media_stop'],
+    ['next', 'media_next_track'],
+    ['previous', 'media_previous_track'],
+    ['volume up', 'volume_up'],
+    ['volume down', 'volume_down'],
   ],
 };
 

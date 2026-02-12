@@ -63,6 +63,25 @@ function connectNextChain(prevBlock, nextBlock) {
   }
 }
 
+// dropdown 옵션에 값이 없으면 임시 옵션을 주입해서라도 값 보존(import fidelity)
+function setDropdownAllowUnknown(block, fieldName, value) {
+  if (!block || !fieldName) return false;
+  const f = block.getField(fieldName);
+  if (!f) return false;
+
+  if (setAndVerifyDropdown(block, fieldName, value)) return true;
+
+  const want = String(value ?? '');
+  const opts = (typeof f.getOptions === 'function' ? f.getOptions() : []).map((o) => [String(o?.[0] ?? ''), String(o?.[1] ?? '')]);
+  const has = opts.some(([, v]) => v === want);
+  if (!has) {
+    f.menuGenerator_ = [...opts, [want, want]];
+  }
+
+  block.setFieldValue(want, fieldName);
+  return String(f.getValue?.() ?? '') === want;
+}
+
 function buildNotifyMessageAsTextBlock(message, notifyBlock, workspace) {
   if (typeof message !== 'string' || !message.length) return;
   if (!canCreate('action_notify_message_text')) return;
@@ -165,10 +184,19 @@ function createGroupActionBlock(a, workspace, domain, method) {
 
   const b = workspace.newBlock('action_group_entities');
 
-  if (b.getField('DOMAIN')) setAndVerifyDropdown(b, 'DOMAIN', domain) || b.setFieldValue(domain, 'DOMAIN');
-  if (b.getField('SERVICE')) setAndVerifyDropdown(b, 'SERVICE', method) || b.setFieldValue(method, 'SERVICE');
+  if (b.getField('DOMAIN') && !setAndVerifyDropdown(b, 'DOMAIN', domain)) {
+    b.dispose(false);
+    return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
+  }
+  if (b.getField('SERVICE') && !setAndVerifyDropdown(b, 'SERVICE', method)) {
+    b.dispose(false);
+    return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
+  }
+  // Parent should be rendered before children are connected, otherwise
+  // initial layout can appear stacked until a user interaction re-renders it.
+  b.initSvg(); b.render();
 
-  const entities = toArray(a.data?.entity_id ?? a.target?.entity_id ?? []);
+  const entities = toArray(a.target?.entity_id ?? a.data?.entity_id ?? []);
   entities.forEach((eid) => {
     const typed = `action_${domain}`;
     const childType = canCreate(typed) ? typed : (canCreate('action_group_entity_item') ? 'action_group_entity_item' : null);
@@ -177,8 +205,9 @@ function createGroupActionBlock(a, workspace, domain, method) {
     const child = workspace.newBlock(childType);
 
     if (child.getField('ENTITY_ID')) {
-      if (!setAndVerifyDropdown(child, 'ENTITY_ID', String(eid))) {
-        child.setFieldValue(String(eid), 'ENTITY_ID');
+      if (!setDropdownAllowUnknown(child, 'ENTITY_ID', String(eid))) {
+        child.dispose(false);
+        return;
       }
     }
 
@@ -190,7 +219,16 @@ function createGroupActionBlock(a, workspace, domain, method) {
     appendStmt(b, child, 'ENTITIES');
   });
 
-  b.initSvg(); b.render();
+  // group의 공통 data는 DATA 입력으로 복원 (entity_id 제외)
+  if (a.data && typeof a.data === 'object') {
+    const groupData = { ...a.data };
+    delete groupData.entity_id;
+    if (Object.keys(groupData).length > 0) {
+      buildActionDataBlocks(groupData, b, workspace);
+    }
+  }
+
+  b.render();
   return b;
 }
 
@@ -286,9 +324,32 @@ function buildActionDataBlocks(dataObj, actionBlock, workspace) {
     }
   }
 
+  if (typeof dataObj.announce === 'boolean' && canCreate('action_data_announce')) {
+    const n = workspace.newBlock('action_data_announce');
+    if (n.getField('VALUE')) n.setFieldValue(dataObj.announce ? 'true' : 'false', 'VALUE');
+    n.initSvg(); n.render();
+    appendStmt(actionBlock, n, 'DATA');
+  }
+
+  if (typeof dataObj.media_content_type === 'string' && canCreate('action_data_media_content_type')) {
+    const m = workspace.newBlock('action_data_media_content_type');
+    const type = String(dataObj.media_content_type);
+    if (m.getField('VALUE')) {
+      const opts = typeof m.getField('VALUE')?.getOptions === 'function'
+        ? m.getField('VALUE').getOptions().map((o) => o[1])
+        : [];
+      if (!opts.length || opts.includes(type)) {
+        m.setFieldValue(type, 'VALUE');
+      }
+    }
+    m.initSvg(); m.render();
+    appendStmt(actionBlock, m, 'DATA');
+  }
+
   for (const [k, v] of Object.entries(dataObj)) {
     if (k === 'brightness_pct' || k === 'transition') continue;
     if (k === 'color_name' || k === 'rgb_color') continue;
+    if (k === 'announce' || k === 'media_content_type') continue;
     if (k === 'effect' && effectHandledByBlock) continue;
     if (k === 'entity_id') continue;
     const vv = (typeof v === 'object') ? JSON.stringify(v) : v;
@@ -297,6 +358,43 @@ function buildActionDataBlocks(dataObj, actionBlock, workspace) {
 }
 
 // ✅ RAW fallback 라인 생성 (읽기 전용 블록에 넣을 텍스트)
+function scalarToYaml(v) {
+  if (typeof v === 'string') return JSON.stringify(v);
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  if (v == null) return 'null';
+  return JSON.stringify(v);
+}
+
+function appendYamlLines(lines, key, value, indent) {
+  const pad = ' '.repeat(indent);
+  if (Array.isArray(value)) {
+    lines.push(`${pad}${key}:`);
+    for (const item of value) {
+      if (item && typeof item === 'object' && !Array.isArray(item)) {
+        lines.push(`${pad}  -`);
+        for (const [k, v] of Object.entries(item)) {
+          appendYamlLines(lines, k, v, indent + 6);
+        }
+      } else if (Array.isArray(item)) {
+        lines.push(`${pad}  - ${JSON.stringify(item)}`);
+      } else {
+        lines.push(`${pad}  - ${scalarToYaml(item)}`);
+      }
+    }
+    return;
+  }
+
+  if (value && typeof value === 'object') {
+    lines.push(`${pad}${key}:`);
+    for (const [k, v] of Object.entries(value)) {
+      appendYamlLines(lines, k, v, indent + 2);
+    }
+    return;
+  }
+
+  lines.push(`${pad}${key}: ${scalarToYaml(value)}`);
+}
+
 function actionObjToRawLines(a) {
   if (!a || typeof a !== 'object') return ['- action: {}'];
   const svc = a.action || a.service || '';
@@ -312,14 +410,14 @@ function actionObjToRawLines(a) {
   if (a.target && typeof a.target === 'object') {
     lines.push(`  target:`);
     for (const [k, v] of Object.entries(a.target)) {
-      lines.push(`    ${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`);
+      appendYamlLines(lines, k, v, 4);
     }
   }
 
   if (a.data && typeof a.data === 'object') {
     lines.push(`  data:`);
     for (const [k, v] of Object.entries(a.data)) {
-      lines.push(`    ${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`);
+      appendYamlLines(lines, k, v, 4);
     }
   }
 
@@ -425,7 +523,7 @@ export function createActionNode(a, workspace) {
   }
 
   // 1) group domain + data/target entity_id 리스트 → group 블록
-  const supportsGroup = ['cover', 'light', 'switch', 'fan'].includes(domain);
+  const supportsGroup = ['cover', 'light', 'switch', 'fan', 'media_player'].includes(domain);
   const groupEntities = toArray(a.data?.entity_id ?? a.target?.entity_id);
   if (supportsGroup && groupEntities.length > 1) {
     const groupBlock = createGroupActionBlock(a, workspace, domain, method);
@@ -455,7 +553,7 @@ export function createActionNode(a, workspace) {
     // entity dropdown이면 검증 실패 시 RAW로
     const entityField = firstField(blk, ['ENTITY', 'ENTITY_ID']);
     if (entityField) {
-      if (!setAndVerifyDropdown(blk, entityField, eid ?? '')) {
+      if (!setDropdownAllowUnknown(blk, entityField, eid ?? '')) {
         return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
       }
     }

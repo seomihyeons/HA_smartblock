@@ -428,6 +428,17 @@ yamlGenerator.forBlock['action_data_effect'] = function(block) {
   return `effect: ${JSON.stringify(effect)}\n`;
 };
 
+yamlGenerator.forBlock['action_data_announce'] = function(block) {
+  const v = String(block.getFieldValue('VALUE') || 'false') === 'true';
+  return `announce: ${v ? 'true' : 'false'}\n`;
+};
+
+yamlGenerator.forBlock['action_data_media_content_type'] = function(block) {
+  const v = String(block.getFieldValue('VALUE') || '').trim();
+  if (!v) return '';
+  return `media_content_type: ${JSON.stringify(v)}\n`;
+};
+
 yamlGenerator.forBlock['action_data_kv_text'] = function(block) {
   const k = (block.getFieldValue('KEY') || '').trim();
   const v = (block.getFieldValue('VALUE') || '').trim();
@@ -689,12 +700,20 @@ yamlGenerator.forBlock['action_group_entities'] = function (block) {
     return '';
   }
 
+  const dataCode = block.getInput('DATA')
+    ? yamlGenerator.statementToCode(block, 'DATA')
+    : '';
+
   // 3) YAML 문자열 생성
   let yaml = `- action: ${service}\n`;
-  yaml += '  data:\n';
+  yaml += '  target:\n';
   yaml += '    entity_id:\n';
   for (const eid of entities) {
     yaml += `      - ${eid}\n`;
+  }
+  if (dataCode.trim()) {
+    yaml += '  data:\n';
+    yaml += yamlGenerator.prefixLines(dataCode, '    ');
   }
 
   return yaml + '\n';

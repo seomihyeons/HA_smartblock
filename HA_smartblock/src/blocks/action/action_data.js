@@ -13,6 +13,15 @@ const EFFECT_OPTIONS = [
   ['None', 'None'],
 ];
 
+const MEDIA_CONTENT_TYPE_OPTIONS = [
+  ['music', 'music'],
+  ['video', 'video'],
+  ['tvshow', 'tvshow'],
+  ['episode', 'episode'],
+  ['channel', 'channel'],
+  ['playlist', 'playlist'],
+];
+
 export const actionDataBlocks = Blockly.common.createBlockDefinitionsFromJsonArray([
   // light.turn_on에서 자주 쓰는 옵션
   {
@@ -51,6 +60,32 @@ export const actionDataBlocks = Blockly.common.createBlockDefinitionsFromJsonArr
     nextStatement: 'HA_ACTION_DATA',
     colour: '#E3CC57',
     tooltip: '조명 effect를 선택하거나 custom 값을 입력합니다.',
+    helpUrl: '',
+  },
+
+  {
+    type: 'action_data_announce',
+    message0: 'announce %1',
+    args0: [
+      { type: 'field_dropdown', name: 'VALUE', options: [['true', 'true'], ['false', 'false']] },
+    ],
+    previousStatement: 'HA_ACTION_DATA',
+    nextStatement: 'HA_ACTION_DATA',
+    colour: '#E3CC57',
+    tooltip: 'media_player.play_media announce 옵션',
+    helpUrl: '',
+  },
+
+  {
+    type: 'action_data_media_content_type',
+    message0: 'media_content_type %1',
+    args0: [
+      { type: 'field_dropdown', name: 'VALUE', options: MEDIA_CONTENT_TYPE_OPTIONS },
+    ],
+    previousStatement: 'HA_ACTION_DATA',
+    nextStatement: 'HA_ACTION_DATA',
+    colour: '#E3CC57',
+    tooltip: 'media_player.play_media media_content_type 옵션',
     helpUrl: '',
   },
 

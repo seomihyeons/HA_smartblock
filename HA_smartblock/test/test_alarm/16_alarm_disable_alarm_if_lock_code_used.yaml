@@ -1,0 +1,50 @@
+- alias: Alarm - Disable Alarm if Lock Code Used
+  id: 'alarm_disable_alarm_if_lock_code_used'
+
+  triggers:
+    - trigger: state
+      entity_id: sensor.front_door_lock_code
+      to: 'USER2'
+    - trigger: state
+      entity_id: sensor.front_door_lock_code
+      to: 'USER1'
+    - trigger: state
+      entity_id: sensor.front_door_lock_code
+      to: 'guest'
+    - trigger: state
+      entity_id: sensor.back_door_lock_code
+      to: 'USER2'
+    - trigger: state
+      entity_id: sensor.back_door_lock_code
+      to: 'USER1'
+    - trigger: state
+      entity_id: sensor.back_door_lock_code
+      to: 'guest'
+    - trigger: state
+      entity_id: sensor.basement_door_lock_code
+      to: 'USER2'
+    - trigger: state
+      entity_id: sensor.basement_door_lock_code
+      to: 'USER1'
+    - trigger: state
+      entity_id: sensor.basement_door_lock_code
+      to: 'guest'
+
+  conditions:
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: alarm_control_panel.alarm
+        state: 'disarmed'
+
+  actions:
+    - action: alarm_control_panel.alarm_disarm
+      entity_id: alarm_control_panel.alarm
+
+#################################################################
+## Notifications
+#################################################################
+
+    #################################################################
+    ## Alarm Armed Home iOS Notification
+    #################################################################

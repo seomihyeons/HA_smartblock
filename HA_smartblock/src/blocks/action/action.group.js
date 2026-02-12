@@ -25,12 +25,15 @@ Blockly.Extensions.register('action_group_dynamic_service', function () {
   const resetChildEntities = () => {
     const input = this.getInput('ENTITIES');
     const firstBlock = input?.connection?.targetBlock();
-    const defaultValue = ''; // placeholder('-','') value
 
     let b = firstBlock;
     while (b) {
       const f = b.getField('ENTITY_ID');
-      if (f) f.setValue(defaultValue);
+      if (f) {
+        const opts = typeof f.getOptions === 'function' ? f.getOptions() : [];
+        const fallback = opts.length ? opts[0][1] : '';
+        f.setValue(fallback);
+      }
       b = b.getNextBlock();
     }
   };
@@ -61,12 +64,12 @@ Blockly.Extensions.register('action_group_dynamic_service', function () {
     const domain = newVal || 'cover';
     updateServiceOptions(domain);
     resetChildEntities();
-    setTimeout(() => syncChildService(), 0);
+    syncChildService();
     return newVal;
   });
 
   serviceField.setValidator((newVal) => {
-    setTimeout(() => syncChildService(), 0);
+    syncChildService();
     return newVal;
   });
 });
@@ -90,6 +93,7 @@ export const actionGroupBlocks =
       colour: '#E3CC57',
       tooltip: '여러 엔티티에 동일한 액션을 한 번에 실행합니다.',
       helpUrl: '',
+      mutator: 'ha_action_optional_data',
       extensions: ['action_group_dynamic_service'],
     },
     {

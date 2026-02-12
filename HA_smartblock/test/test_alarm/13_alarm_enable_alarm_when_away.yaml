@@ -1,0 +1,38 @@
+- alias: Alarm - Enable Alarm when Away
+  id: 'alarm_enable_alarm_when_away'
+
+  triggers:
+    - trigger: state
+      entity_id: group.household
+      from: 'home'
+      to: 'not_home'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+
+  conditions:
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: group.household
+        state: 'home'
+    - condition: state
+      entity_id: input_boolean.guest_mode
+      state: 'off'
+    - condition: state
+      entity_id: alarm_control_panel.alarm
+      state: 'disarmed'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: input_boolean.home_showing_mode
+        state: 'on'
+
+  actions:
+    - action: alarm_control_panel.alarm_arm_away
+      entity_id: alarm_control_panel.alarm
+
+        ##########################################################
+        ## Arm Home at Bedtime
+        ##########################################################
