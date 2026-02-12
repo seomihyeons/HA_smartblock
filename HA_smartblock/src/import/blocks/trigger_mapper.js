@@ -48,25 +48,29 @@ function setAndVerifyDropdown(block, fieldName, value, { allowUnknown = false } 
   const f = block.getField(fieldName);
   if (!f) return false;
 
-  if (value != null) block.setFieldValue(String(value), fieldName);
-
   const hasOptions = typeof f.getOptions === 'function';
   if (hasOptions) {
     const want = String(value ?? '');
     let opts = f.getOptions().map((o) => String(o?.[1] ?? ''));
-    let cur = String(f.getValue?.() ?? '');
+
+    if (want === '') {
+      block.setFieldValue('', fieldName);
+      const cur = String(f.getValue?.() ?? '');
+      return cur === '';
+    }
 
     if (allowUnknown && want && !opts.includes(want)) {
       const rawOpts = f.getOptions();
       f.menuGenerator_ = [...rawOpts, [want, want]];
-      block.setFieldValue(want, fieldName);
       opts = f.getOptions().map((o) => String(o?.[1] ?? ''));
-      cur = String(f.getValue?.() ?? '');
     }
+    block.setFieldValue(want, fieldName);
+    const cur = String(f.getValue?.() ?? '');
 
     return opts.includes(want) && cur === want;
   }
 
+  if (value != null) block.setFieldValue(String(value), fieldName);
   const cur = String(f.getValue?.() ?? '');
   return cur === String(value ?? '');
 }

@@ -35,13 +35,38 @@ Blockly.Extensions.register('action_group_dynamic_service', function () {
     }
   };
 
+  const syncChildService = () => {
+    const input = this.getInput('ENTITIES');
+    const firstBlock = input?.connection?.targetBlock();
+    const service = this.getFieldValue('SERVICE') || '';
+
+    let b = firstBlock;
+    while (b) {
+      const f = b.getField('ACTION');
+      if (f && service) {
+        const opts = typeof f.getOptions === 'function' ? f.getOptions().map((o) => o[1]) : [];
+        if (!opts.length || opts.includes(service)) {
+          f.setValue(service);
+        }
+      }
+      b = b.getNextBlock();
+    }
+  };
+
   const initialDomain = domainField.getValue() || 'cover';
   updateServiceOptions(initialDomain);
+  syncChildService();
 
   domainField.setValidator((newVal) => {
     const domain = newVal || 'cover';
     updateServiceOptions(domain);
     resetChildEntities();
+    setTimeout(() => syncChildService(), 0);
+    return newVal;
+  });
+
+  serviceField.setValidator((newVal) => {
+    setTimeout(() => syncChildService(), 0);
     return newVal;
   });
 });

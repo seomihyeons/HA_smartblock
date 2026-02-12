@@ -364,7 +364,7 @@ yamlGenerator.forBlock['action_delay'] = function (block) {
   const z2 = (n) => String(n).padStart(2, '0');
   const hhmmss = `${z2(h)}:${z2(m)}:${z2(s)}`;
 
-  let code = `- delay: "${hhmmss}"\n`;
+  let code = `- delay: "${hhmmss}"\n\n`;
   return code;
 };
 
@@ -405,6 +405,27 @@ yamlGenerator.forBlock['action_data_brightness_pct'] = function(block) {
 yamlGenerator.forBlock['action_data_transition'] = function(block) {
   const v = Number(block.getFieldValue('SECONDS') || 0);
   return `transition: ${v}\n`;
+};
+
+yamlGenerator.forBlock['action_data_color'] = function(block) {
+  const mode = String(block.getFieldValue('MODE') || 'name');
+
+  if (mode === 'rgb') {
+    const r = Math.max(0, Math.min(255, Math.round(Number(block.getFieldValue('R') || 0))));
+    const g = Math.max(0, Math.min(255, Math.round(Number(block.getFieldValue('G') || 0))));
+    const b = Math.max(0, Math.min(255, Math.round(Number(block.getFieldValue('B') || 0))));
+    return `rgb_color: [${r}, ${g}, ${b}]\n`;
+  }
+
+  const name = String(block.getFieldValue('NAME') || '').trim();
+  if (!name) return '';
+  return `color_name: ${JSON.stringify(name)}\n`;
+};
+
+yamlGenerator.forBlock['action_data_effect'] = function(block) {
+  const effect = String(block.getFieldValue('EFFECT') || '').trim();
+  if (!effect) return '';
+  return `effect: ${JSON.stringify(effect)}\n`;
 };
 
 yamlGenerator.forBlock['action_data_kv_text'] = function(block) {
@@ -471,79 +492,88 @@ yamlGenerator.forBlock['action_notify'] = function (block, generator) {
   const uiTarget = (block.getFieldValue('TARGET') || 'notify').trim();
   const svc = uiTarget.startsWith('notify.') ? uiTarget : `notify.${uiTarget}`;
 
-  const innerRaw = generator.statementToCode(block, 'MESSAGE_BLOCKS') || '';
-  const inner = innerRaw.replace(/\s+$/, '');
-  if (!inner.trim()) return '';
-
-  let code = `- action: ${svc}\n`;
-  code += `  data:\n`;
-  code += generator.prefixLines(inner, '    ');
-  return code;
-};
-
-// Action: message (컨테이너)
-yamlGenerator.forBlock['action_message'] = function (block, generator) {
-  const parts = [];
   const extraLines = [];
-
+  const messageParts = [];
   let child = block.getInputTargetBlock('MESSAGE_BLOCKS');
   while (child) {
-    switch (child.type) {
-      case 'action_notify_message_text': {
-        const t = (child.getFieldValue('TEXT') || '');
-        if (t != "input message") { parts.push(t); }
-        break;
-      }
-      case 'action_notify_message_template': {
-        const kind = child.getFieldValue('TEMPLATE_KIND');
-        let expr = '';
-
-        switch (kind) {
-          case 'TRIGGER_ENTITY_ID': expr = ' {{ trigger.entity_id }} '; break;
-          case 'TRIGGER_FRIENDLY_NAME': expr = ' {{ trigger.to_state.attributes.friendly_name }} '; break;
-          case 'TRIGGER_NEW_STATE': expr = ' {{ trigger.to_state.state }} '; break;
-          case 'TRIGGER_OLD_STATE': expr = ' {{ trigger.from_state.state }} '; break;
-
-          case 'NOW': expr = ' {{ now() }} '; break;
-          case 'DATE': expr = ' {{ now().date() }} '; break;
-          case 'TIME_HM': expr = " {{ now().strftime('%H:%M') }} "; break;
-          case 'WEEKDAY': expr = "{{ now().strftime('%A') }}"; break;
-
-          case 'USER_NAME': expr = ' {{ user.name }} '; break;
-          case 'USER_LANG': expr = ' {{ user.language }} '; break;
-          case 'USER_ID': expr = ' {{ user.id }} '; break;
-
-          default: expr = '';
-        }
-
-        if (expr) { parts.push(expr); }
-        break;
-      }
-      case 'action_notify_tag': {
-        // blockToCode 쓰면 scrub_ 때문에 next가 붙어 중복될 수 있어서
-        // forBlock 직접 호출
-        const fn = generator.forBlock['action_notify_tag'];
-        if (fn) {
-          const tagYaml = fn(child, generator);
-          if (tagYaml) extraLines.push(tagYaml);
-        }
-        break;
-      }
-
-      default: break;
+    if (child.type === 'action_notify_message_text') {
+      const t = String(child.getFieldValue('TEXT') || '');
+      if (t && t !== 'input message') messageParts.push(t);
     }
-
+    if (child.type === 'action_notify_message_template') {
+      const kind = String(child.getFieldValue('TEMPLATE_KIND') || '');
+      const map = {
+        TRIGGER_ENTITY_ID: ' {{ trigger.entity_id }} ',
+        TRIGGER_FRIENDLY_NAME: ' {{ trigger.to_state.attributes.friendly_name }} ',
+        TRIGGER_NEW_STATE: ' {{ trigger.to_state.state }} ',
+        TRIGGER_OLD_STATE: ' {{ trigger.from_state.state }} ',
+        NOW: ' {{ now() }} ',
+        DATE: ' {{ now().date() }} ',
+        TIME_HM: " {{ now().strftime('%H:%M') }} ",
+        WEEKDAY: " {{ now().strftime('%A') }} ",
+        USER_NAME: ' {{ user.name }} ',
+        USER_LANG: ' {{ user.language }} ',
+        USER_ID: ' {{ user.id }} ',
+      };
+      if (map[kind]) messageParts.push(map[kind]);
+    }
+    if (child.type === 'action_message') {
+      let inner = child.getInputTargetBlock('MESSAGE_BLOCKS');
+      while (inner) {
+        if (inner.type === 'action_notify_message_text') {
+          const t = String(inner.getFieldValue('TEXT') || '');
+          if (t && t !== 'input message') messageParts.push(t);
+        }
+        if (inner.type === 'action_notify_message_template') {
+          const kind = String(inner.getFieldValue('TEMPLATE_KIND') || '');
+          const map = {
+            TRIGGER_ENTITY_ID: ' {{ trigger.entity_id }} ',
+            TRIGGER_FRIENDLY_NAME: ' {{ trigger.to_state.attributes.friendly_name }} ',
+            TRIGGER_NEW_STATE: ' {{ trigger.to_state.state }} ',
+            TRIGGER_OLD_STATE: ' {{ trigger.from_state.state }} ',
+            NOW: ' {{ now() }} ',
+            DATE: ' {{ now().date() }} ',
+            TIME_HM: " {{ now().strftime('%H:%M') }} ",
+            WEEKDAY: " {{ now().strftime('%A') }} ",
+            USER_NAME: ' {{ user.name }} ',
+            USER_LANG: ' {{ user.language }} ',
+            USER_ID: ' {{ user.id }} ',
+          };
+          if (map[kind]) messageParts.push(map[kind]);
+        }
+        if (inner.type === 'action_notify_tag') {
+          const fn = generator.forBlock['action_notify_tag'];
+          if (fn) {
+            const tagYaml = fn(inner, generator);
+            if (tagYaml) extraLines.push(tagYaml);
+          }
+        }
+        inner = inner.getNextBlock();
+      }
+    }
+    if (child.type === 'action_notify_tag') {
+      const fn = generator.forBlock['action_notify_tag'];
+      if (fn) {
+        const tagYaml = fn(child, generator);
+        if (tagYaml) extraLines.push(tagYaml);
+      }
+    }
     child = child.getNextBlock();
   }
 
-  const msg = parts.join('');
-  let out = '';
-  if (msg) out += `message: ${JSON.stringify(msg)}\n`;
-  for (const l of extraLines) out += l;
+  const message = messageParts.join('');
+  if (!message) return '';
 
-  return out;
+  let code = `- action: ${svc}\n`;
+  code += `  data:\n`;
+  code += `    message: ${JSON.stringify(message)}\n`;
+  for (const l of extraLines) {
+    code += generator.prefixLines(l, '    ');
+  }
+  return code;
 };
 
+yamlGenerator.forBlock['action_message'] = function () { return ''; };
 yamlGenerator.forBlock['action_notify_message_text'] = function () { return ''; };
 yamlGenerator.forBlock['action_notify_message_template'] = function () { return ''; };
 

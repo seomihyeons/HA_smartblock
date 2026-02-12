@@ -34,26 +34,6 @@ function setAndVerifyDropdown(block, fieldName, value) {
   return cur === String(value ?? '');
 }
 
-// message 문자열에서 {{ ... }} 템플릿을 찾아
-// text 블록 + template 블록으로 쪼개서 action_message 아래에 붙여줌
-const TEMPLATE_MAP = {
-  'trigger.entity_id': 'TRIGGER_ENTITY_ID',
-  'trigger.to_state.attributes.friendly_name': 'TRIGGER_FRIENDLY_NAME',
-  'trigger.to_state.state': 'TRIGGER_NEW_STATE',
-  'trigger.from_state.state': 'TRIGGER_OLD_STATE',
-  'now()': 'NOW',
-  'now().date()': 'DATE',
-  "now().strftime('%H:%M')": 'TIME_HM',
-  "now().strftime('%A')": 'WEEKDAY',
-  'user.name': 'USER_NAME',
-  'user.language': 'USER_LANG',
-  'user.id': 'USER_ID',
-};
-
-function normalizeTemplate(expr) {
-  return expr.replace(/^\s*\{\{\s*|\s*\}\}\s*$/g, '').trim();
-}
-
 function appendStmt(parent, child, inputName) {
   const input = parent.getInput(inputName);
   if (!input) return;
@@ -83,54 +63,19 @@ function connectNextChain(prevBlock, nextBlock) {
   }
 }
 
-function buildNotifyMessageBlocks(message, msgBlock, workspace) {
+function buildNotifyMessageAsTextBlock(message, notifyBlock, workspace) {
   if (typeof message !== 'string' || !message.length) return;
-
-  const re = /(\{\{[^}]*\}\})/g;
-  let lastIndex = 0;
-  let m;
-
-  while ((m = re.exec(message)) !== null) {
-    const before = message.slice(lastIndex, m.index);
-    if (before) {
-      const textBlk = workspace.newBlock('action_notify_message_text');
-      textBlk.setFieldValue(before, 'TEXT');
-      textBlk.initSvg(); textBlk.render();
-      appendStmt(msgBlock, textBlk, 'MESSAGE_BLOCKS');
-    }
-
-    const raw = m[1];
-    const key = normalizeTemplate(raw);
-    const kind = TEMPLATE_MAP[key];
-
-    if (kind && canCreate('action_notify_message_template')) {
-      const tplBlk = workspace.newBlock('action_notify_message_template');
-      tplBlk.setFieldValue(kind, 'TEMPLATE_KIND');
-      tplBlk.initSvg(); tplBlk.render();
-      appendStmt(msgBlock, tplBlk, 'MESSAGE_BLOCKS');
-    } else {
-      const textBlk = workspace.newBlock('action_notify_message_text');
-      textBlk.setFieldValue(raw, 'TEXT');
-      textBlk.initSvg(); textBlk.render();
-      appendStmt(msgBlock, textBlk, 'MESSAGE_BLOCKS');
-    }
-
-    lastIndex = re.lastIndex;
-  }
-
-  const rest = message.slice(lastIndex);
-  if (rest) {
-    const textBlk = workspace.newBlock('action_notify_message_text');
-    textBlk.setFieldValue(rest, 'TEXT');
-    textBlk.initSvg(); textBlk.render();
-    appendStmt(msgBlock, textBlk, 'MESSAGE_BLOCKS');
-  }
+  if (!canCreate('action_notify_message_text')) return;
+  const textBlk = workspace.newBlock('action_notify_message_text');
+  textBlk.setFieldValue(message, 'TEXT');
+  textBlk.initSvg(); textBlk.render();
+  appendStmt(notifyBlock, textBlk, 'MESSAGE_BLOCKS');
 }
 
 /**
- * notify의 nested payload(a.data.data)를 action_message 아래에 붙임
+ * notify의 nested payload(a.data.data)를 action_notify 아래에 붙임
  */
-function buildNotifyTagBlocks(nested, msgBlock, workspace) {
+function buildNotifyTagBlocks(nested, notifyBlock, workspace) {
   if (!nested || typeof nested !== 'object') return;
   if (!canCreate('action_notify_tag')) return;
 
@@ -142,7 +87,7 @@ function buildNotifyTagBlocks(nested, msgBlock, workspace) {
   const tagBlk = workspace.newBlock('action_notify_tag');
   if (tagBlk.getField('TAG_NAME')) tagBlk.setFieldValue(String(tagName), 'TAG_NAME');
   tagBlk.initSvg(); tagBlk.render();
-  appendStmt(msgBlock, tagBlk, 'MESSAGE_BLOCKS');
+  appendStmt(notifyBlock, tagBlk, 'MESSAGE_BLOCKS');
 
   // (2) notify_tag: entity dropdown
   if (canCreate('notify_tag')) {
@@ -213,7 +158,7 @@ function toHMS(v) {
 
 // group domain + data/target entity_id 리스트 → action_group_entities로 변환
 function createGroupActionBlock(a, workspace, domain, method) {
-  if (!canCreate('action_group_entities') || !canCreate('action_group_entity_item')) {
+  if (!canCreate('action_group_entities')) {
     console.warn('[import] group action blocks not available');
     return null;
   }
@@ -225,13 +170,22 @@ function createGroupActionBlock(a, workspace, domain, method) {
 
   const entities = toArray(a.data?.entity_id ?? a.target?.entity_id ?? []);
   entities.forEach((eid) => {
-    const child = workspace.newBlock('action_group_entity_item');
+    const typed = `action_${domain}`;
+    const childType = canCreate(typed) ? typed : (canCreate('action_group_entity_item') ? 'action_group_entity_item' : null);
+    if (!childType) return;
+
+    const child = workspace.newBlock(childType);
+
     if (child.getField('ENTITY_ID')) {
-      // entity item도 dropdown이면 기본값으로 떨어질 수 있음 → 검증
       if (!setAndVerifyDropdown(child, 'ENTITY_ID', String(eid))) {
         child.setFieldValue(String(eid), 'ENTITY_ID');
       }
     }
+
+    if (child.getField('ACTION')) {
+      setAndVerifyDropdown(child, 'ACTION', method) || child.setFieldValue(String(method), 'ACTION');
+    }
+
     child.initSvg(); child.render();
     appendStmt(b, child, 'ENTITIES');
   });
@@ -303,8 +257,39 @@ function buildActionDataBlocks(dataObj, actionBlock, workspace) {
     appendStmt(actionBlock, t, 'DATA');
   }
 
+  if (dataObj.color_name != null && canCreate('action_data_color')) {
+    const c = workspace.newBlock('action_data_color');
+    if (c.getField('MODE')) c.setFieldValue('name', 'MODE');
+    if (c.getField('NAME')) c.setFieldValue(String(dataObj.color_name), 'NAME');
+    c.initSvg(); c.render();
+    appendStmt(actionBlock, c, 'DATA');
+  } else if (Array.isArray(dataObj.rgb_color) && dataObj.rgb_color.length >= 3 && canCreate('action_data_color')) {
+    const c = workspace.newBlock('action_data_color');
+    if (c.getField('MODE')) c.setFieldValue('rgb', 'MODE');
+    if (c.getField('R')) c.setFieldValue(String(Number(dataObj.rgb_color[0]) || 0), 'R');
+    if (c.getField('G')) c.setFieldValue(String(Number(dataObj.rgb_color[1]) || 0), 'G');
+    if (c.getField('B')) c.setFieldValue(String(Number(dataObj.rgb_color[2]) || 0), 'B');
+    c.initSvg(); c.render();
+    appendStmt(actionBlock, c, 'DATA');
+  }
+
+  let effectHandledByBlock = false;
+  if (dataObj.effect != null && canCreate('action_data_effect')) {
+    const effect = String(dataObj.effect);
+    const preset = ['Daylight', 'Rainbow', 'Colorloop', 'None'];
+    if (preset.includes(effect)) {
+      effectHandledByBlock = true;
+      const e = workspace.newBlock('action_data_effect');
+      if (e.getField('EFFECT')) e.setFieldValue(effect, 'EFFECT');
+      e.initSvg(); e.render();
+      appendStmt(actionBlock, e, 'DATA');
+    }
+  }
+
   for (const [k, v] of Object.entries(dataObj)) {
     if (k === 'brightness_pct' || k === 'transition') continue;
+    if (k === 'color_name' || k === 'rgb_color') continue;
+    if (k === 'effect' && effectHandledByBlock) continue;
     if (k === 'entity_id') continue;
     const vv = (typeof v === 'object') ? JSON.stringify(v) : v;
     addKv(k, vv);
@@ -412,20 +397,12 @@ export function createActionNode(a, workspace) {
     b.setFieldValue(valueToSet, 'TARGET');
 
     b.initSvg(); b.render();
-
-    // message container
-    let msgBlock = null;
-    if (message && canCreate('action_message')) {
-      msgBlock = workspace.newBlock('action_message');
-      msgBlock.initSvg(); msgBlock.render();
-      appendStmt(b, msgBlock, 'MESSAGE_BLOCKS');
-      buildNotifyMessageBlocks(String(message), msgBlock, workspace);
-    }
+    buildNotifyMessageAsTextBlock(String(message ?? ''), b, workspace);
 
     // nested payload: data.data
     const nested = a?.data?.data;
-    if (nested && msgBlock) {
-      buildNotifyTagBlocks(nested, msgBlock, workspace);
+    if (nested) {
+      buildNotifyTagBlocks(nested, b, workspace);
     }
 
     return b;
@@ -449,8 +426,8 @@ export function createActionNode(a, workspace) {
 
   // 1) group domain + data/target entity_id 리스트 → group 블록
   const supportsGroup = ['cover', 'light', 'switch', 'fan'].includes(domain);
-  const groupEntityIds = a.data?.entity_id ?? a.target?.entity_id;
-  if (supportsGroup && groupEntityIds != null) {
+  const groupEntities = toArray(a.data?.entity_id ?? a.target?.entity_id);
+  if (supportsGroup && groupEntities.length > 1) {
     const groupBlock = createGroupActionBlock(a, workspace, domain, method);
     if (groupBlock) return groupBlock;
   }
@@ -461,7 +438,7 @@ export function createActionNode(a, workspace) {
     return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
   }
 
-  const entityIds = toArray(a.target?.entity_id ?? a.entity_id);
+  const entityIds = toArray(a.target?.entity_id ?? a.entity_id ?? a.data?.entity_id);
   const dataObj = a.data ?? null;
 
   const makeOne = (eid) => {
