@@ -48,6 +48,9 @@ export const toolbox = {
       contents: [
         { kind: 'label', text: 'Logic' },
         { kind: 'block', type: 'condition_logic' },
+        { kind: 'block', type: 'condition_not_value' },
+        { kind: 'label', text: 'Time' },
+        { kind: 'block', type: 'condition_time' },
         { kind: 'label', text: 'State' },
         ...conditionStateBlocks,
         { kind: 'label', text: 'Numeric State' },
@@ -72,6 +75,7 @@ export const toolbox = {
         { kind: 'block', type: 'action_data_effect' },
         { kind: 'block', type: 'action_data_announce' },
         { kind: 'block', type: 'action_data_media_content_type' },
+        { kind: 'block', type: 'action_data_climate_preset_mode' },
         { kind: 'block', type: 'action_data_kv_text' },
         { kind: 'label', text: 'Delay' },
         { kind: 'block', type: 'action_delay' },

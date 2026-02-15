@@ -36,6 +36,7 @@ import { eventSunStateBlocks } from './blocks/event/event_sun_state';
 
 import { conditionLogicBlocks } from './blocks/condition/condition_logic';
 import { conditionStateBlocks } from './blocks/condition/condition_entity_state';
+import { conditionTimeBlocks } from './blocks/condition/condition_time';
 import { conditionNumericStateEntityBlocks } from './blocks/condition/condition_numeric_state_entity';
 import { conditionNumericStateAttributeBlocks } from './blocks/condition/condition_numeric_state_attribute';
 
@@ -59,6 +60,7 @@ Blockly.common.defineBlocks(eventSunStateBlocks);
 
 Blockly.common.defineBlocks(conditionLogicBlocks);
 Blockly.common.defineBlocks(conditionStateBlocks);
+Blockly.common.defineBlocks(conditionTimeBlocks);
 Blockly.common.defineBlocks(conditionNumericStateEntityBlocks);
 Blockly.common.defineBlocks(conditionNumericStateAttributeBlocks);
 

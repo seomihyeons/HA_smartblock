@@ -281,8 +281,7 @@ yamlGenerator.forBlock['condition_logic'] = function (block) {
   if (!inner.trim()) return '';
 
   const i = yamlGenerator.INDENT;   // '  '
-  const ii = i + i;                // '    '
-  const body = inner.trimEnd().replace(/^/gm, ii);
+  const body = inner.trimEnd().replace(/^/gm, i);
 
   return [
     `- condition: ${logic}`,
@@ -292,12 +291,48 @@ yamlGenerator.forBlock['condition_logic'] = function (block) {
   ].join('\n');
 };
 
+yamlGenerator.forBlock['condition_not_value'] = function () {
+  return ['NOT', Order.ATOMIC];
+};
+
+// Legacy compatibility: old saved workspaces may still contain this block.
+yamlGenerator.forBlock['condition_not_inline'] = function (block) {
+  const inner = yamlGenerator.statementToCode(block, 'SUBCONDITION') || '';
+  if (!inner.trim()) return '';
+
+  const i = yamlGenerator.INDENT;
+  const body = inner.trimEnd().replace(/^/gm, i);
+  return [
+    `- condition: not`,
+    `${i}conditions:`,
+    body,
+    ''
+  ].join('\n');
+};
+
+yamlGenerator.forBlock['condition_time'] = function (block) {
+  const useAfter = block.getFieldValue('USE_AFTER') === 'TRUE';
+  const useBefore = block.getFieldValue('USE_BEFORE') === 'TRUE';
+  if (!useAfter && !useBefore) return '';
+
+  const z2 = (n) => String(Math.max(0, Number(n) || 0)).padStart(2, '0');
+  const after = `${z2(block.getFieldValue('AFTER_H'))}:${z2(block.getFieldValue('AFTER_M'))}:${z2(block.getFieldValue('AFTER_S'))}`;
+  const before = `${z2(block.getFieldValue('BEFORE_H'))}:${z2(block.getFieldValue('BEFORE_M'))}:${z2(block.getFieldValue('BEFORE_S'))}`;
+
+  const lines = ['- condition: time'];
+  if (useAfter) lines.push(`  after: "${after}"`);
+  if (useBefore) lines.push(`  before: "${before}"`);
+  lines.push('');
+  return lines.join('\n');
+};
+
 // Condition: entity state
 for (const domain of (STATE_DOMAINS || [])) {
   yamlGenerator.forBlock[`condition_state_${domain}`] = function (block) {
     const entityId = block.getFieldValue('ENTITY_ID') || '';
     const state    = block.getFieldValue('STATE') || '';
     if (!entityId) return '';
+    const mod = (yamlGenerator.valueToCode(block, 'MOD', 0) || '').trim();
 
     const i = yamlGenerator.INDENT;
     const lines = [
@@ -305,6 +340,17 @@ for (const domain of (STATE_DOMAINS || [])) {
       `${i}entity_id: ${entityId}`,
     ];
     if (state) lines.push(`${i}state: '${String(state)}'`);
+
+    if (mod === 'NOT') {
+      const nested = lines.join('\n').replace(/^/gm, i);
+      return [
+        `- condition: not`,
+        `${i}conditions:`,
+        nested,
+        ''
+      ].join('\n');
+    }
+
     lines.push('');
     return lines.join('\n');
   };
@@ -315,6 +361,10 @@ yamlGenerator.forBlock['condition_numeric_state_entity'] = function (block) {
   const entityId = block.getFieldValue('ENTITY_ID') || '';
   const above = parseFloat(block.getFieldValue('ABOVE'));
   const below = parseFloat(block.getFieldValue('BELOW'));
+  const hasUseAbove = !!block.getField('USE_ABOVE');
+  const hasUseBelow = !!block.getField('USE_BELOW');
+  const useAbove = hasUseAbove ? (block.getFieldValue('USE_ABOVE') === 'TRUE') : (!isNaN(above) && above > 0);
+  const useBelow = hasUseBelow ? (block.getFieldValue('USE_BELOW') === 'TRUE') : (!isNaN(below) && below > 0);
 
   if (!entityId) return '';
 
@@ -324,8 +374,8 @@ yamlGenerator.forBlock['condition_numeric_state_entity'] = function (block) {
     `${i}entity_id: ${entityId}`
   ];
 
-  if (!isNaN(above) && above > 0) lines.push(`${i}above: ${above}`);
-  if (!isNaN(below) && below > 0) lines.push(`${i}below: ${below}`);
+  if (useAbove && !isNaN(above)) lines.push(`${i}above: ${above}`);
+  if (useBelow && !isNaN(below)) lines.push(`${i}below: ${below}`);
 
   lines.push('');
   return lines.join('\n');
@@ -337,6 +387,10 @@ yamlGenerator.forBlock['condition_numeric_state_attribute'] = function (block) {
   const attribute = block.getFieldValue('ATTRIBUTE') || '';
   const above = parseFloat(block.getFieldValue('ABOVE'));
   const below = parseFloat(block.getFieldValue('BELOW'));
+  const hasUseAbove = !!block.getField('USE_ABOVE');
+  const hasUseBelow = !!block.getField('USE_BELOW');
+  const useAbove = hasUseAbove ? (block.getFieldValue('USE_ABOVE') === 'TRUE') : (!isNaN(above) && above > 0);
+  const useBelow = hasUseBelow ? (block.getFieldValue('USE_BELOW') === 'TRUE') : (!isNaN(below) && below > 0);
 
   if (!entityId || !attribute) return '';
 
@@ -347,8 +401,8 @@ yamlGenerator.forBlock['condition_numeric_state_attribute'] = function (block) {
     `${i}attribute: ${attribute}`
   ];
 
-  if (!isNaN(above) && above > 0) lines.push(`${i}above: ${above}`);
-  if (!isNaN(below) && below > 0) lines.push(`${i}below: ${below}`);
+  if (useAbove && !isNaN(above)) lines.push(`${i}above: ${above}`);
+  if (useBelow && !isNaN(below)) lines.push(`${i}below: ${below}`);
 
   lines.push('');
   return lines.join('\n');
@@ -389,7 +443,9 @@ for (const domain of (ACTION_DOMAINS || [])) {
 
     if (dataCode.trim()) {
       lines.push(`${i}data:`);
-      lines.push(generator.prefixLines(dataCode, ii));
+      // statementToCode already includes one indent level for child statements.
+      // Use one more level here so data children stay at +2 from `data:`.
+      lines.push(generator.prefixLines(dataCode, i));
     }
 
     lines.push('');
@@ -397,17 +453,17 @@ for (const domain of (ACTION_DOMAINS || [])) {
   };
 }
 
-yamlGenerator.forBlock['action_data_brightness_pct'] = function(block) {
+yamlGenerator.forBlock['action_data_brightness_pct'] = function (block) {
   const v = Number(block.getFieldValue('VALUE') || 0);
   return `brightness_pct: ${v}\n`;
 };
 
-yamlGenerator.forBlock['action_data_transition'] = function(block) {
+yamlGenerator.forBlock['action_data_transition'] = function (block) {
   const v = Number(block.getFieldValue('SECONDS') || 0);
   return `transition: ${v}\n`;
 };
 
-yamlGenerator.forBlock['action_data_color'] = function(block) {
+yamlGenerator.forBlock['action_data_color'] = function (block) {
   const mode = String(block.getFieldValue('MODE') || 'name');
 
   if (mode === 'rgb') {
@@ -422,27 +478,105 @@ yamlGenerator.forBlock['action_data_color'] = function(block) {
   return `color_name: ${JSON.stringify(name)}\n`;
 };
 
-yamlGenerator.forBlock['action_data_effect'] = function(block) {
+yamlGenerator.forBlock['action_data_effect'] = function (block) {
   const effect = String(block.getFieldValue('EFFECT') || '').trim();
   if (!effect) return '';
   return `effect: ${JSON.stringify(effect)}\n`;
 };
 
-yamlGenerator.forBlock['action_data_announce'] = function(block) {
+yamlGenerator.forBlock['action_data_announce'] = function (block) {
   const v = String(block.getFieldValue('VALUE') || 'false') === 'true';
   return `announce: ${v ? 'true' : 'false'}\n`;
 };
 
-yamlGenerator.forBlock['action_data_media_content_type'] = function(block) {
+yamlGenerator.forBlock['action_data_media_content_type'] = function (block) {
   const v = String(block.getFieldValue('VALUE') || '').trim();
   if (!v) return '';
   return `media_content_type: ${JSON.stringify(v)}\n`;
 };
 
-yamlGenerator.forBlock['action_data_kv_text'] = function(block) {
+yamlGenerator.forBlock['action_data_climate_preset_mode'] = function (block) {
+  const v = String(block.getFieldValue('VALUE') || '').trim();
+  if (!v) return '';
+  return `preset_mode: ${JSON.stringify(v)}\n`;
+};
+
+function emitYamlScalar(v) {
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  if (v == null) return 'null';
+  return JSON.stringify(String(v));
+}
+
+function emitYamlObject(obj, indent = 0) {
+  const pad = ' '.repeat(indent);
+  let out = '';
+  for (const [k, v] of Object.entries(obj || {})) {
+    if (Array.isArray(v)) {
+      out += `${pad}${k}:\n`;
+      for (const item of v) {
+        if (item && typeof item === 'object' && !Array.isArray(item)) {
+          out += `${pad}  -\n`;
+          out += emitYamlObject(item, indent + 4);
+        } else {
+          out += `${pad}  - ${emitYamlScalar(item)}\n`;
+        }
+      }
+      continue;
+    }
+    if (v && typeof v === 'object') {
+      out += `${pad}${k}:\n`;
+      out += emitYamlObject(v, indent + 2);
+      continue;
+    }
+    out += `${pad}${k}: ${emitYamlScalar(v)}\n`;
+  }
+  return out;
+}
+
+yamlGenerator.forBlock['action_data_kv_text'] = function (block) {
   const k = (block.getFieldValue('KEY') || '').trim();
   const v = (block.getFieldValue('VALUE') || '').trim();
   if (!k) return '';
+  const keyLower = k.toLowerCase();
+
+  if (keyLower === 'position') {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return '';
+    const iv = Math.round(n);
+    if (iv < 0 || iv > 100) return '';
+    return `position: ${iv}\n`;
+  }
+
+  const numericKeys = new Set([
+    'brightness_pct',
+    'transition',
+    'temperature',
+    'target_temp_high',
+    'target_temp_low',
+    'humidity',
+    'volume_level',
+  ]);
+  if (numericKeys.has(keyLower)) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return '';
+    return `${k}: ${n}\n`;
+  }
+
+  if (keyLower === 'media_content_id' && /^media-source:\/\//.test(v)) {
+    return `${k}: >\n  ${v}\n`;
+  }
+
+  if (keyLower === 'extra') {
+    try {
+      const parsed = JSON.parse(v || '{}');
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return `${k}:\n${emitYamlObject(parsed, 2)}`;
+      }
+    } catch (_) {
+      // fall through to text
+    }
+  }
+
   return `${k}: ${JSON.stringify(v)}\n`;
 };
 
@@ -768,7 +902,9 @@ yamlGenerator.forBlock['action_group_entities'] = function (block) {
   }
   if (dataCode.trim()) {
     yaml += '  data:\n';
-    yaml += yamlGenerator.prefixLines(dataCode, '    ');
+    // statementToCode already includes one indent level for child statements.
+    // Keep data children at +2 from `data:`.
+    yaml += yamlGenerator.prefixLines(dataCode, '  ');
   }
 
   return yaml + '\n';

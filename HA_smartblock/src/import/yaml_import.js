@@ -106,7 +106,35 @@ function parseYamlLite(text) {
         stack.push({ indent, node: seqNode });
       }
     } else {
-      const idx = content.indexOf(':'); if (idx === -1) continue;
+      const idx = content.indexOf(':');
+      if (idx === -1) {
+        // 비정상 YAML 방어:
+        // entity_id:
+        //   light.backyard_patio   (원래는 "- light.backyard_patio")
+        // 같은 형태를 단일 리스트 항목으로 복원한다.
+        const textValue = content.trim();
+        const entityLike = /^[A-Za-z0-9_]+\.[A-Za-z0-9_]+$/.test(textValue);
+        const parentIsEmptyMap = parent?.__type === 'map' && Object.keys(parent.value || {}).length === 0;
+
+        let parentKey = null;
+        const holder = stack.length >= 2 ? stack[stack.length - 2]?.node : null;
+        if (holder?.__type === 'map') {
+          for (const [k, v] of Object.entries(holder.value || {})) {
+            if (v === parent) {
+              parentKey = k;
+              break;
+            }
+          }
+        }
+
+        if (entityLike && parentIsEmptyMap && parentKey === 'entity_id') {
+          if (!parent.value.items || parent.value.items.__type !== 'seq') {
+            parent.value.items = { __type: 'seq', value: [] };
+          }
+          parent.value.items.value.push(wrapScalar(textValue));
+        }
+        continue;
+      }
       const key = content.slice(0, idx).trim();
       const vStr = content.slice(idx + 1).trim();
       let mapNode = parent;
@@ -214,6 +242,30 @@ function normalizeEntityList(maybe) {
   const unwrapped = unwrapItems(maybe);
   if (Array.isArray(unwrapped)) {
     return unwrapped.map(String);
+  }
+  // 1.5) 비정상 YAML 방어:
+  // entity_id:
+  //   light.xxx   (원래는 "- light.xxx"여야 함)
+  // 같은 입력이 경량 파서에서 { "light.xxx": {} } 형태가 되는 경우를 복원
+  if (unwrapped && typeof unwrapped === 'object') {
+    const entries = Object.entries(unwrapped);
+    const restored = [];
+
+    for (const [k, v] of entries) {
+      const emptyObj = v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0;
+      // key 자체가 entity_id처럼 보이고 값이 비어 있으면 key를 entity_id로 간주
+      if ((v == null || v === '' || v === true || emptyObj) && k.includes('.')) {
+        restored.push(k);
+        continue;
+      }
+      // 값 쪽에 entity_id 문자열이 있으면 그것을 사용
+      if (typeof v === 'string' && v.trim()) {
+        restored.push(v.trim());
+      }
+    }
+
+    if (restored.length) return restored.map(String);
+    return [];
   }
   // 2) 인라인 배열을 이미 스칼라가 파싱한 경우: 문자열 "a, b"
   const split = splitMaybeListString(unwrapped);

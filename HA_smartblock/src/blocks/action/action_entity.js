@@ -1,10 +1,20 @@
 // src/blocks/action/action_entity.js
 import * as Blockly from 'blockly';
 import { dummyEntities } from '../../data/entities_index.js';
-import { ACTION_DOMAINS, getActions } from '../../data/options.js';
+import { ACTION_DOMAINS, HOMEASSISTANT_TARGET_DOMAINS, getActions } from '../../data/options.js';
 
 function getEntityOptions(domain) {
-  const filtered = dummyEntities.filter(e => e.entity_id.startsWith(`${domain}.`));
+  const filtered = (dummyEntities || []).filter((e) => {
+    const id = String(e.entity_id || '');
+    if (!id) return false;
+
+    if (domain === 'homeassistant') {
+      const d = id.includes('.') ? id.split('.', 1)[0] : '';
+      return HOMEASSISTANT_TARGET_DOMAINS.includes(d);
+    }
+
+    return id.startsWith(`${domain}.`);
+  });
   if (!filtered.length) return [['(No entities)', '']];
   return filtered.map(e => [e.attributes?.friendly_name || e.entity_id, e.entity_id]);
 }

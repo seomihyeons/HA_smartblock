@@ -69,6 +69,7 @@ export const DOMAIN_SPEC = {
       ['on', 'turn_on'],
       ['off', 'turn_off'],
       ['set temperature', 'set_temperature'],
+      ['set preset mode', 'set_preset_mode'],
     ],
     states: [
       ['heat', 'heat'],
@@ -83,6 +84,7 @@ export const DOMAIN_SPEC = {
       ['open', 'open_cover'],
       ['close', 'close_cover'],
       ['stop', 'stop_cover'],
+      ['set position', 'set_cover_position'],
     ],
     states: [
       ['open', 'open'],
@@ -136,6 +138,11 @@ export const DOMAIN_SPEC = {
   },
 
   input_boolean: {
+    actions: [
+      ['on', 'turn_on'],
+      ['off', 'turn_off'],
+      ['toggle', 'toggle'],
+    ],
     states: [
       ['on', 'on'],
       ['off', 'off'],
@@ -186,6 +193,14 @@ export const DOMAIN_SPEC = {
     states: [
       ['on', 'on'],
       ['off', 'off'],
+    ],
+  },
+
+  homeassistant: {
+    actions: [
+      ['turn on', 'turn_on'],
+      ['turn off', 'turn_off'],
+      ['toggle', 'toggle'],
     ],
   },
 
@@ -365,6 +380,45 @@ export const EVENT_TYPES = [
 ];
 
 /* ============================================================
+ * CLIMATE PRESET MODE OPTIONS
+ * ============================================================ */
+
+const CLIMATE_PRESET_FALLBACKS = [
+  'none',
+  'home',
+  'away',
+  'sleep',
+  'comfort',
+  'eco',
+  'boost',
+  'activity',
+  'Guest',
+];
+
+export function getClimatePresetOptions() {
+  const discovered = new Set();
+  (dummyEntities || [])
+    .filter((e) => String(e.entity_id || '').startsWith('climate.'))
+    .forEach((e) => {
+      const modes = e?.attributes?.preset_modes;
+      if (Array.isArray(modes)) {
+        modes.forEach((m) => {
+          const v = String(m || '').trim();
+          if (v) discovered.add(v);
+        });
+      }
+    });
+
+  const merged = [...CLIMATE_PRESET_FALLBACKS];
+  for (const v of discovered) {
+    if (!merged.includes(v)) merged.push(v);
+  }
+
+  if (!merged.length) return [['sleep', 'sleep']];
+  return merged.map((v) => [v, v]);
+}
+
+/* ============================================================
  * CAMERA ENTITY OPTIONS (notify tag 용)
  * ============================================================ */
 
@@ -464,7 +518,11 @@ export const GROUP_ACTION_DOMAINS = [
   ['light', 'light'],
   ['switch', 'switch'],
   ['fan', 'fan'],
+  ['lock', 'lock'],
+  ['select', 'select'],
+  ['input_select', 'input_select'],
   ['media_player', 'media_player'],
+  ['homeassistant', 'homeassistant'],
 ];
 
 export const GROUP_DOMAIN_TO_SERVICE_OPTIONS = {
@@ -485,6 +543,20 @@ export const GROUP_DOMAIN_TO_SERVICE_OPTIONS = {
     ['on', 'turn_on'],
     ['off', 'turn_off'],
   ],
+  lock: [
+    ['lock', 'lock'],
+    ['unlock', 'unlock'],
+  ],
+  select: [
+    ['select option', 'select_option'],
+    ['next', 'select_next'],
+    ['previous', 'select_previous'],
+  ],
+  input_select: [
+    ['select option', 'select_option'],
+    ['next', 'select_next'],
+    ['previous', 'select_previous'],
+  ],
   media_player: [
     ['play media', 'play_media'],
     ['play', 'media_play'],
@@ -495,12 +567,33 @@ export const GROUP_DOMAIN_TO_SERVICE_OPTIONS = {
     ['volume up', 'volume_up'],
     ['volume down', 'volume_down'],
   ],
+  homeassistant: [
+    ['turn on', 'turn_on'],
+    ['turn off', 'turn_off'],
+  ],
 };
 
+export const HOMEASSISTANT_TARGET_DOMAINS = [
+  'light',
+  'switch',
+  'fan',
+  'cover',
+  'lock',
+  'input_boolean',
+  'automation',
+  'media_player',
+  'climate',
+  'humidifier',
+  'vacuum',
+  'valve',
+  'select',
+  'input_select',
+];
+
 export function getDomainEntityOptionsWithPlaceholder(domain) {
-  const list = (dummyEntities || []).filter((e) =>
-    e.entity_id.startsWith(`${domain}.`)
-  );
+  const list = domain === 'homeassistant'
+    ? (dummyEntities || [])
+    : (dummyEntities || []).filter((e) => e.entity_id.startsWith(`${domain}.`));
 
   const opts = list.map((e) => [
     e.attributes?.friendly_name || e.entity_id,

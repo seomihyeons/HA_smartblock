@@ -12,10 +12,11 @@ export const conditionStateBlocks =
   Blockly.common.createBlockDefinitionsFromJsonArray(
     STATE_DOMAINS.map(domain => ({
       type: `condition_state_${domain}`,
-      message0: `${domain} %1 is %2`,
+      message0: `${domain} %1 is %2 %3`,
       args0: [
         { type: 'field_dropdown', name: 'ENTITY_ID', options: () => getEntitiesByDomain(domain) },
         { type: 'field_dropdown', name: 'STATE', options: () => getStates(domain) },
+        { type: 'input_value', name: 'MOD', check: 'HA_CONDITION_MOD' },
       ],
       previousStatement: 'HA_CONDITION',
       nextStatement: 'HA_CONDITION',

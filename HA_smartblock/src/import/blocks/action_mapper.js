@@ -318,11 +318,12 @@ function buildActionDataBlocks(dataObj, actionBlock, workspace) {
   ensureActionDataInput(actionBlock);
   if (!actionBlock.getInput('DATA')) return;
 
-  const addKv = (k, v) => {
+  const addKv = (k, v, mode = 'text') => {
     if (!canCreate('action_data_kv_text')) return;
     const kv = workspace.newBlock('action_data_kv_text');
     if (kv.getField('KEY')) kv.setFieldValue(String(k), 'KEY');
     if (kv.getField('VALUE')) kv.setFieldValue(String(v), 'VALUE');
+    if (kv.getField('VALUE_MODE')) kv.setFieldValue(String(mode), 'VALUE_MODE');
     kv.initSvg(); kv.render();
     appendStmt(actionBlock, kv, 'DATA');
   };
@@ -392,14 +393,41 @@ function buildActionDataBlocks(dataObj, actionBlock, workspace) {
     appendStmt(actionBlock, m, 'DATA');
   }
 
+  if (typeof dataObj.preset_mode === 'string' && canCreate('action_data_climate_preset_mode')) {
+    const p = workspace.newBlock('action_data_climate_preset_mode');
+    const mode = String(dataObj.preset_mode);
+    if (!setAndVerifyDropdown(p, 'VALUE', mode)) {
+      p.dispose(false);
+      addKv('preset_mode', mode, 'text');
+    } else {
+      p.initSvg(); p.render();
+      appendStmt(actionBlock, p, 'DATA');
+    }
+  }
+
+  const mediaContentId = dataObj.media_content_id;
+  const mediaSource = dataObj['media-source'];
+  if (mediaContentId === '>' && typeof mediaSource === 'string') {
+    const sourceText = mediaSource.startsWith('media-source://')
+      ? mediaSource
+      : `media-source:${mediaSource}`;
+    addKv('media_content_id', sourceText, 'yaml_block');
+  }
+
   for (const [k, v] of Object.entries(dataObj)) {
     if (k === 'brightness_pct' || k === 'transition') continue;
     if (k === 'color_name' || k === 'rgb_color') continue;
-    if (k === 'announce' || k === 'media_content_type') continue;
+    if (k === 'announce' || k === 'media_content_type' || k === 'preset_mode') continue;
     if (k === 'effect' && effectHandledByBlock) continue;
     if (k === 'entity_id') continue;
+    if (k === 'media_content_id' && mediaContentId === '>' && typeof mediaSource === 'string') continue;
+    if (k === 'media-source' && mediaContentId === '>' && typeof mediaSource === 'string') continue;
+    if (k === 'extra' && v && typeof v === 'object' && !Array.isArray(v)) {
+      addKv(k, JSON.stringify(v), 'json_object');
+      continue;
+    }
     const vv = (typeof v === 'object') ? JSON.stringify(v) : v;
-    addKv(k, vv);
+    addKv(k, vv, 'text');
   }
 }
 
@@ -570,7 +598,7 @@ export function createActionNode(a, workspace) {
   }
 
   // 1) group domain + data/target entity_id 리스트 → group 블록
-  const supportsGroup = ['cover', 'light', 'switch', 'fan', 'media_player'].includes(domain);
+  const supportsGroup = ['cover', 'light', 'switch', 'fan', 'lock', 'select', 'input_select', 'media_player', 'homeassistant'].includes(domain);
   const groupEntities = toArray(a.data?.entity_id ?? a.target?.entity_id);
   if (supportsGroup && groupEntities.length > 1) {
     const groupBlock = createGroupActionBlock(a, workspace, domain, method);
@@ -584,7 +612,8 @@ export function createActionNode(a, workspace) {
   }
 
   const entityIds = toArray(a.target?.entity_id ?? a.entity_id ?? a.data?.entity_id);
-  const dataObj = a.data ?? null;
+  const dataObj = (a.data && typeof a.data === 'object') ? { ...a.data } : null;
+  if (dataObj) delete dataObj.entity_id;
 
   const makeOne = (eid) => {
     const blk = workspace.newBlock(TYPE);
@@ -593,6 +622,7 @@ export function createActionNode(a, workspace) {
     const serviceField = firstField(blk, ['ACTION', 'SERVICE']);
     if (serviceField) {
       if (!setAndVerifyDropdown(blk, serviceField, method)) {
+        blk.dispose(false);
         return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
       }
     }
@@ -601,12 +631,13 @@ export function createActionNode(a, workspace) {
     const entityField = firstField(blk, ['ENTITY', 'ENTITY_ID']);
     if (entityField) {
       if (!setDropdownAllowUnknown(blk, entityField, eid ?? '')) {
+        blk.dispose(false);
         return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
       }
     }
 
     // data 있으면 "Show data" + 내부 블록 구성
-    if (dataObj && typeof dataObj === 'object' && Object.keys(dataObj).length) {
+    if (dataObj && Object.keys(dataObj).length) {
       buildActionDataBlocks(dataObj, blk, workspace);
     }
 

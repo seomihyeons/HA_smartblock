@@ -124,7 +124,7 @@ function makeStateTriggerBlock(workspace, t, eid) {
 
   // ENTITY_ID (dropdown) 세팅 검증: 실패하면 RAW로
   const entityToSet = eid || t.entity || '';
-  const okEntity = setAndVerifyDropdown(b, 'ENTITY_ID', entityToSet);
+  const okEntity = setAndVerifyDropdown(b, 'ENTITY_ID', entityToSet, { allowUnknown: true });
   if (!okEntity) {
     disposeIfPossible(b);
     return safeRaw(workspace, 'event', [
