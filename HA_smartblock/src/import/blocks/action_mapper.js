@@ -13,6 +13,25 @@ function toArray(x) {
   return Array.isArray(x) ? x : [x];
 }
 
+function getActionEntityIdsForGroup(a) {
+  const normalize = (arr) =>
+    toArray(arr)
+      .map((v) => String(v ?? '').trim())
+      .filter((v) => v.length > 0);
+
+  const targetIds = normalize(a?.target?.entity_id);
+  const dataIds = normalize(a?.data?.entity_id);
+  const topLevelIds = normalize(a?.entity_id);
+
+  // Prefer explicit target list when it is truly a group.
+  if (targetIds.length > 1) return targetIds;
+  if (dataIds.length > 1) return dataIds;
+  if (topLevelIds.length > 1) return topLevelIds;
+  if (targetIds.length) return targetIds;
+  if (dataIds.length) return dataIds;
+  return topLevelIds;
+}
+
 // dropdown(field_dropdown)에 set을 시도한 뒤, 실제로 값이 반영됐는지 확인.
 // (options에 없는 값을 set하면 Blockly가 기본값으로 떨어질 수 있음)
 function setAndVerifyDropdown(block, fieldName, value) {
@@ -99,17 +118,27 @@ function buildNotifyTagBlocks(nested, notifyBlock, workspace) {
   if (!canCreate('action_notify_tag')) return;
 
   const tagName = nested.tag ?? '';
-  const entityId = nested.entity_id ?? '';
+  const entityRaw = nested.entity_id ?? '';
+  const entityId = Array.isArray(entityRaw) ? String(entityRaw[0] || '') : String(entityRaw || '');
   const actions = Array.isArray(nested.actions) ? nested.actions : [];
 
   // (1) action_notify_tag 껍데기
   const tagBlk = workspace.newBlock('action_notify_tag');
   if (tagBlk.getField('TAG_NAME')) tagBlk.setFieldValue(String(tagName), 'TAG_NAME');
+  const needsDetails = !!entityId || actions.length > 0;
+  if (needsDetails) {
+    if (typeof tagBlk.loadExtraState === 'function') {
+      tagBlk.loadExtraState({ hasDetails: true });
+    } else if ('hasDetails_' in tagBlk) {
+      tagBlk.hasDetails_ = true;
+      if (typeof tagBlk.updateShape_ === 'function') tagBlk.updateShape_();
+    }
+  }
   tagBlk.initSvg(); tagBlk.render();
   appendStmt(notifyBlock, tagBlk, 'MESSAGE_BLOCKS');
 
   // (2) notify_tag: entity dropdown
-  if (canCreate('notify_tag')) {
+  if (entityId && canCreate('notify_tag')) {
     const entBlk = workspace.newBlock('notify_tag');
     if (entBlk.getField('ENTITY_ID') && entityId) {
       // dropdown이면 기본값으로 떨어질 수 있으니 검증
@@ -165,7 +194,65 @@ function buildNotifyTagBlocks(nested, notifyBlock, workspace) {
 
 function buildNotifyPushBlocks(nested, notifyBlock, workspace) {
   if (!nested || typeof nested !== 'object') return;
+  const hasPushKey = Object.prototype.hasOwnProperty.call(nested, 'push');
   const push = (nested.push && typeof nested.push === 'object') ? nested.push : null;
+  const makePushOptionBlock = (option, soundMode = null) => {
+    const blk = workspace.newBlock('notify_push_option');
+    blk.initSvg(); blk.render();
+
+    if (blk.getField('OPTION')) blk.setFieldValue(String(option), 'OPTION');
+
+    // Ensure dynamic input row exists for programmatic imports.
+    if (typeof blk.rebuildNotifyPushOption_ === 'function') {
+      if (soundMode != null) blk.__soundMode = String(soundMode);
+      blk.rebuildNotifyPushOption_();
+    }
+
+    if (soundMode != null && blk.getField('SOUND_MODE')) {
+      blk.setFieldValue(String(soundMode), 'SOUND_MODE');
+    }
+
+    return blk;
+  };
+
+  if (canCreate('notify_push_option')) {
+    if (hasPushKey && nested.push == null) {
+      const noneBlk = makePushOptionBlock('none');
+      appendStmt(notifyBlock, noneBlk, 'MESSAGE_BLOCKS');
+      return;
+    }
+    if (!hasPushKey || !push) return;
+
+    if (typeof push.sound === 'string') {
+      const mode = (push.sound === 'default' || push.sound === 'none') ? push.sound : 'text';
+      const sBlk = makePushOptionBlock('sound', mode);
+      if (sBlk.getField('SOUND_MODE')) sBlk.setFieldValue(mode, 'SOUND_MODE');
+      if (mode === 'text' && sBlk.getField('SOUND_TEXT')) sBlk.setFieldValue(String(push.sound), 'SOUND_TEXT');
+      appendStmt(notifyBlock, sBlk, 'MESSAGE_BLOCKS');
+    } else if (push.sound && typeof push.sound === 'object') {
+      const sBlk = makePushOptionBlock('sound', 'critical');
+      if (sBlk.getField('SOUND_MODE')) sBlk.setFieldValue('critical', 'SOUND_MODE');
+      if (sBlk.getField('SOUND_NAME') && push.sound.name != null) sBlk.setFieldValue(String(push.sound.name), 'SOUND_NAME');
+      if (sBlk.getField('SOUND_CRITICAL') && push.sound.critical != null) sBlk.setFieldValue(String(push.sound.critical), 'SOUND_CRITICAL');
+      if (sBlk.getField('SOUND_VOLUME') && push.sound.volume != null) sBlk.setFieldValue(String(push.sound.volume), 'SOUND_VOLUME');
+      appendStmt(notifyBlock, sBlk, 'MESSAGE_BLOCKS');
+    }
+
+    if (push.badge != null) {
+      const bBlk = makePushOptionBlock('badge');
+      if (bBlk.getField('BADGE')) bBlk.setFieldValue(String(push.badge), 'BADGE');
+      appendStmt(notifyBlock, bBlk, 'MESSAGE_BLOCKS');
+    }
+
+    const level = push['interruption-level'];
+    if (typeof level === 'string' && level) {
+      const iBlk = makePushOptionBlock('interruption_level');
+      if (iBlk.getField('INTERRUPTION_LEVEL')) iBlk.setFieldValue(level, 'INTERRUPTION_LEVEL');
+      appendStmt(notifyBlock, iBlk, 'MESSAGE_BLOCKS');
+    }
+    return;
+  }
+
   if (!push || !canCreate('notify_push')) return;
 
   if (push.sound && typeof push.sound === 'object') {
@@ -193,7 +280,7 @@ function buildNotifyPushBlocks(nested, notifyBlock, workspace) {
     }
   }
 
-  if (push.badge != null && canCreate('notify_push')) {
+  if (push.badge != null) {
     const pBlk = workspace.newBlock('notify_push');
     if (pBlk.getField('PUSH_KIND')) pBlk.setFieldValue('badge', 'PUSH_KIND');
     pBlk.initSvg(); pBlk.render();
@@ -218,11 +305,32 @@ function toHMS(v) {
     const s = v | 0;
     return { hours: (s / 3600) | 0, minutes: ((s % 3600) / 60) | 0, seconds: s % 60 };
   }
+  if (v && typeof v === 'object') {
+    // Home Assistant delay object: {days?, hours?, minutes?, seconds?}
+    const toNum = (x) => {
+      const n = Number(x);
+      return Number.isFinite(n) ? n : 0;
+    };
+    const total = Math.max(
+      0,
+      Math.floor(
+        toNum(v.days) * 86400 +
+        toNum(v.hours) * 3600 +
+        toNum(v.minutes) * 60 +
+        toNum(v.seconds)
+      )
+    );
+    return {
+      hours: (total / 3600) | 0,
+      minutes: ((total % 3600) / 60) | 0,
+      seconds: total % 60,
+    };
+  }
   return { hours: 0, minutes: 0, seconds: 0 };
 }
 
 // group domain + data/target entity_id 리스트 → action_group_entities로 변환
-function createGroupActionBlock(a, workspace, domain, method) {
+function createGroupActionBlock(a, workspace, domain, method, entitiesOverride = null) {
   if (!canCreate('action_group_entities')) {
     console.warn('[import] group action blocks not available');
     return null;
@@ -230,19 +338,23 @@ function createGroupActionBlock(a, workspace, domain, method) {
 
   const b = workspace.newBlock('action_group_entities');
 
-  if (b.getField('DOMAIN') && !setAndVerifyDropdown(b, 'DOMAIN', domain)) {
+  if (b.getField('DOMAIN') && !setDropdownAllowUnknown(b, 'DOMAIN', domain)) {
     b.dispose(false);
-    return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
+    return null;
   }
-  if (b.getField('SERVICE') && !setAndVerifyDropdown(b, 'SERVICE', method)) {
+  // Group block should preserve imported service even if dropdown catalog is incomplete.
+  if (b.getField('SERVICE') && !setDropdownAllowUnknown(b, 'SERVICE', method)) {
     b.dispose(false);
-    return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
+    return null;
   }
   // Parent should be rendered before children are connected, otherwise
   // initial layout can appear stacked until a user interaction re-renders it.
   b.initSvg(); b.render();
 
-  const entities = toArray(a.target?.entity_id ?? a.data?.entity_id ?? []);
+  let addedEntities = 0;
+  const entities = Array.isArray(entitiesOverride)
+    ? entitiesOverride
+    : toArray(a.target?.entity_id ?? a.data?.entity_id ?? a.entity_id ?? []);
   entities.forEach((eid) => {
     const typed = `action_${domain}`;
     const childType = canCreate(typed) ? typed : (canCreate('action_group_entity_item') ? 'action_group_entity_item' : null);
@@ -258,12 +370,18 @@ function createGroupActionBlock(a, workspace, domain, method) {
     }
 
     if (child.getField('ACTION')) {
-      setAndVerifyDropdown(child, 'ACTION', method) || child.setFieldValue(String(method), 'ACTION');
+      setDropdownAllowUnknown(child, 'ACTION', method) || child.setFieldValue(String(method), 'ACTION');
     }
 
     child.initSvg(); child.render();
     appendStmt(b, child, 'ENTITIES');
+    addedEntities += 1;
   });
+
+  if (!addedEntities) {
+    b.dispose(false);
+    return null;
+  }
 
   // group의 공통 data는 DATA 입력으로 복원 (entity_id 제외)
   if (a.data && typeof a.data === 'object') {
@@ -305,6 +423,127 @@ function ensureActionDataInput(block) {
   }
 }
 
+function normalizeMqttPayloadValue(raw) {
+  if (typeof raw !== 'string') return String(raw ?? '');
+  let s = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+  for (let i = 0; i < 3; i += 1) {
+    const prev = s;
+    s = s
+      .replace(/\\\\n/g, '\\n')
+      .replace(/\\\\r/g, '\\r')
+      .replace(/\\\\t/g, '\\t')
+      .replace(/\\\\\"/g, '\\"')
+      .replace(/\\\\x([0-9a-fA-F]{2})/g, '\\x$1')
+      .replace(/\\\\u([0-9a-fA-F]{4})/g, '\\u$1');
+    if (s === prev) break;
+  }
+
+  s = s
+    .replace(/\\x([0-9a-fA-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/\\"/g, '"')
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\n')
+    .replace(/\\t/g, '\t')
+    .replace(/''/g, "'")
+    .replace(/"\s*\\\s*:/g, '":');
+
+  return s;
+}
+
+function buildActionMqttDataBlocks(dataObj, actionBlock, workspace) {
+  if (!dataObj || typeof dataObj !== 'object' || Array.isArray(dataObj)) return;
+  if (!actionBlock) return;
+  if (!Object.keys(dataObj).length) return;
+
+  ensureActionDataInput(actionBlock);
+  if (!actionBlock.getInput('DATA')) return;
+
+  const addKv = (k, v) => {
+    if (!canCreate('action_mqtt_data_kv')) return;
+    const kv = workspace.newBlock('action_mqtt_data_kv');
+    if (kv.getField('KEY')) kv.setFieldValue(String(k), 'KEY');
+    if (kv.getField('VALUE')) kv.setFieldValue(String(v), 'VALUE');
+    kv.initSvg(); kv.render();
+    appendStmt(actionBlock, kv, 'DATA');
+  };
+
+  for (const [k, v] of Object.entries(dataObj)) {
+    const keyLower = String(k || '').trim().toLowerCase();
+
+    if (keyLower === 'payload' && canCreate('action_mqtt_payload_text')) {
+      const payload = workspace.newBlock('action_mqtt_payload_text');
+      if (payload.getField('PAYLOAD')) {
+        payload.setFieldValue(normalizeMqttPayloadValue(v), 'PAYLOAD');
+      }
+      payload.initSvg(); payload.render();
+      appendStmt(actionBlock, payload, 'DATA');
+      continue;
+    }
+
+    if (keyLower === 'qos' && canCreate('action_mqtt_qos')) {
+      const raw = String(v ?? '').trim();
+      const qos = raw === '1' || raw === '2' ? raw : '0';
+      const qosBlock = workspace.newBlock('action_mqtt_qos');
+      if (qosBlock.getField('QOS')) qosBlock.setFieldValue(qos, 'QOS');
+      qosBlock.initSvg(); qosBlock.render();
+      appendStmt(actionBlock, qosBlock, 'DATA');
+      continue;
+    }
+
+    if (keyLower === 'retain' && canCreate('action_mqtt_retain')) {
+      const retainVal = String(v).toLowerCase() === 'true' ? 'true' : 'false';
+      const retainBlock = workspace.newBlock('action_mqtt_retain');
+      if (retainBlock.getField('RETAIN')) retainBlock.setFieldValue(retainVal, 'RETAIN');
+      retainBlock.initSvg(); retainBlock.render();
+      appendStmt(actionBlock, retainBlock, 'DATA');
+      continue;
+    }
+
+    if (keyLower === 'evaluate_payload' && canCreate('action_mqtt_evaluate_payload')) {
+      const evalVal = String(v).toLowerCase() === 'true' ? 'true' : 'false';
+      const evalBlock = workspace.newBlock('action_mqtt_evaluate_payload');
+      if (evalBlock.getField('EVAL')) evalBlock.setFieldValue(evalVal, 'EVAL');
+      evalBlock.initSvg(); evalBlock.render();
+      appendStmt(actionBlock, evalBlock, 'DATA');
+      continue;
+    }
+
+    const valueText = (v && typeof v === 'object') ? JSON.stringify(v) : String(v ?? '');
+    addKv(k, valueText);
+  }
+}
+
+function createMqttPublishActionBlock(a, workspace) {
+  if (!canCreate('action_mqtt_publish')) return null;
+
+  const parsed = asPlainObjectMaybe(a?.data);
+  const dataObj = parsed ? { ...parsed } : {};
+  const topic = String(dataObj.topic ?? '').trim();
+  if (!topic) return null;
+
+  const block = workspace.newBlock('action_mqtt_publish');
+  if (block.getField('TOPIC')) block.setFieldValue(topic, 'TOPIC');
+
+  delete dataObj.topic;
+  const hasData = Object.keys(dataObj).length > 0;
+  if (hasData && typeof block.loadExtraState === 'function') {
+    const current = block.saveExtraState?.() || {};
+    block.loadExtraState({ ...current, hasData: true });
+  }
+
+  block.initSvg?.();
+  block.render?.();
+
+  if (hasData) {
+    buildActionMqttDataBlocks(dataObj, block, workspace);
+  }
+
+  block.render?.();
+  return block;
+}
+
 /**
  * ✅ YAML의 action.data를 "작은 블록들"로 구성해서 DATA에 붙이기
  */
@@ -312,8 +551,7 @@ function buildActionDataBlocks(dataObj, actionBlock, workspace) {
   if (!dataObj || typeof dataObj !== 'object') return;
   if (!actionBlock) return;
 
-  const keys = Object.keys(dataObj);
-  if (!keys.length) return;
+  if (!Object.keys(dataObj).length) return;
 
   ensureActionDataInput(actionBlock);
   if (!actionBlock.getInput('DATA')) return;
@@ -328,100 +566,222 @@ function buildActionDataBlocks(dataObj, actionBlock, workspace) {
     appendStmt(actionBlock, kv, 'DATA');
   };
 
-  if (dataObj.brightness_pct != null && canCreate('action_data_brightness_pct')) {
-    const b = workspace.newBlock('action_data_brightness_pct');
-    if (b.getField('VALUE')) b.setFieldValue(String(dataObj.brightness_pct), 'VALUE');
-    b.initSvg(); b.render();
-    appendStmt(actionBlock, b, 'DATA');
-  }
+  const normalizePayloadValue = (raw) => {
+    if (typeof raw !== 'string') return String(raw ?? '');
+    let s = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-  if (dataObj.transition != null && canCreate('action_data_transition')) {
-    const t = workspace.newBlock('action_data_transition');
-    if (t.getField('SECONDS')) t.setFieldValue(String(dataObj.transition), 'SECONDS');
-    t.initSvg(); t.render();
-    appendStmt(actionBlock, t, 'DATA');
-  }
-
-  if (dataObj.color_name != null && canCreate('action_data_color')) {
-    const c = workspace.newBlock('action_data_color');
-    if (c.getField('MODE')) c.setFieldValue('name', 'MODE');
-    if (c.getField('NAME')) c.setFieldValue(String(dataObj.color_name), 'NAME');
-    c.initSvg(); c.render();
-    appendStmt(actionBlock, c, 'DATA');
-  } else if (Array.isArray(dataObj.rgb_color) && dataObj.rgb_color.length >= 3 && canCreate('action_data_color')) {
-    const c = workspace.newBlock('action_data_color');
-    if (c.getField('MODE')) c.setFieldValue('rgb', 'MODE');
-    if (c.getField('R')) c.setFieldValue(String(Number(dataObj.rgb_color[0]) || 0), 'R');
-    if (c.getField('G')) c.setFieldValue(String(Number(dataObj.rgb_color[1]) || 0), 'G');
-    if (c.getField('B')) c.setFieldValue(String(Number(dataObj.rgb_color[2]) || 0), 'B');
-    c.initSvg(); c.render();
-    appendStmt(actionBlock, c, 'DATA');
-  }
-
-  let effectHandledByBlock = false;
-  if (dataObj.effect != null && canCreate('action_data_effect')) {
-    const effect = String(dataObj.effect);
-    const preset = ['Daylight', 'Rainbow', 'Colorloop', 'None'];
-    if (preset.includes(effect)) {
-      effectHandledByBlock = true;
-      const e = workspace.newBlock('action_data_effect');
-      if (e.getField('EFFECT')) e.setFieldValue(effect, 'EFFECT');
-      e.initSvg(); e.render();
-      appendStmt(actionBlock, e, 'DATA');
+    // 중첩 escape(\\n, \\\" 등)를 단계적으로 평탄화
+    for (let i = 0; i < 3; i += 1) {
+      const prev = s;
+      s = s
+        .replace(/\\\\n/g, '\\n')
+        .replace(/\\\\r/g, '\\r')
+        .replace(/\\\\t/g, '\\t')
+        .replace(/\\\\\"/g, '\\"')
+        .replace(/\\\\x([0-9a-fA-F]{2})/g, '\\x$1')
+        .replace(/\\\\u([0-9a-fA-F]{4})/g, '\\u$1');
+      if (s === prev) break;
     }
-  }
 
-  if (typeof dataObj.announce === 'boolean' && canCreate('action_data_announce')) {
-    const n = workspace.newBlock('action_data_announce');
-    if (n.getField('VALUE')) n.setFieldValue(dataObj.announce ? 'true' : 'false', 'VALUE');
-    n.initSvg(); n.render();
-    appendStmt(actionBlock, n, 'DATA');
-  }
+    // \xB0, \u00B0 같은 escape를 실제 문자로 복원
+    s = s
+      .replace(/\\x([0-9a-fA-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+      .replace(/\\u([0-9a-fA-F]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
 
-  if (typeof dataObj.media_content_type === 'string' && canCreate('action_data_media_content_type')) {
-    const m = workspace.newBlock('action_data_media_content_type');
-    const type = String(dataObj.media_content_type);
-    if (m.getField('VALUE')) {
-      const opts = typeof m.getField('VALUE')?.getOptions === 'function'
-        ? m.getField('VALUE').getOptions().map((o) => o[1])
-        : [];
-      if (!opts.length || opts.includes(type)) {
-        m.setFieldValue(type, 'VALUE');
+    // 흔한 escape를 텍스트 값으로 복원
+    s = s
+      .replace(/\\"/g, '"')
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '\n')
+      .replace(/\\t/g, '\t')
+      .replace(/''/g, "'");
+
+    // 오염 패턴 보정: "pushIcon"\ : 0  -> "pushIcon": 0
+    s = s.replace(/"\s*\\\s*:/g, '":');
+    return s;
+  };
+
+  const parseRgbLike = (value) => {
+    const clamp = (n) => Math.max(0, Math.min(255, Math.round(Number(n))));
+
+    if (Array.isArray(value) && value.length >= 3) {
+      const r = Number(value[0]);
+      const g = Number(value[1]);
+      const b = Number(value[2]);
+      if ([r, g, b].every((n) => Number.isFinite(n))) {
+        return [clamp(r), clamp(g), clamp(b)];
       }
+      return null;
     }
-    m.initSvg(); m.render();
-    appendStmt(actionBlock, m, 'DATA');
-  }
 
-  if (typeof dataObj.preset_mode === 'string' && canCreate('action_data_climate_preset_mode')) {
-    const p = workspace.newBlock('action_data_climate_preset_mode');
-    const mode = String(dataObj.preset_mode);
-    if (!setAndVerifyDropdown(p, 'VALUE', mode)) {
-      p.dispose(false);
-      addKv('preset_mode', mode, 'text');
-    } else {
-      p.initSvg(); p.render();
-      appendStmt(actionBlock, p, 'DATA');
+    if (typeof value !== 'string') return null;
+    const s = value.trim();
+    if (!s) return null;
+
+    const bracket = s.match(/^\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]$/);
+    if (bracket) {
+      return [clamp(bracket[1]), clamp(bracket[2]), clamp(bracket[3])];
     }
-  }
+
+    const csv = s.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+    if (csv) {
+      return [clamp(csv[1]), clamp(csv[2]), clamp(csv[3])];
+    }
+
+    return null;
+  };
 
   const mediaContentId = dataObj.media_content_id;
   const mediaSource = dataObj['media-source'];
-  if (mediaContentId === '>' && typeof mediaSource === 'string') {
-    const sourceText = mediaSource.startsWith('media-source://')
-      ? mediaSource
-      : `media-source:${mediaSource}`;
-    addKv('media_content_id', sourceText, 'yaml_block');
-  }
+  let mediaSourcePairHandled = false;
 
-  for (const [k, v] of Object.entries(dataObj)) {
-    if (k === 'brightness_pct' || k === 'transition') continue;
-    if (k === 'color_name' || k === 'rgb_color') continue;
-    if (k === 'announce' || k === 'media_content_type' || k === 'preset_mode') continue;
-    if (k === 'effect' && effectHandledByBlock) continue;
+  const entries = Object.entries(dataObj);
+  for (const [k, v] of entries) {
     if (k === 'entity_id') continue;
-    if (k === 'media_content_id' && mediaContentId === '>' && typeof mediaSource === 'string') continue;
-    if (k === 'media-source' && mediaContentId === '>' && typeof mediaSource === 'string') continue;
+
+    if ((k === 'media_content_id' || k === 'media-source') && mediaContentId === '>' && typeof mediaSource === 'string') {
+      if (!mediaSourcePairHandled) {
+        const sourceText = mediaSource.startsWith('media-source://')
+          ? mediaSource
+          : `media-source:${mediaSource}`;
+        addKv('media_content_id', sourceText, 'yaml_block');
+        mediaSourcePairHandled = true;
+      }
+      continue;
+    }
+
+    if (k === 'payload') {
+      addKv(k, normalizePayloadValue(v), 'text');
+      continue;
+    }
+
+    if (k === 'brightness_pct') {
+      if (canCreate('action_data_brightness_pct')) {
+        const b = workspace.newBlock('action_data_brightness_pct');
+        if (b.getField('VALUE')) b.setFieldValue(String(v), 'VALUE');
+        b.initSvg(); b.render();
+        appendStmt(actionBlock, b, 'DATA');
+      } else {
+        addKv(k, v, 'text');
+      }
+      continue;
+    }
+
+    if (k === 'transition') {
+      if (canCreate('action_data_transition')) {
+        const t = workspace.newBlock('action_data_transition');
+        if (t.getField('SECONDS')) t.setFieldValue(String(v), 'SECONDS');
+        t.initSvg(); t.render();
+        appendStmt(actionBlock, t, 'DATA');
+      } else {
+        addKv(k, v, 'text');
+      }
+      continue;
+    }
+
+    if (k === 'color_name') {
+      if (canCreate('action_data_color')) {
+        const c = workspace.newBlock('action_data_color');
+        if (c.getField('MODE')) c.setFieldValue('name', 'MODE');
+        if (c.getField('NAME')) c.setFieldValue(String(v), 'NAME');
+        c.initSvg(); c.render();
+        appendStmt(actionBlock, c, 'DATA');
+      } else {
+        addKv(k, v, 'text');
+      }
+      continue;
+    }
+
+    if (k === 'rgb_color') {
+      const rgbTriplet = parseRgbLike(v);
+      if (rgbTriplet && canCreate('action_data_color')) {
+        const c = workspace.newBlock('action_data_color');
+        if (c.getField('MODE')) c.setFieldValue('rgb', 'MODE');
+        if (c.getField('R')) c.setFieldValue(String(rgbTriplet[0]), 'R');
+        if (c.getField('G')) c.setFieldValue(String(rgbTriplet[1]), 'G');
+        if (c.getField('B')) c.setFieldValue(String(rgbTriplet[2]), 'B');
+        c.initSvg(); c.render();
+        appendStmt(actionBlock, c, 'DATA');
+      } else {
+        addKv(k, v, 'text');
+      }
+      continue;
+    }
+
+    if (k === 'effect') {
+      if (canCreate('action_data_effect')) {
+        const effect = String(v);
+        const preset = ['Daylight', 'Rainbow', 'Colorloop', 'None'];
+        if (preset.includes(effect)) {
+          const e = workspace.newBlock('action_data_effect');
+          if (e.getField('EFFECT')) e.setFieldValue(effect, 'EFFECT');
+          e.initSvg(); e.render();
+          appendStmt(actionBlock, e, 'DATA');
+        } else {
+          addKv(k, v, 'text');
+        }
+      } else {
+        addKv(k, v, 'text');
+      }
+      continue;
+    }
+
+    if (k === 'announce') {
+      if (typeof v === 'boolean' && canCreate('action_data_announce')) {
+        const n = workspace.newBlock('action_data_announce');
+        if (n.getField('VALUE')) n.setFieldValue(v ? 'true' : 'false', 'VALUE');
+        n.initSvg(); n.render();
+        appendStmt(actionBlock, n, 'DATA');
+      } else {
+        addKv(k, v, 'text');
+      }
+      continue;
+    }
+
+    if (k === 'media_content_type') {
+      if (typeof v === 'string' && canCreate('action_data_media_content_type')) {
+        const m = workspace.newBlock('action_data_media_content_type');
+        const type = String(v);
+        let mapped = false;
+        if (m.getField('VALUE')) {
+          const opts = typeof m.getField('VALUE')?.getOptions === 'function'
+            ? m.getField('VALUE').getOptions().map((o) => o[1])
+            : [];
+          if (!opts.length || opts.includes(type)) {
+            m.setFieldValue(type, 'VALUE');
+            mapped = true;
+          }
+        }
+        if (mapped) {
+          m.initSvg(); m.render();
+          appendStmt(actionBlock, m, 'DATA');
+        } else {
+          m.dispose(false);
+          addKv(k, v, 'text');
+        }
+      } else {
+        addKv(k, v, 'text');
+      }
+      continue;
+    }
+
+    if (k === 'preset_mode') {
+      if (typeof v === 'string' && canCreate('action_data_climate_preset_mode')) {
+        const p = workspace.newBlock('action_data_climate_preset_mode');
+        const mode = String(v);
+        if (!setAndVerifyDropdown(p, 'VALUE', mode)) {
+          p.dispose(false);
+          addKv('preset_mode', mode, 'text');
+        } else {
+          p.initSvg(); p.render();
+          appendStmt(actionBlock, p, 'DATA');
+        }
+      } else {
+        addKv(k, v, 'text');
+      }
+      continue;
+    }
+
     if (k === 'extra' && v && typeof v === 'object' && !Array.isArray(v)) {
       addKv(k, JSON.stringify(v), 'json_object');
       continue;
@@ -504,6 +864,249 @@ function hasJinjaTemplate(v) {
   return /\{\{[^}]*\}\}/.test(v);
 }
 
+function normalizeStringList(raw) {
+  return toArray(raw)
+    .map((v) => String(v ?? '').trim())
+    .filter((v) => v.length > 0);
+}
+
+const SCRIPT_SERVICE_METHODS = new Set(['turn_on', 'turn_off', 'toggle', 'reload']);
+
+function asPlainObjectMaybe(v) {
+  if (v && typeof v === 'object' && !Array.isArray(v)) return v;
+  if (typeof v === 'string') {
+    const s = v.trim();
+    if (!s) return null;
+    try {
+      const parsed = JSON.parse(s);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+    } catch (_) {
+      // ignore parse failure
+    }
+  }
+  return null;
+}
+
+function mergeScriptDataSources(a) {
+  const sources = [
+    a?.data,
+    a?.service_data,
+    a?.data_template,
+    a?.service_data_template,
+  ];
+  let hasAny = false;
+  const out = {};
+  for (const src of sources) {
+    const obj = asPlainObjectMaybe(src);
+    if (!obj) continue;
+    hasAny = true;
+    Object.assign(out, obj);
+  }
+  return hasAny ? out : {};
+}
+
+function ensureActionTargetInput(block) {
+  if (!block) return;
+  if (block.getInput('TARGET')) return;
+
+  if (typeof block.loadExtraState === 'function') {
+    const current = block.saveExtraState?.() || {};
+    block.loadExtraState({ ...current, hasTarget: true });
+    return;
+  }
+
+  if ('hasTarget_' in block) {
+    block.hasTarget_ = true;
+    if (typeof block.updateShape_ === 'function') block.updateShape_();
+    return;
+  }
+}
+
+function createScriptActionBlock(a, workspace, svc) {
+  if (!canCreate('action_script_call')) return null;
+  if (typeof svc !== 'string') return null;
+
+  const parts = svc.split('.');
+  const domain = parts[0];
+  if (domain !== 'script' && domain !== 'python_script') return null;
+  const method = parts.slice(1).join('.');
+  const methodTrimmed = String(method || '').trim();
+
+  const b = workspace.newBlock('action_script_call');
+  const dataObj = mergeScriptDataSources(a);
+  const targetIds = normalizeStringList(a?.target?.entity_id ?? dataObj.entity_id ?? a?.entity_id);
+  delete dataObj.entity_id;
+  const hasData = Object.keys(dataObj).length > 0;
+
+  let mode = 'entity';
+  let entityId = '';
+  let entityText = 'script.my_script';
+  let service = 'turn_on';
+  let pythonName = 'main_floor_roomba';
+
+  if (domain === 'python_script') {
+    mode = 'python';
+    if (!methodTrimmed) {
+      b.dispose(false);
+      return null;
+    }
+    pythonName = methodTrimmed;
+  } else if (SCRIPT_SERVICE_METHODS.has(methodTrimmed)) {
+    mode = 'service';
+    service = methodTrimmed;
+  } else {
+    mode = 'entity';
+    entityId = svc;
+    entityText = svc;
+  }
+
+  if (typeof b.loadExtraState === 'function') {
+    b.loadExtraState({
+      mode,
+      hasTarget: targetIds.length > 0,
+      hasData,
+      entityId,
+      entityText,
+      service,
+      pythonName,
+    });
+  }
+
+  if (b.getField('MODE')) {
+    b.setFieldValue(mode, 'MODE');
+  }
+  if (mode === 'python' && b.getField('PYTHON_NAME')) {
+    b.setFieldValue(pythonName, 'PYTHON_NAME');
+  }
+  if (mode === 'service' && b.getField('SERVICE')) {
+    setDropdownAllowUnknown(b, 'SERVICE', service) || set(b, 'SERVICE', service);
+  }
+  if (mode === 'entity' && b.getField('ENTITY_ID')) {
+    if (!setDropdownAllowUnknown(b, 'ENTITY_ID', entityId)) {
+      b.setFieldValue('__custom__', 'ENTITY_ID');
+      if (b.getField('ENTITY_TEXT')) b.setFieldValue(String(entityText), 'ENTITY_TEXT');
+    }
+  }
+
+  b.initSvg?.();
+  b.render?.();
+
+  if (targetIds.length) {
+    ensureActionTargetInput(b);
+    if (!b.getInput('TARGET')) {
+      b.dispose(false);
+      return null;
+    }
+    for (const eid of targetIds) {
+      if (!canCreate('action_script_target_entity')) continue;
+      const child = workspace.newBlock('action_script_target_entity');
+      if (!setDropdownAllowUnknown(child, 'ENTITY_ID', eid)) {
+        if (child.getField('ENTITY_ID')) child.setFieldValue('__custom__', 'ENTITY_ID');
+        if (child.getField('ENTITY_TEXT')) child.setFieldValue(String(eid), 'ENTITY_TEXT');
+      }
+      child.initSvg?.(); child.render?.();
+      appendStmt(b, child, 'TARGET');
+    }
+  }
+
+  if (mode === 'python') {
+    const finalPythonName = String(b.getFieldValue('PYTHON_NAME') || b.pythonName_ || '').trim();
+    if (!finalPythonName) {
+      b.dispose(false);
+      return null;
+    }
+  }
+
+  if (hasData) {
+    buildActionDataBlocks(dataObj, b, workspace);
+  }
+
+  b.render?.();
+  return b;
+}
+
+function getJoinGroupMembers(rawMembers) {
+  let source = rawMembers;
+  if (typeof source === 'string') {
+    const s = source.trim();
+    if (s) {
+      try {
+        const parsed = JSON.parse(s);
+        if (Array.isArray(parsed)) source = parsed;
+      } catch (_) {
+        // keep raw string path
+      }
+    }
+  }
+  return normalizeStringList(source);
+}
+
+function getJoinLeaderEntity(a) {
+  const candidates = normalizeStringList(
+    a?.target?.entity_id ?? a?.entity_id ?? a?.data?.entity_id
+  );
+  return candidates.find((eid) => !hasJinjaTemplate(eid)) || '';
+}
+
+function createJoinActionBlock(a, workspace, domain, leaderEntity, members) {
+  if (!canCreate('action_join')) return null;
+
+  const b = workspace.newBlock('action_join');
+  if (b.getField('DOMAIN') && !setDropdownAllowUnknown(b, 'DOMAIN', domain)) {
+    b.dispose(false);
+    return null;
+  }
+  if (b.getField('ENTITY_ID') && !setDropdownAllowUnknown(b, 'ENTITY_ID', leaderEntity)) {
+    b.dispose(false);
+    return null;
+  }
+  b.initSvg(); b.render();
+
+  let added = 0;
+  const childType = `action_${domain}`;
+  if (!canCreate(childType)) {
+    b.dispose(false);
+    return null;
+  }
+
+  for (const eid of members) {
+    const child = workspace.newBlock(childType);
+
+    if (child.getField('ENTITY_ID')) {
+      if (!setDropdownAllowUnknown(child, 'ENTITY_ID', eid)) {
+        child.dispose(false);
+        continue;
+      }
+    }
+
+    // Member 블록에서는 ACTION 값은 UI 보조 정보일 뿐이며, join generator는 ENTITY_ID만 읽는다.
+    if (child.getField('ACTION')) {
+      setDropdownAllowUnknown(child, 'ACTION', 'join');
+    }
+
+    child.initSvg(); child.render();
+    appendStmt(b, child, 'MEMBERS');
+    added += 1;
+  }
+
+  if (!added) {
+    b.dispose(false);
+    return null;
+  }
+
+  if (a.data && typeof a.data === 'object' && !Array.isArray(a.data)) {
+    const extraData = { ...a.data };
+    delete extraData.entity_id;
+    delete extraData.group_members;
+    if (Object.keys(extraData).length > 0) {
+      buildActionDataBlocks(extraData, b, workspace);
+    }
+  }
+
+  b.render();
+  return b;
+}
+
 export function createActionNode(a, workspace) {
   /* ---------- choose/default → if-then/if-else ---------- */
   if (Array.isArray(a?.choose) && a.choose.length > 0) {
@@ -542,8 +1145,25 @@ export function createActionNode(a, workspace) {
   }
 
   /* ---------- delay ---------- */
-  if (a?.delay && canCreate('action_delay')) {
-    const n = toHMS(a.delay);
+  const delayFromSiblingKeys = (
+    a &&
+    (a.days != null || a.hours != null || a.minutes != null || a.seconds != null)
+  )
+    ? { days: a.days, hours: a.hours, minutes: a.minutes, seconds: a.seconds }
+    : null;
+
+  const delaySource = (
+    a?.delay &&
+    typeof a.delay === 'object' &&
+    !Array.isArray(a.delay) &&
+    Object.keys(a.delay).length === 0 &&
+    delayFromSiblingKeys
+  )
+    ? delayFromSiblingKeys
+    : (a?.delay ?? delayFromSiblingKeys);
+
+  if (delaySource != null && canCreate('action_delay')) {
+    const n = toHMS(delaySource);
     const b = workspace.newBlock('action_delay');
     set(b, 'H', n.hours); set(b, 'M', n.minutes); set(b, 'S', n.seconds);
     b.initSvg?.(); b.render?.();
@@ -581,6 +1201,18 @@ export function createActionNode(a, workspace) {
     return b;
   }
 
+  if (typeof svc === 'string' && (svc.startsWith('script.') || svc.startsWith('python_script.'))) {
+    const scriptBlock = createScriptActionBlock(a, workspace, svc);
+    if (scriptBlock) return scriptBlock;
+    return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
+  }
+
+  if (svc === 'mqtt.publish') {
+    const mqttBlock = createMqttPublishActionBlock(a, workspace);
+    if (mqttBlock) return mqttBlock;
+    return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
+  }
+
   /* ---------- 기타 도메인 ---------- */
   if (typeof svc !== 'string') {
     return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
@@ -588,25 +1220,43 @@ export function createActionNode(a, workspace) {
 
   const [domain, method] = svc.split('.');
 
-  // 0) target.entity_id가 템플릿이면, dropdown에 못 넣으니 RAW로
+  // 0) target.entity_id 템플릿 처리
   const targetEntity = a?.target?.entity_id;
-  if (typeof targetEntity === 'string' && hasJinjaTemplate(targetEntity)) {
+  const targetList = toArray(targetEntity);
+  const templateTargets = targetList.filter((v) => typeof v === 'string' && hasJinjaTemplate(v));
+  if (templateTargets.length > 1) {
     return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
   }
-  if (Array.isArray(targetEntity) && targetEntity.some(v => typeof v === 'string' && hasJinjaTemplate(v))) {
+  if (templateTargets.length === 1 && targetList.length > 1) {
     return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
+  }
+  const templateEntity = templateTargets.length === 1 ? String(templateTargets[0]) : '';
+
+  // 0-1) *.join + data.group_members 배열은 action_join 전용 블록으로 우선 복원
+  if (method === 'join') {
+    const members = getJoinGroupMembers(a?.data?.group_members);
+    if (members.length > 0) {
+      const leader = getJoinLeaderEntity(a);
+      if (!leader) {
+        return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
+      }
+      if (members.some((v) => hasJinjaTemplate(v))) {
+        return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
+      }
+      const joinBlock = createJoinActionBlock(a, workspace, domain, leader, members);
+      if (joinBlock) return joinBlock;
+    }
   }
 
   // 1) group domain + data/target entity_id 리스트 → group 블록
-  const supportsGroup = ['cover', 'light', 'switch', 'fan', 'lock', 'select', 'input_select', 'media_player', 'homeassistant'].includes(domain);
-  const groupEntities = toArray(a.data?.entity_id ?? a.target?.entity_id);
-  if (supportsGroup && groupEntities.length > 1) {
-    const groupBlock = createGroupActionBlock(a, workspace, domain, method);
+  const groupEntities = getActionEntityIdsForGroup(a);
+  if (groupEntities.length > 1) {
+    const groupBlock = createGroupActionBlock(a, workspace, domain, method, groupEntities);
     if (groupBlock) return groupBlock;
   }
 
   // 2) single entity 액션: action_<domain> 블록이 있으면 동적으로 사용
-  const TYPE = `action_${domain}`;
+  const TYPE = domain === 'ecobee' ? 'action_ecobee_service' : `action_${domain}`;
   if (!TYPE || !canCreate(TYPE)) {
     return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
   }
@@ -626,13 +1276,45 @@ export function createActionNode(a, workspace) {
         return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
       }
     }
+    if (typeof blk.updateEcobeeEntityUi_ === 'function') {
+      blk.updateEcobeeEntityUi_();
+    }
 
     // entity dropdown이면 검증 실패 시 RAW로
     const entityField = firstField(blk, ['ENTITY', 'ENTITY_ID']);
-    if (entityField) {
-      if (!setDropdownAllowUnknown(blk, entityField, eid ?? '')) {
-        blk.dispose(false);
-        return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
+    if (TYPE === 'action_ecobee_service') {
+      const eidText = String(eid ?? '');
+      const requiredEntityServices = new Set(['create_vacation', 'delete_vacation', 'set_sensors_in_climate']);
+      const requireEntity = requiredEntityServices.has(method);
+
+      if (!requireEntity && blk.getField('USE_ENTITY')) {
+        blk.setFieldValue(eidText ? 'TRUE' : 'FALSE', 'USE_ENTITY');
+        if (typeof blk.updateEcobeeEntityUi_ === 'function') {
+          blk.updateEcobeeEntityUi_();
+        }
+      }
+
+      if ((requireEntity || eidText) && blk.getField('ENTITY_ID')) {
+        if (!setDropdownAllowUnknown(blk, 'ENTITY_ID', eidText)) {
+          blk.dispose(false);
+          return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
+        }
+      }
+    } else if (entityField) {
+      const eidText = String(eid ?? '');
+      if (templateEntity && eidText === templateEntity) {
+        if (!setDropdownAllowUnknown(blk, entityField, '__template__')) {
+          blk.dispose(false);
+          return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
+        }
+        if (blk.getField('TEMPLATE_ENTITY')) {
+          blk.setFieldValue(templateEntity, 'TEMPLATE_ENTITY');
+        }
+      } else {
+        if (!setDropdownAllowUnknown(blk, entityField, eidText)) {
+          blk.dispose(false);
+          return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
+        }
       }
     }
 
