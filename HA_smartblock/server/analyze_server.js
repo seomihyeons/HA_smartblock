@@ -17,6 +17,8 @@ const PY_PATH = path.resolve(
     "../src/homeassistant/conflict_analyzer/ha_eca_conflict_analyzer.py"
 );
 const PY_CMD = "python";
+const HOST = process.env.ANALYZER_HOST || "127.0.0.1";
+const PORT = Number(process.env.ANALYZER_PORT || "8787");
 
 function buildHaBaseUrl() {
     if (process.env.HA_BASE_URL) return process.env.HA_BASE_URL;
@@ -26,7 +28,21 @@ function buildHaBaseUrl() {
     return `http://${ip}:${port}`;
 }
 
+function isLocalAddress(addr) {
+    return addr === "127.0.0.1" || addr === "::1" || addr === "::ffff:127.0.0.1";
+}
+
+function guardLocal(req, res) {
+    const addr = String(req.socket?.remoteAddress || "");
+    if (!isLocalAddress(addr)) {
+        res.status(403).json({ error: "forbidden" });
+        return false;
+    }
+    return true;
+}
+
 app.post("/analyze", (req, res) => {
+    if (!guardLocal(req, res)) return;
     const mode = req.body?.mode || "yaml";
 
     const haBase = buildHaBaseUrl();
@@ -50,6 +66,8 @@ app.post("/analyze", (req, res) => {
             ...process.env,
             HA_BASE_URL: haBase,
             HA_TOKEN: haToken,
+            PYTHONIOENCODING: "utf-8",
+            PYTHONUTF8: "1",
         },
     });
 
@@ -79,6 +97,6 @@ app.post("/analyze", (req, res) => {
     }
 });
 
-app.listen(8787, () => {
-    console.log("Analyzer server listening on http://localhost:8787");
+app.listen(PORT, HOST, () => {
+    console.log(`Analyzer server listening on http://${HOST}:${PORT}`);
 });
