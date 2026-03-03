@@ -1,0 +1,40 @@
+- alias: Motion - Turn Off Stair Lights when No Motion Detected
+  id: motion_turn_off_stair_lights_when_no_motion_detected
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.stairs_motion
+    from: 'on'
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 30
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: light.stairs_light
+    state: 'on'
+  - condition: state
+    entity_id: sun.sun
+    state: below_horizon
+  - condition: time
+    after: 07:00:00
+    before: '22:00:00'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: vacuum.upstairs_roomba
+      state: cleaning
+    - condition: state
+      entity_id: vacuum.upstairs_roomba
+      state: returning
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.stairs_light

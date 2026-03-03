@@ -1,0 +1,24 @@
+- alias: Blinds - Close USER1's Office Blinds Before Sunset Window Closed
+  id: 'blinds_close_USER1_office_blinds_before_sunset_window_closed'
+
+  triggers:
+    - trigger: sun
+      event: 'sunset'
+      offset: '-00:32:00'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_blinds
+      state: 'off'
+    - condition: state
+      entity_id: binary_sensor.USER1s_office_window_right
+      state: 'off'
+    - condition: state
+      entity_id: cover.USER1_s_office_blinds
+      state: 'open'
+
+  actions:
+    - action: cover.close_cover
+      data:
+        entity_id: 
+          - cover.USER1_s_office_blinds

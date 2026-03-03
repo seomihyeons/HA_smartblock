@@ -1,0 +1,34 @@
+- alias: Lights - Turn Off Exterior Lights at Sunrise
+  id: lights_turn_off_exterior_lights_at_sunrise
+  triggers:
+  - trigger: sun
+    event: sunrise
+    offset: +00:15:00
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.exterior_lights
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.lower_backyard_lighting
+      - switch.backyard_patio_lighting
+      - switch.front_yard_lighting
+  - delay: 00:02:00
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.front_porch
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.back_door
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.backyard_deck
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.backyard_patio

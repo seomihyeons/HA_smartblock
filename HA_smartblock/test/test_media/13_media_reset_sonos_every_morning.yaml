@@ -1,0 +1,58 @@
+- alias: Media - Reset Sonos Every Morning
+  id: media_reset_sonos_every_morning
+  triggers:
+  - trigger: time
+    at: 05:00:00
+  actions:
+  - action: media_player.unjoin
+    target:
+      entity_id:
+      - media_player.sonos_surround_sound
+      - media_player.sonos_living_room
+      - media_player.sonos_dining_room
+      - media_player.sonos_kitchen
+      - media_player.sonos_bathroom
+      - media_player.sonos_bedroom
+      - media_player.sonos_bedroom_closet
+      - media_player.sonos_USER1s_office
+      - media_player.sonos_USER2s_office
+      - media_player.sonos_move
+      - media_player.sonos_craft_room
+      - media_player.sonos_fitness_room
+      - media_player.sonos_backyard_patio
+      - media_player.sonos_roam
+  - action: media_player.clear_playlist
+    target:
+      entity_id:
+      - media_player.sonos_surround_sound
+      - media_player.sonos_living_room
+      - media_player.sonos_dining_room
+      - media_player.sonos_kitchen
+      - media_player.sonos_bathroom
+      - media_player.sonos_bedroom
+      - media_player.sonos_bedroom_closet
+      - media_player.sonos_USER1s_office
+      - media_player.sonos_USER2s_office
+      - media_player.sonos_move
+      - media_player.sonos_craft_room
+      - media_player.sonos_fitness_room
+      - media_player.sonos_backyard_patio
+      - media_player.sonos_roam
+  - action: homeassistant.turn_off
+    target:
+      entity_id:
+      - input_boolean.pop_music
+      - input_boolean.jazz_music
+      - input_boolean.chill_music
+      - input_boolean.classical_music
+      - input_boolean.group_all_sonos
+  - action: input_select.select_option
+    data:
+      entity_id: input_select.sonos
+      option: None
+  - action: switch.turn_off
+    data:
+      entity_id:
+      - switch.sonos_bedroom_night_sound
+      - switch.sonos_fitness_room_night_sound
+      - switch.sonos_surround_sound_night_sound

@@ -1,0 +1,39 @@
+- alias: LED Clock - USER1's Office Media Title
+  id: led_clock_USER1_office_media_title
+  triggers:
+  - trigger: state
+    entity_id: media_player.USER1_s_office_apple_tv
+    attribute: media_title
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  conditions:
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  - condition: state
+    entity_id: light.USER1s_office_desktop_clock
+    state: 'on'
+  - condition: state
+    entity_id: media_player.USER1_s_office_apple_tv
+    state: playing
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: media_player.USER1_s_office_apple_tv
+      attribute: media_content_type
+      state: music
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: media_player.USER1_s_office_apple_tv
+      attribute: app_id
+      state: com.google.ios.youtube
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/notify
+      payload: '{  "icon": "movie", "pushIcon": 2, "duration": 60, "rainbow": true,
+        "stack": false, "text": "{{ state_attr(''media_player.USER1_s_office_apple_tv'',
+        ''media_title'') }}" }'

@@ -1,0 +1,30 @@
+- alias: Motion - Turn On Upstairs Bathroom Lights when Motion Detected Evening
+  id: motion_turn_on_upstairs_bathroom_lights_when_motion_detected_evening
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.upstairs_bathroom_motion
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: light.upstairs_bathroom_vanity
+    state: 'off'
+  - condition: state
+    entity_id: sun.sun
+    state: below_horizon
+  - condition: time
+    after: 07:00:00
+    before: '22:00:00'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.upstairs_bathroom_vanity
+    data:
+      brightness_pct: 60

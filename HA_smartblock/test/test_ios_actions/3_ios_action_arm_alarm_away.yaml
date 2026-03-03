@@ -1,0 +1,10 @@
+- alias: iOS Action - Arm Alarm Away
+  id: ios_action_arm_alarm_away
+  triggers:
+  - trigger: event
+    event_type: ios.action_fired
+    event_data:
+      actionName: Arm Alarm Away
+  actions:
+  - action: alarm_control_panel.alarm_arm_away
+    entity_id: alarm_control_panel.alarm

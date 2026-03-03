@@ -1,0 +1,11 @@
+- alias: Climate - Summer Season Turn On Cool
+  id: climate_summer_season_turn_on_cool
+  triggers:
+  - trigger: state
+    entity_id: sensor.season
+    to: summer
+  actions:
+  - action: climate.set_hvac_mode
+    data:
+      entity_id: climate.main_floor
+      hvac_mode: cool

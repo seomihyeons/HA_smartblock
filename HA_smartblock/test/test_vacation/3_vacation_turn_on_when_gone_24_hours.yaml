@@ -1,0 +1,17 @@
+- alias: Vacation - Turn On when Gone 24 Hours
+  id: vacation_turn_on_when_gone_24_hours
+  triggers:
+  - trigger: state
+    entity_id: group.household
+    to: not_home
+    for:
+      hours: 24
+      minutes: 0
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_home_away
+    state: 'off'
+  actions:
+  - action: homeassistant.turn_on
+    entity_id: input_boolean.vacation_mode

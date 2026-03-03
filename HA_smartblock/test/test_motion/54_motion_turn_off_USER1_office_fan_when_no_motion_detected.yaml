@@ -1,0 +1,27 @@
+- alias: Motion - Turn Off USER1 Office Fan when No Motion Detected
+  id: motion_turn_off_USER1_office_fan_when_no_motion_detected
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.USER1s_office_motion
+    from: 'on'
+    to: 'off'
+    for:
+      hours: 1
+      minutes: 0
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.USER1_office_guest
+    state: 'off'
+  actions:
+  - action: fan.turn_off
+    target:
+      entity_id:
+      - fan.USER1s_office_fan
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.USER1s_office_air_purifier

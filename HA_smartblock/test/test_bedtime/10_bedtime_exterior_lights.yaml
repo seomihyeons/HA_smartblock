@@ -1,0 +1,77 @@
+- alias: Bedtime - Exterior Lights
+  id: 'bedtime_exterior_lights'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.bedtime
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 4
+        seconds: 30
+
+  conditions:
+    - condition: time
+      after: '00:00:00'
+      before: '06:00:00'
+    - condition: state
+      entity_id: input_select.holiday
+      state: 'None'
+
+  actions:
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.front_porch
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.back_door
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.garage_light
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.backyard_deck
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.garage_interior
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.backyard_patio
+    - delay: '00:00:60'
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.front_porch
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.back_door
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.garage_light
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.backyard_deck
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.garage_interior
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.backyard_patio
+    - action: switch.turn_off
+      target:
+        entity_id:
+          - switch.lower_backyard_lighting
+          - switch.backyard_patio_lighting
+          - switch.fountain
+          - switch.fountain_lights

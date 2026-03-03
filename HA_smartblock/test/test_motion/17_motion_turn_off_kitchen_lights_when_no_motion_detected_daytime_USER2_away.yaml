@@ -1,0 +1,48 @@
+- alias: Motion - Turn Off Kitchen Lights when No Motion Detected Daytime USER2 Away
+  id: motion_turn_off_kitchen_lights_when_no_motion_detected_daytime_USER2_away
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.kitchen_motion
+    from: 'on'
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 15
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  - condition: state
+    entity_id: light.kitchen_lights
+    state: 'on'
+  - condition: state
+    entity_id: sun.sun
+    state: above_horizon
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: person.USER2
+      state: home
+  - condition: state
+    entity_id: input_boolean.guest_mode
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: vacuum.main_floor_roomba
+      state: cleaning
+    - condition: state
+      entity_id: vacuum.main_floor_roomba
+      state: returning
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.kitchen_lights

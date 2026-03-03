@@ -1,0 +1,16 @@
+- alias: Lights - Bedroom Closet Lights Off Pico Remote
+  id: lights_bedroom_closet_lights_off_pico_remote
+  triggers:
+  - trigger: event
+    event_type: lutron_caseta_button_event
+    event_data:
+      serial: 92034753
+      button_number: 4
+      action: press
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.bedroom_closet_lights
+  - delay:
+      seconds: 1

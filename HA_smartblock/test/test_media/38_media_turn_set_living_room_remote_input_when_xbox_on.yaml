@@ -1,0 +1,22 @@
+- alias: Media - Set Living Room Remote Input when Xbox On
+  id: media_turn_set_living_room_remote_input_when_xbox_on
+  triggers:
+  - trigger: state
+    entity_id: media_player.living_room_xbox
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: media_player.living_room_tv
+    state: 'on'
+  actions:
+  - action: select.select_option
+    data:
+      entity_id: select.living_room_tv_activities
+      option: Play Xbox

@@ -1,0 +1,29 @@
+- alias: Holiday - St. Patricks Day Lighting
+  id: 'holiday_st_patricks_day_lighting'
+
+  triggers:
+    - trigger: sun
+      event: 'sunset'
+      offset: '-00:15:00'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_exterior_on_sunset
+      state: 'off'
+    - condition: state
+      entity_id: input_select.holiday
+      state: "St. Patrick's Day"
+
+  actions:
+    - action: light.turn_on
+      entity_id: light.front_porch_left
+      data:
+        transition: 900
+        brightness_pct: 100
+        color_name: green
+    - action: light.turn_on
+      entity_id: light.front_porch_right
+      data:
+        transition: 900
+        brightness_pct: 100
+        color_name: green

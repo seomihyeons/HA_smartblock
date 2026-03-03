@@ -1,0 +1,12 @@
+- alias: iOS Action - Unlock Basement Door
+  id: ios_action_automation_unlock_basement_door
+  triggers:
+  - trigger: event
+    event_type: ios.action_fired
+    event_data:
+      actionName: Unlock Basement Door
+  actions:
+  - action: lock.unlock
+    target:
+      entity_id: lock.basement_door
+    data: {}

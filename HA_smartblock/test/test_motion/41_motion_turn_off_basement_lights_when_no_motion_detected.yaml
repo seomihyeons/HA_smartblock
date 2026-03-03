@@ -1,0 +1,56 @@
+- alias: Motion - Turn Off Basement Lights when No Motion Detected
+  id: motion_turn_off_basement_lights_when_no_motion_detected
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.basement_motion
+    from: 'on'
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 30
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: light.basement_lighting
+    state: 'on'
+  - condition: state
+    entity_id: binary_sensor.fitness_room_motion
+    state: 'off'
+  - condition: state
+    entity_id: binary_sensor.craft_room_motion
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: vacuum.basement_roomba
+      state: cleaning
+    - condition: state
+      entity_id: vacuum.basement_roomba
+      state: returning
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.basement_stairs
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.basement_lights
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.work_bench_light
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.laundry_room_light
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.basement_lamp

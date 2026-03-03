@@ -1,0 +1,22 @@
+- alias: Lights - Turn Off Exterior Garage Light After Midnight
+  id: lights_turn_off_exterior_garage_light_after_midnight
+  triggers:
+  - trigger: state
+    entity_id: light.garage_light
+    from: 'off'
+    to: 'on'
+    for:
+      hours: 1
+      minutes: 0
+      seconds: 0
+  conditions:
+  - condition: time
+    after: 00:00:00
+    before: 07:30:00
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.garage_light
+    data:
+      transition: 330

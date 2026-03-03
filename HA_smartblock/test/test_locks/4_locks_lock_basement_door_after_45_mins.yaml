@@ -1,0 +1,28 @@
+- alias: Locks - Lock Basement Door After 45 Mins
+  id: locks_lock_basement_door_after_45_mins
+  triggers:
+  - trigger: state
+    entity_id: lock.basement_door
+    from: locked
+    to: unlocked
+    for:
+      hours: 2
+      minutes: 0
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_lock_unlock_doors
+    state: 'off'
+  - condition: state
+    entity_id: binary_sensor.basement_door_opened
+    state: 'off'
+    for:
+      hours: 1
+      minutes: 0
+      seconds: 0
+  - condition: state
+    entity_id: lock.basement_door
+    state: unlocked
+  actions:
+  - action: lock.lock
+    entity_id: lock.basement_door

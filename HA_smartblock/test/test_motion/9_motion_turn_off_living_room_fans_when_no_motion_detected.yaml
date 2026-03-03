@@ -1,0 +1,30 @@
+- alias: Motion - Turn Off Living Room Fans when No Motion Detected
+  id: motion_turn_off_living_room_fans_when_no_motion_detected
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.living_room_motion
+    from: 'on'
+    to: 'off'
+    for:
+      hours: 1
+      minutes: 0
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.living_room_guest
+    state: 'off'
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: fan.living_room_fans
+    state: 'on'
+  actions:
+  - action: fan.turn_off
+    target:
+      entity_id:
+      - fan.living_room_east
+      - fan.living_room_west

@@ -1,0 +1,21 @@
+- alias: Location - Household Away Mode Locks
+  id: 'location_household_away_mode_locks'
+
+  triggers:
+    - trigger: state
+      entity_id: group.household
+      from: 'home'
+      to: 'not_home'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_home_away
+      state: 'off'
+
+  actions:
+    - action: lock.lock
+      target:
+        entity_id:
+        - lock.front_door
+        - lock.back_door
+        - lock.basement_door

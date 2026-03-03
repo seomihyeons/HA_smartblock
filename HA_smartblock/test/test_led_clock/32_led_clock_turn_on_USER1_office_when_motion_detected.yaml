@@ -1,0 +1,27 @@
+- alias: LED Clock - Turn On USER1's Office when Motion Detected
+  id: led_clock_turn_on_USER1_office_when_motion_detected
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.USER1s_office_motion
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: light.USER1s_office_desktop_clock
+    state: 'off'
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  - condition: state
+    entity_id: input_boolean.USER1_office_guest
+    state: 'off'
+  actions:
+  - action: light.turn_on
+    entity_id:
+    - light.USER1s_office_desktop_clock

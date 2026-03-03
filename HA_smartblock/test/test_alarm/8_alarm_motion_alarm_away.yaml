@@ -1,0 +1,64 @@
+- alias: Alarm - Motion Alarm Away
+  id: 'alarm_motion_alarm_away'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.motion
+      from: 'off'
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 1
+        seconds: 30
+
+  conditions:
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: group.household
+        state: 'home'
+    - condition: state
+      entity_id: input_boolean.guest_mode
+      state: 'off'
+    - condition: state
+      entity_id: vacuum.main_floor_roomba
+      state: 'docked'
+    - condition: state
+      entity_id: vacuum.upstairs_roomba
+      state: 'docked'
+    - condition: state
+      entity_id: vacuum.basement_roomba
+      state: 'docked'
+    - condition: state
+      entity_id: alarm_control_panel.alarm
+      state: 'armed_away'
+    - condition: state
+      entity_id: switch.3d_printer_prusa
+      state: 'off'
+    - condition: state
+      entity_id: switch.3d_printer_prusa_mini
+      state: 'off'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: input_boolean.home_showing_mode
+        state: 'on'
+
+  actions:
+    - action: notify.USER1_devices
+      data:
+        message: Motion Alarm Triggered!
+        data:
+          push:
+            sound:
+              name: default
+              critical: 1
+              volume: 1.0
+          tag: alarm
+          entity_id:
+           - camera.front_porch
+          actions:
+            - action: "disarm_alarm"
+              title: "Disable Alarm System"
+              destructive: true
+              activationMode: background

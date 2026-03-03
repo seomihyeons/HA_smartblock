@@ -1,0 +1,30 @@
+- alias: Lights - Turn On Basement Lights when Workbench Switch Used
+  id: lights_turn_on_basement_lights_when_workbench_switch_used
+  triggers:
+  - trigger: state
+    entity_id: light.work_bench_light
+    from: 'off'
+    to: 'on'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.basement_lights
+    data:
+      brightness_pct: 100
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.laundry_room_light
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.basement_stairs
+    data:
+      brightness_pct: 100
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.basement_lamp
+    data:
+      brightness_pct: 100

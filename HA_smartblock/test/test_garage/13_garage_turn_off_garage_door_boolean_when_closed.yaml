@@ -1,0 +1,17 @@
+- alias: Garage - Turn Off Garage Door Boolean when Closed
+  id: 'garage_turn_off_garage_door_boolean_when_closed'
+
+  triggers:
+    - trigger: state
+      entity_id: cover.garage_door
+      from: 'open'
+      to: 'closed'
+
+  conditions:
+    - condition: state
+      entity_id: cover.garage_door
+      state: 'closed'
+
+  actions:
+    - action: homeassistant.turn_off
+      entity_id: input_boolean.garage_door

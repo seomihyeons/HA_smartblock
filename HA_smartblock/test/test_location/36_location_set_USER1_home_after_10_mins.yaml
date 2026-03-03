@@ -1,0 +1,20 @@
+- alias: Location - Set USER1 Home after 10 Mins
+  id: 'location_set_USER1_home_after_10_mins'
+
+  triggers:
+    - trigger: state
+      entity_id: person.USER1
+      from: 'not_home'
+      to: 'home'
+      for:
+        hours: 0
+        minutes: 10
+        seconds: 30
+
+  actions:
+    - action: homeassistant.turn_off
+      target:
+        entity_id:
+          - input_boolean.USER1_away
+          - input_boolean.USER1_away_driving
+          - input_boolean.USER1_greeting

@@ -1,0 +1,22 @@
+- alias: Garage - Door Motor On
+  id: 'garage_door_motor_on'
+
+  triggers:
+    - trigger: event
+      event_type: call_service
+      event_data:
+        domain: cover
+        service: close_cover
+        service_data:
+          entity_id: cover.garage_door
+    - trigger: event
+      event_type: call_service
+      event_data:
+        domain: cover
+        service: open_cover
+        service_data:
+          entity_id: cover.garage_door
+
+  actions:
+    - action: homeassistant.turn_on
+      entity_id: input_boolean.garage_door_motor

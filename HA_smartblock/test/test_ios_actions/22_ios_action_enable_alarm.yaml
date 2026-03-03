@@ -1,0 +1,10 @@
+- alias: iOS Action - Enable Alarm
+  id: ios_action_enable_alarm
+  triggers:
+  - trigger: event
+    event_type: mobile_app_notification_action
+    event_data:
+      action: arm_alarm
+  actions:
+  - action: alarm_control_panel.alarm_arm_away
+    entity_id: alarm_control_panel.alarm

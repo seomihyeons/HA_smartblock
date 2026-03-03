@@ -1,0 +1,13 @@
+- alias: Alarm - Panic Button Off
+  id: 'alarm_panic_button_off'
+
+  triggers:
+    - trigger: state
+      entity_id: switch.panic_mode
+      to: 'off'
+
+  actions:
+    - action: switch.turn_off
+      target:
+        entity_id:
+          - switch.siren

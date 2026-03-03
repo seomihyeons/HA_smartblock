@@ -1,0 +1,21 @@
+- alias: System - Reconnect USER2's Nightstand if Offline
+  id: system_reconnect_USER2_nightstand_if_offline
+  triggers:
+  - trigger: state
+    entity_id: light.USER2s_nightstand
+    to: unavailable
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  - trigger: state
+    entity_id: light.USER2s_nightstand
+    to: unknown
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  actions:
+  - action: unifi.reconnect_client
+    data:
+      device_id: a493838be740ec667e8fc26fc3e57ee9

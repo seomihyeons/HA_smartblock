@@ -1,0 +1,21 @@
+- alias: Christmas - Turn on Exterior Christmas Lights at Sunset
+  trigger:
+  - platform: sun
+    event: sunset
+    offset: -00:15:00
+  condition:
+  - condition: state
+    entity_id: input_boolean.disable_exterior_on_sunset
+    state: 'off'
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: input_select.holiday
+      state: Christmas
+    - condition: state
+      entity_id: sensor.holidays_calendar
+      state: New Year's Eve
+  action:
+  - service: switch.turn_on
+    entity_id:
+    - switch.exterior_christmas_lights

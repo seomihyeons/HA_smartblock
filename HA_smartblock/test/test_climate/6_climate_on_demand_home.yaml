@@ -1,0 +1,12 @@
+- alias: Climate - On Demand Home
+  id: climate_on_demand_home
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.thermostat_away
+    from: 'on'
+    to: 'off'
+  actions:
+  - action: ecobee.resume_program
+    data:
+      entity_id: climate.main_floor
+      resume_all: true

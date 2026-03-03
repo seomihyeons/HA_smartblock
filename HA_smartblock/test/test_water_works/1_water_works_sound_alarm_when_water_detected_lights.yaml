@@ -1,0 +1,48 @@
+- alias: Water Works - Sound Alarm When Water Detected Lights
+  id: water_works_sound_alarm_when_water_detected_lights
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.basement_drain_water_sensor_liquid_detected
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.kitchen_sink_water_sensor
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.bathroom_sink_water_sensor
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.upstairs_bathrooom_water_sensor
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.utility_sink_water_sensor
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.washing_machine_water_sensor
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: input_boolean.disable_water_automations
+    state: 'off'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.smart_bulbs
+    data:
+      brightness_pct: 100
+      color_name: blue
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.smart_bulbs
+    data:
+      flash: long

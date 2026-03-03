@@ -1,0 +1,39 @@
+- alias: Motion - Turn On USER1 Office TV when Motion Detected
+  id: motion_turn_on_USER1_office_tv_when_motion_detected
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.USER1s_office_motion
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  - condition: state
+    entity_id: select.USER1_s_office_tv_activities
+    state: power_off
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: vacuum.upstairs_roomba
+      state: cleaning
+    - condition: state
+      entity_id: vacuum.upstairs_roomba
+      state: returning
+  - condition: state
+    entity_id: input_boolean.USER1_office_guest
+    state: 'off'
+  actions:
+  - action: select.select_option
+    data:
+      entity_id: select.USER1_s_office_tv_activities
+      option: Watch TV
+  - delay: 00:00:30
+  - action: media_player.select_source
+    data:
+      source: Protect
+    target:
+      entity_id: media_player.USER1_s_office_apple_tv

@@ -1,0 +1,56 @@
+- alias: Lights - Living Room Lights Random Color On
+  id: lights_living_room_lights_random_color_on
+  triggers:
+  - trigger: time_pattern
+    seconds: /15
+  conditions:
+  - condition: state
+    entity_id: input_boolean.livingroom_rainbow
+    state: 'on'
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: input_boolean.bedtime
+    state: 'off'
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.living_room_fan_lights
+  - action: light.turn_on
+    target:
+      entity_id: light.living_room_lamp_1
+    data:
+      transition: 5
+      hs_color:
+      - '{{ (range(0, 360)|random) }}'
+      - '100'
+      brightness_pct: 100
+  - action: light.turn_on
+    target:
+      entity_id: light.media_center_lighting
+    data:
+      transition: 5
+      hs_color:
+      - '{{ (range(0, 360)|random) }}'
+      - '100'
+      brightness_pct: 100
+  - action: light.turn_on
+    target:
+      entity_id: light.globe
+    data:
+      transition: 5
+      hs_color:
+      - '{{ (range(0, 360)|random) }}'
+      - '100'
+      brightness_pct: 100
+  - action: light.turn_on
+    target:
+      entity_id: light.living_room_lamp_2
+    data:
+      transition: 5
+      hs_color:
+      - '{{ (range(0, 360)|random) }}'
+      - '100'
+      brightness_pct: 100

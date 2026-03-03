@@ -1,0 +1,18 @@
+- alias: Camera - Turn on Front Yard Infrared after Sunset
+  id: camera_turn_on_front_yard_infrared_after_sunset
+  triggers:
+  - trigger: sun
+    event: sunset
+    offset: 00:17:00
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.front_yard_camera_is_dark
+    state: 'off'
+  - condition: state
+    entity_id: select.front_yard_camera_infrared_mode
+    state: Auto
+  actions:
+  - action: select.select_option
+    data:
+      entity_id: select.front_yard_camera_infrared_mode
+      option: Always Enable

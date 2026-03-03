@@ -1,0 +1,28 @@
+- alias: Weather - Reset Globe Color when Not Raining
+  id: weather_reset_globe_color_when_not_raining
+  triggers:
+  - trigger: state
+    entity_id: weather.REDACTED
+    from: rainy
+  - trigger: state
+    entity_id: weather.REDACTED
+    from: lightning-rainy
+  conditions:
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: light.globe
+    state: 'on'
+  - condition: state
+    entity_id: input_boolean.disable_rainy_day
+    state: 'off'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.globe
+    data:
+      brightness_pct: 65
+      color_temp: 366
+      transition: 15

@@ -1,0 +1,34 @@
+- alias: LED Clock - Living Room Media Remove
+  id: led_clock_living_room_media_remove
+  triggers:
+  - trigger: state
+    entity_id: media_player.sonos_living_room
+    from: playing
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 10
+  - trigger: state
+    entity_id: media_player.sonos_surround_sound
+    from: playing
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 10
+  - trigger: state
+    entity_id: media_player.living_room_apple_tv
+    from: playing
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 10
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/music_song
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/music_album
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/youtube

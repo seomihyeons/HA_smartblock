@@ -1,0 +1,21 @@
+- alias: Media - Living Room TV Turn Off Harmony Activity if TV Off
+  id: media_living_room_tv_turn_off_harmony_activity_if_tv_off
+  triggers:
+  - trigger: state
+    entity_id: media_player.living_room_tv
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+  conditions:
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: select.living_room_tv_activities
+      state: power_off
+  actions:
+  - action: select.select_option
+    data:
+      entity_id: select.living_room_tv_activities
+      option: power_off

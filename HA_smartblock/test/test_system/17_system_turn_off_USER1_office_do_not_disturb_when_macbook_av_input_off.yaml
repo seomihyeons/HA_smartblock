@@ -1,0 +1,47 @@
+- alias: System - Turn Off USER1 Office Do not Disturb when MacBook AV Input Off
+  id: system_turn_off_USER1_office_do_not_disturb_when_macbook_av_input_off
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.USER1_s_macbook_pro_camera_in_use
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  - trigger: state
+    entity_id: binary_sensor.USER1_s_macbook_pro_audio_input_in_use
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  - trigger: state
+    entity_id: binary_sensor.USER1_s_macbook_pro_focus
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  - trigger: state
+    entity_id: sensor.USER1_s_macbook_pro_active_audio_input
+    to: Inactive
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  - condition: state
+    entity_id: input_boolean.USER1_s_office_do_not_disturb
+    state: 'on'
+  - condition: state
+    entity_id: binary_sensor.USER1_s_macbook_pro_camera_in_use
+    state: 'off'
+  - condition: state
+    entity_id: binary_sensor.USER1_s_macbook_pro_audio_input_in_use
+    state: 'off'
+  actions:
+  - action: homeassistant.turn_off
+    entity_id: input_boolean.USER1_s_office_do_not_disturb

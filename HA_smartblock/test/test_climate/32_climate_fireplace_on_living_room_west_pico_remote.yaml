@@ -1,0 +1,20 @@
+- alias: Climate - Fireplace On Living Room West Pico Remote
+  id: climate_fireplace_on_living_room_west_pico_remote
+  triggers:
+  - trigger: event
+    event_type: lutron_caseta_button_event
+    event_data:
+      serial: 91525691
+      button_number: 3
+      action: press
+  conditions:
+  - condition: state
+    entity_id: switch.fireplace
+    state: 'off'
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id:
+      - switch.fireplace
+  - delay:
+      seconds: 30

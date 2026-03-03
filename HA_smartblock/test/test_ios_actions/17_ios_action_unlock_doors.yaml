@@ -1,0 +1,13 @@
+- alias: iOS Action - Unlock Doors
+  id: ios_action_unlock_doors
+  triggers:
+  - trigger: event
+    event_type: mobile_app_notification_action
+    event_data:
+      action: unlock_doors
+  actions:
+  - action: lock.unlock
+    target:
+      entity_id:
+      - lock.back_door
+      - lock.front_door

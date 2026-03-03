@@ -1,0 +1,22 @@
+- alias: Lights - West Living Room Fan Lights On Pico Remote
+  id: lights_west_living_room_fan_lights_on_pico_remote
+  triggers:
+  - trigger: event
+    event_type: lutron_caseta_button_event
+    event_data:
+      serial: 91525691
+      button_number: 2
+      action: press
+  conditions:
+  - condition: state
+    entity_id: light.living_room_ceiling_west
+    state: 'off'
+  actions:
+  - delay:
+      seconds: 1
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.living_room_ceiling_west
+  - delay:
+      seconds: 1

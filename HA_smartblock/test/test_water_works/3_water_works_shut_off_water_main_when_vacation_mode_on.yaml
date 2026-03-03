@@ -1,0 +1,22 @@
+- alias: Water Works - Shut Off Water Main When Vacation Mode On
+  id: water_works_shut_off_water_main_when_vacation_mode_on
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.vacation_mode
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_water_automations
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.disable_home_away
+    state: 'off'
+  - condition: state
+    entity_id: valve.water_main
+    state: open
+  actions:
+  - action: valve.close_valve
+    target:
+      entity_id:
+      - valve.water_main

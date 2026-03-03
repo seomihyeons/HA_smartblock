@@ -1,0 +1,32 @@
+- alias: Climate - Reset Thermostat when USER2 Leaves
+  id: climate_reset_thermostat_when_USER2_leaves
+  triggers:
+  - trigger: state
+    entity_id: person.USER2
+    from: home
+    to: not_home
+  conditions:
+  - condition: time
+    after: 06:00:00
+    before: 07:30:00
+  - condition: state
+    entity_id: input_boolean.disable_home_away
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.thermostat_away
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.disable_climate
+    state: 'off'
+  - condition: time
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+  actions:
+  - action: ecobee.resume_program
+    data:
+      entity_id: climate.main_floor
+      resume_all: true

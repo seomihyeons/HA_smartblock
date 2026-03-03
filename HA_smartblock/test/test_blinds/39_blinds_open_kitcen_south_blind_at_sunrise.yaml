@@ -1,0 +1,36 @@
+- alias: Blinds - Open Kitchen South Blind at Sunrise
+  id: 'blinds_open_kitcen_south_blind_at_sunrise'
+
+  triggers:
+    - trigger: sun
+      event: 'sunrise'
+      offset: '00:60:00'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_blinds
+      state: 'off'
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: cover.kitchen_blinds_south
+      state: 'closed'
+    - condition: numeric_state
+      entity_id: sensor.REDACTED_temperature
+      below: 90
+    - condition: numeric_state
+      entity_id: sensor.REDACTED_temperature
+      above: 20
+    - condition: numeric_state
+      entity_id: sensor.REDACTED_forecasted_temperature_high
+      below: 95
+    - condition: numeric_state
+      entity_id: sensor.REDACTED_forecasted_temperature_high
+      above: 20
+
+  actions:
+    - action: cover.open_cover
+      data:
+        entity_id: 
+          - cover.kitchen_blinds_south

@@ -1,0 +1,12 @@
+- alias: iOS Action - Toggle Garage Door
+  id: ios_action_automation_toogle_garage_door
+  triggers:
+  - trigger: event
+    event_type: ios.action_fired
+    event_data:
+      actionName: Toggle Garage Door
+  actions:
+  - action: cover.toggle
+    target:
+      entity_id: cover.garage_door
+    data: {}

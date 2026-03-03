@@ -1,0 +1,35 @@
+- alias: Vacation - Lights Off at Night
+  id: vacation_lights_off_at_night
+  triggers:
+  - trigger: time
+    at: '21:30:00'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.vacation_mode
+    state: 'on'
+  actions:
+  - delay:
+      minutes: '{{ range(2, 32) | random }}'
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.kitchen_sink
+  - delay:
+      minutes: '{{ range(2, 59) | random }}'
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.living_room_lamps
+  - delay:
+      minutes: '{{ range(2, 30) | random }}'
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.bedroom_ceiling
+  - delay:
+      minutes: '{{ range(2, 45) | random }}'
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.USER1_office_desk_lamp
+      - light.USER1_office_desk_accent

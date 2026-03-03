@@ -1,0 +1,20 @@
+- alias: Lights - Turn Off Interior Garage Light when Garage Closed
+  id: lights_turn_off_interior_garage_light_when_garage_closed
+  triggers:
+  - trigger: state
+    entity_id: cover.garage_door
+    to: closed
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_door_open_lights_on
+    state: 'off'
+  - condition: state
+    entity_id: light.garage_interior
+    state: 'on'
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.garage_interior
+    data:
+      transition: 330

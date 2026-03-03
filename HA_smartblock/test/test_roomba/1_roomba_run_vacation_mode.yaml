@@ -1,0 +1,36 @@
+- alias: Roomba - Run Roomba Vacation Mode
+  id: roomba_run_vacation_mode
+  triggers:
+  - trigger: time
+    at: 09:30:00
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_roomba
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.main_floor_roomba_ran
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.vacation_mode
+    state: 'on'
+  - condition: time
+    weekday:
+    - mon
+    - wed
+    - fri
+    - sat
+  - condition: state
+    entity_id: input_boolean.guest_mode
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: group.household
+      state: home
+  actions:
+  - action: vacuum.start
+    target:
+      entity_id:
+      - vacuum.main_floor_roomba
+      - vacuum.basement_roomba
+      - vacuum.upstairs_roomba

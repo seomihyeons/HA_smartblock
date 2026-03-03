@@ -1,0 +1,45 @@
+- alias: LED Clock - Living Room Music Title Apple TV
+  id: led_clock_living_room_music_title_apple_tv
+  triggers:
+  - trigger: state
+    entity_id: media_player.living_room_apple_tv
+    attribute: media_title
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  conditions:
+  - condition: state
+    entity_id: light.living_room_clock
+    state: 'on'
+  - condition: state
+    entity_id: media_player.living_room_apple_tv
+    state: playing
+  - condition: state
+    entity_id: media_player.living_room_apple_tv
+    attribute: media_content_type
+    state: music
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: select.living_room_tv_activities
+      state: power_off
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: media_player.living_room_apple_tv
+      attribute: app_id
+      state: com.google.ios.youtube
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: media_player.living_room_apple_tv
+      attribute: app_name
+      state: YouTube
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/music_song
+      payload: '{  "icon": "music", "pushIcon": 0, "repeat": 3, "rainbow": true, "text":
+        "Song: {{ state_attr(''media_player.living_room_apple_tv'', ''media_title'')
+        }}" }'

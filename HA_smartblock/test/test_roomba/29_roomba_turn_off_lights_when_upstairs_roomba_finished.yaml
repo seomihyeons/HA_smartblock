@@ -1,0 +1,60 @@
+- alias: Roomba - Turn Off lights when Upstairs Roomba Finished
+  id: roomba_turn_off_lights_when_upstairs_roomba_finished
+  triggers:
+  - trigger: state
+    entity_id: vacuum.upstairs_roomba
+    to: docked
+    for:
+      hours: 0
+      minutes: 4
+      seconds: 0
+  - trigger: state
+    entity_id: vacuum.upstairs_roomba
+    to: paused
+    for:
+      hours: 0
+      minutes: 2
+      seconds: 0
+  - trigger: state
+    entity_id: vacuum.upstairs_roomba
+    to: stopped
+    for:
+      hours: 0
+      minutes: 2
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_roomba
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.roomba_clean_USER1_office_lights
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.roomba_clean_USER2_office_lights
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.roomba_clean_guest_bedroom_lights
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.roomba_clean_upstairs_hallway_lights
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.guest_mode
+    state: 'off'
+  - condition: state
+    entity_id: binary_sensor.USER1s_office_motion
+    state: 'off'
+  - condition: state
+    entity_id: binary_sensor.USER2s_office_motion
+    state: 'off'
+  - condition: state
+    entity_id: binary_sensor.stairs_motion
+    state: 'off'
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.USER1_office_lights
+      - light.USER2_office_lights
+      - light.guest_bedroom_lights
+      - light.stairs_light

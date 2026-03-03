@@ -1,0 +1,21 @@
+- alias: 3D-Printer - Turn Off Camera Recording Prusa MK4S
+  id: 3d_printer_turn_off_camera_recording_prusa_mk4s
+  triggers:
+  - trigger: state
+    entity_id: sensor.prusa_mk4s
+    from: printing
+    for:
+      hours: 0
+      minutes: 3
+      seconds: 0
+  conditions:
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: select.prusa_mk4s_camera_recording_mode
+      state: Never
+  actions:
+  - action: select.select_option
+    data:
+      entity_id: select.prusa_mk4s_camera_recording_mode
+      option: Never

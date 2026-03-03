@@ -1,0 +1,31 @@
+- alias: Lights - Turn Off Basement Lights when Work Bench Switch Used
+  id: lights_turn_off_basement_lights_when_work_bench_switch_used
+  triggers:
+  - trigger: state
+    entity_id: light.work_bench_light
+    from: 'on'
+    to: 'off'
+  conditions:
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: light.basement_lighting
+    state: 'on'
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.basement_stairs
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.basement_lights
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.laundry_room_light
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.basement_lamp

@@ -1,0 +1,107 @@
+- alias: Roomba - Turn On lights for Main Floor Roomba when Dark
+  id: roomba_turn_on_lights_for_main_floor_roomba_when_dark
+  triggers:
+  - trigger: state
+    entity_id: vacuum.main_floor_roomba
+    to: cleaning
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 15
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_roomba
+    state: 'off'
+  - condition: time
+    after: 09:00:00
+    before: '14:00:00'
+  - condition: numeric_state
+    entity_id: sensor.living_room_light_level
+    below: 15
+  - condition: numeric_state
+    entity_id: sensor.kitchen_light_level
+    below: 25
+  - condition: numeric_state
+    entity_id: sensor.dining_room_light_level
+    below: 10
+  - condition: state
+    entity_id: input_boolean.guest_mode
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: person.USER2
+      state: home
+  - condition: time
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+  - condition: state
+    entity_id: input_boolean.roomba_clean_living_room_lights
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.roomba_clean_dining_room_lights
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.roomba_clean_kitchen_lights
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.roomba_clean_hallway_lights
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.roomba_clean_bathroom_lights
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.roomba_clean_bedroom_lights
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.roomba_clean_bedroom_closet_lights
+    state: 'off'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.living_room_accent_lights
+    data:
+      brightness_pct: 100
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.dining_room_table
+    data:
+      brightness_pct: 100
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.bathroom_lights
+    data:
+      brightness_pct: 100
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.kitchen_lights
+    data:
+      brightness_pct: 100
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.hallway_light
+    data:
+      brightness_pct: 100
+  - delay: 00:01:00
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.bedroom_lamps
+      - light.bedroom_closet_ceiling
+    data:
+      brightness_pct: 100
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.bedroom_closet_ceiling
+    data:
+      brightness_pct: 100

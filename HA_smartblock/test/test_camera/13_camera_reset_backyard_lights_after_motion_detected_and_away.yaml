@@ -1,0 +1,75 @@
+- alias: Camera - Reset Backyard Lights After Motion Detected and Away
+  id: camera_reset_backyard_lights_after_motion_detected_and_away
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.backyard_gate_camera_person_detected
+    from: 'on'
+    to: 'off'
+    for:
+      hours: 1
+      minutes: 0
+      seconds: 0
+  - trigger: state
+    entity_id: binary_sensor.backyard_camera_person_detected
+    from: 'on'
+    to: 'off'
+    for:
+      hours: 1
+      minutes: 0
+      seconds: 0
+  - trigger: state
+    entity_id: binary_sensor.side_yard_camera_person_detected
+    from: 'on'
+    to: 'off'
+    for:
+      hours: 1
+      minutes: 0
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: sun.sun
+    state: below_horizon
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: time
+    before: '23:59:00'
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: light.back_door
+      state: 'on'
+    - condition: state
+      entity_id: light.backyard_deck
+      state: 'on'
+    - condition: state
+      entity_id: light.backyard_patio
+      state: 'on'
+    - condition: state
+      entity_id: switch.backyard_lighting
+      state: 'on'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: group.household
+      state: home
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.backyard_patio_lighting
+      - switch.lower_backyard_lighting
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.backyard_patio
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.backyard_deck
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.back_door
+    data:
+      brightness_pct: 2

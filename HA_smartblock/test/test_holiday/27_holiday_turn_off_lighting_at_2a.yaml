@@ -1,0 +1,34 @@
+- alias: Holiday - Turn Off Lighting at 2a
+  id: 'holiday_turn_off_lighting_at_2a'
+
+  triggers:
+    - trigger: time
+      at: '01:59:00'
+
+  conditions:
+    - condition: or
+      conditions:
+        - condition: state
+          entity_id: input_select.holiday
+          state: "New Year's Eve"
+        - condition: state
+          entity_id: input_select.holiday
+          state: 'Christmas'
+    - condition: not
+      conditions:
+        - condition: state
+          entity_id: input_select.holiday
+          state: 'None'
+
+  actions:
+    - action: homeassistant.turn_off
+      entity_id: input_boolean.front_porch_rainbow
+    - delay: '00:00:60'
+    - action: light.turn_off
+      entity_id: light.front_porch
+    - delay: '00:00:60'
+    - action: light.turn_off
+      entity_id: light.front_porch
+    - delay: '00:00:90'
+    - action: light.turn_off
+      entity_id: light.front_porch

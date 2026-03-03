@@ -1,0 +1,26 @@
+- alias: Location - USER1 Home from Waling Unlock Doors Turn On Garage Light
+  id: 'location_USER1_home_from_walking_unlock_doors_turn_on_garage_light'
+
+  triggers:
+    - trigger: state
+      entity_id: person.USER1
+      from: 'not_home'
+      to: 'home'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_home_away
+      state: 'off'
+    - condition: state
+      entity_id: input_boolean.USER1_away
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.USER1_away_driving
+      state: 'off'
+
+  actions:
+    - action: lock.unlock
+      target:
+        entity_id:
+          - lock.back_door
+          - lock.basement_door

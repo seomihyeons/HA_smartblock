@@ -1,0 +1,20 @@
+- alias: LED Clock - USER1 Office Do Not Disturb On
+  id: led_clock_USER1_office_do_not_disturb_on
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.USER1_s_office_do_not_disturb
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: light.USER1s_office_desktop_clock
+    state: 'on'
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/notify
+      payload: '{  "icon": "exclamation", "pushIcon": 0, "background": [255,0,0],
+        "color": [255,255,255], "stack": false, "hold": true, "text": "Do Not Disturb"
+        }'

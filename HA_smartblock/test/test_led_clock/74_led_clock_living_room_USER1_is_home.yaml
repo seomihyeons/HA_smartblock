@@ -1,0 +1,30 @@
+- alias: LED Clock - Living Room USER1 is Home
+  id: led_clock_living_room_USER1_is_home
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.doors
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  - condition: state
+    entity_id: input_boolean.USER1_greeting
+    state: 'on'
+  - condition: state
+    entity_id: input_boolean.USER2_greeting
+    state: 'off'
+  - condition: state
+    entity_id: light.living_room_clock
+    state: 'on'
+  actions:
+  - delay: 00:00:30
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/notify
+      payload: '{  "icon": "house", "pushIcon": 0, "duration": 60, "rainbow": true,
+        "text": "USER1 Home" }'

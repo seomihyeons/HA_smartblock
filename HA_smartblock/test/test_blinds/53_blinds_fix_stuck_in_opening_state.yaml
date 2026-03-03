@@ -1,0 +1,22 @@
+- alias: Blinds - Fix Stuck in Opening State
+  id: 'blinds_fix_stuck_in_opening_state'
+  
+  mode: parallel
+  triggers:
+    - trigger: state
+      entity_id:
+        - cover.kitchen_blinds
+        - cover.bedroom_closet_blinds
+        - cover.USER1_s_office_blinds
+        - cover.USER2_s_office_blinds
+        - cover.stairs_blinds
+      to: 'opening'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+
+  actions:
+    - action: cover.stop_cover
+      target:
+        entity_id: "{{ trigger.entity_id }}"

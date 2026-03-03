@@ -1,0 +1,28 @@
+- alias: Fan - West Living Room Fan 4 to 3 Pico Remote Lower
+  id: 'fan_west_living_room_fan_4_to_3_pico_remote_lower'
+
+  triggers:
+    - trigger: event
+      event_type: lutron_caseta_button_event
+      event_data:
+        serial: 91525691
+        button_number: 6
+        action: press
+
+  conditions:
+    - condition: state
+      entity_id: fan.living_room_west
+      state: 'on'
+    - condition: template
+      value_template: "{{is_state_attr('fan.living_room_west', 'percentage', 66)}}"
+
+  actions:
+    - delay:
+        seconds: 1
+    - action: fan.set_percentage
+      data:
+        entity_id:
+          - fan.living_room_west
+        percentage: 50
+    - delay:
+        seconds: 1

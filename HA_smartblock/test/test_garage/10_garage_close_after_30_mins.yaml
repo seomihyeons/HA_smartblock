@@ -1,0 +1,34 @@
+- alias: Garage - Close After 30 Mins
+  id: 'garage_close_after_30_mins'
+
+  triggers:
+    - trigger: state
+      entity_id: cover.garage_door
+      to: 'open'
+      for:
+        hours: 0
+        minutes: 30
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_auto_garage
+      state: 'off'
+    - condition: state
+      entity_id: cover.garage_door
+      state: 'open'
+    - condition: state
+      entity_id: input_boolean.garage_door_motor
+      state: 'off'
+
+  actions:
+    - action: lifx.effect_pulse
+      data:
+        cycles: 5
+        power_on: true
+        brightness_pct: 100
+      target:
+        entity_id: light.garage_interior
+    - delay: '00:00:05'
+    - action: cover.close_cover
+      entity_id: cover.garage_door

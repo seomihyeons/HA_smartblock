@@ -1,0 +1,42 @@
+- alias: Roomba - Turn Off Hallway Lights Room Clean
+  id: roomba_turn_off_hallway_lights_room_clean
+  triggers:
+  - trigger: state
+    entity_id: vacuum.main_floor_roomba
+    to: docked
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.roomba_clean_hallway_lights
+    state: 'on'
+  - condition: state
+    entity_id: light.hallway_light
+    state: 'on'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: vacuum.main_floor_roomba
+      state: cleaning
+    - condition: state
+      entity_id: vacuum.main_floor_roomba
+      state: returning
+  - condition: state
+    entity_id: binary_sensor.dining_room_motion
+    state: 'off'
+    for:
+      minutes: 6
+  - condition: time
+    after: 08:30:00
+    before: '23:00:00'
+  actions:
+  - action: homeassistant.turn_off
+    target:
+      entity_id:
+      - input_boolean.roomba_clean_hallway_lights
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.hallway_light

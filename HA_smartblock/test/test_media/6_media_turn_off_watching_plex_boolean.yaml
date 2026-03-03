@@ -1,0 +1,27 @@
+- alias: Media - Turn Off Watching Plex Boolean
+  id: media_turn_off_watching_plex_boolean
+  triggers:
+  - trigger: state
+    entity_id: media_player.plex_living_room_appletv
+    to: idle
+    for:
+      hours: 0
+      minutes: 3
+      seconds: 0
+  - trigger: state
+    entity_id: media_player.plex_living_room_appletv
+    to: paused
+    for:
+      hours: 0
+      minutes: 3
+      seconds: 0
+  - trigger: state
+    entity_id: media_player.plex_living_room_appletv
+    to: unavailable
+    for:
+      hours: 0
+      minutes: 3
+      seconds: 0
+  actions:
+  - action: homeassistant.turn_off
+    entity_id: input_boolean.watching_plex

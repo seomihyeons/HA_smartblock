@@ -1,0 +1,34 @@
+- alias: Roomba - Run Upstairs Roomba Mornings when Away
+  id: roomba_run_upstairs_roomba_mornings_when_away
+  triggers:
+  - trigger: time
+    at: 09:30:00
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_roomba
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.upstairs_roomba_ran
+    state: 'off'
+  - condition: state
+    entity_id: vacuum.upstairs_roomba
+    state: docked
+  - condition: numeric_state
+    entity_id: sensor.upstairs_roomba_battery_level
+    above: 99
+  - condition: state
+    entity_id: input_boolean.vacation_mode
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: group.household
+      state: home
+  - condition: state
+    entity_id: input_boolean.guest_mode
+    state: 'off'
+  actions:
+  - action: vacuum.start
+    target:
+      entity_id:
+      - vacuum.upstairs_roomba

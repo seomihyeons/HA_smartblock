@@ -1,0 +1,23 @@
+- alias: Blinds - Close Bedroom Blinds at 2p When Away
+  id: 'blinds_close_bedroom_blinds_at_2p_when_away'
+
+  triggers:
+   - trigger: time
+     at: '14:00:00'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_blinds
+      state: 'off'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: group.household
+        state: 'home'
+
+  actions:
+    - action: cover.close_cover
+      data:
+        entity_id: 
+          - cover.bedroom_closet_blinds_center
+          - cover.bedroom_closet_blinds_left

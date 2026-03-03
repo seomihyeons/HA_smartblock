@@ -1,0 +1,26 @@
+- alias: LED Clock - USER1's Office Album Title Sonos
+  id: led_clock_USER1_office_album_title_sonos
+  triggers:
+  - trigger: state
+    entity_id: media_player.sonos_USER1s_office
+    attribute: media_title
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  conditions:
+  - condition: state
+    entity_id: media_player.sonos_USER1s_office
+    state: playing
+  - condition: state
+    entity_id: media_player.sonos_USER1s_office
+    attribute: media_content_type
+    state: music
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/music_album
+      payload: '{  "icon": "album", "pushIcon": 2, "repeat": 3, "rainbow": true, "text":
+        "Artist: {{ state_attr(''media_player.sonos_USER1s_office'', ''media_artist'')
+        }} - Album: {{ state_attr(''media_player.sonos_USER1s_office'', ''media_album_name'')
+        }}" }'

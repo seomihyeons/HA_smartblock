@@ -1,0 +1,16 @@
+- alias: Media - Turn Off Backyard Sonos at Midnight
+  id: media_turn_off_backyard_sonos_at_midnight
+  triggers:
+  - trigger: time
+    at: '23:59:00'
+  actions:
+  - action: media_player.media_stop
+    target:
+      entity_id:
+      - media_player.sonos_backyard_patio
+  - action: media_player.volume_set
+    target:
+      entity_id:
+      - media_player.sonos_backyard_patio
+    data:
+      volume_level: 0

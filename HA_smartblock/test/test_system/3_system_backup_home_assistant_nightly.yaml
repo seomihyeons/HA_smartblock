@@ -1,0 +1,7 @@
+- alias: System - Backup Home Assistant Nightly
+  id: system_backup_home_assistant_nightly
+  triggers:
+  - trigger: time
+    at: 04:00:00
+  actions:
+  - action: backup.create

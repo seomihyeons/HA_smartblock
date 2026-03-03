@@ -1,0 +1,19 @@
+- alias: System - Shutdown Windows VM when Household Away
+  id: system_shutdown_windows_vm_when_household_away
+  triggers:
+  - trigger: state
+    entity_id: group.household
+    from: home
+    to: not_home
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.qemu_windows_100_status
+    state: 'on'
+  actions:
+  - action: button.press
+    target:
+      entity_id: button.qemu_windows_100_shutdown

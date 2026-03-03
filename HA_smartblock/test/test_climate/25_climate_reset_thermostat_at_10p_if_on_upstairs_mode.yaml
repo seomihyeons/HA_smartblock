@@ -1,0 +1,26 @@
+- alias: Climate - Reset Thermostat at 10p if On Upstairs Mode
+  id: climate_reset_thermostat_at_10p_if_on_upstairs_mode
+  triggers:
+  - trigger: time
+    at: '22:00:00'
+  conditions:
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: input_boolean.thermostat_away
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.disable_climate
+    state: 'off'
+  - condition: state
+    entity_id: sensor.thermostat_climate_mode
+    state: Upstairs
+  - condition: state
+    entity_id: input_boolean.guest_mode
+    state: 'off'
+  actions:
+  - action: ecobee.resume_program
+    data:
+      entity_id: climate.main_floor
+      resume_all: true

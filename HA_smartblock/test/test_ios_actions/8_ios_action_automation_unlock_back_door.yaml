@@ -1,0 +1,12 @@
+- alias: iOS Action - Unlock Back Door
+  id: ios_action_automation_unlock_back_door
+  triggers:
+  - trigger: event
+    event_type: ios.action_fired
+    event_data:
+      actionName: Unlock Back Door
+  actions:
+  - action: lock.unlock
+    target:
+      entity_id: lock.back_door
+    data: {}

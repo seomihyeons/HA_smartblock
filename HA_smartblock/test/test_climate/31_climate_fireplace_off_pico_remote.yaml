@@ -1,0 +1,20 @@
+- alias: Climate - Fireplace Off Pico Remote
+  id: climate_fireplace_off_pico_remote
+  triggers:
+  - trigger: event
+    event_type: lutron_caseta_button_event
+    event_data:
+      serial: 43846935
+      button_number: 3
+      action: press
+  conditions:
+  - condition: state
+    entity_id: switch.fireplace
+    state: 'on'
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.fireplace
+  - delay:
+      seconds: 30

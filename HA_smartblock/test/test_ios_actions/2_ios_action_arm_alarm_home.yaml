@@ -1,0 +1,10 @@
+- alias: iOS Action - Arm Alarm Home
+  id: ios_action_arm_alarm_home
+  triggers:
+  - trigger: event
+    event_type: ios.action_fired
+    event_data:
+      actionName: Arm Alarm Home
+  actions:
+  - action: alarm_control_panel.alarm_arm_home
+    entity_id: alarm_control_panel.alarm

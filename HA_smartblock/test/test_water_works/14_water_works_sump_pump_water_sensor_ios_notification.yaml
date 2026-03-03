@@ -1,0 +1,17 @@
+- alias: Water Works - Sump Pump Water Sensor iOS Notification
+  id: water_works_sump_pump_water_sensor_ios_notification
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.sump_pump_water_sensor_liquid_detected
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_notifications
+    state: 'off'
+  actions:
+  - action: notify.USER1_devices
+    data:
+      message: Water Detected in Sump Pump!
+      data:
+        tag: sump-pump-water-leak

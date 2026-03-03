@@ -1,0 +1,10 @@
+- alias: Lights - Turn Off Front Yard Lighting at 3a
+  id: lights_turn_off_front_yard_lighting_at_3a
+  triggers:
+  - trigger: time
+    at: 03:00:00
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.front_yard_lighting

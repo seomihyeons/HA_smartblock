@@ -1,0 +1,31 @@
+- alias: Fan - West Living Room Fan Off to On Pico Remote Raise or Lower
+  id: 'fan_west_living_room_fan_off_to_on_pico_remote_raise_or_lower'
+
+  triggers:
+    - trigger: event
+      event_type: lutron_caseta_button_event
+      event_data:
+        serial: 91525691
+        button_number: 5
+        action: press
+    - trigger: event
+      event_type: lutron_caseta_button_event
+      event_data:
+        serial: 91525691
+        button_number: 6
+        action: press
+
+  conditions:
+    - condition: state
+      entity_id: fan.living_room_west
+      state: 'off'
+
+  actions:
+    - delay:
+        seconds: 1  
+    - action: fan.turn_on
+      target:
+        entity_id:
+          - fan.living_room_west
+    - delay:
+        seconds: 1

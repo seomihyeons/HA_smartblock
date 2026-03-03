@@ -1,0 +1,19 @@
+- alias: Locks - Lock Doors at 2a
+  id: locks_lock_back_door_at_2a
+  triggers:
+  - trigger: time
+    at: 02:00:00
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_lock_unlock_doors
+    state: 'off'
+  - condition: state
+    entity_id: binary_sensor.doors
+    state: 'off'
+  actions:
+  - action: lock.lock
+    target:
+      entity_id:
+      - lock.front_door
+      - lock.back_door
+      - lock.basement_door

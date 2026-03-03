@@ -1,0 +1,15 @@
+- alias: Christmas - Turn on Tree when USER2 Home
+  trigger:
+  - platform: time
+    at: 08:00:00
+  condition:
+  - condition: state
+    entity_id: person.USER2
+    state: home
+  - condition: state
+    entity_id: switch.christmas_tree
+    state: 'off'
+  action:
+  - service: switch.turn_on
+    entity_id:
+    - switch.christmas_tree

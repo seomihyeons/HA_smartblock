@@ -1,0 +1,9 @@
+- alias: Christmas - Turn Off Exterior Christmas Lights at Sunrise
+  trigger:
+  - platform: sun
+    event: sunrise
+    offset: +00:15:00
+  action:
+  - service: switch.turn_off
+    entity_id:
+    - switch.exterior_christmas_lights

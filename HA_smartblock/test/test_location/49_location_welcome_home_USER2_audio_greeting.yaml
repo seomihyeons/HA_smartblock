@@ -1,0 +1,41 @@
+- alias: Location - Welcome Home USER2 Audio Greeting
+  id: 'location_welcome_home_USER2_audio_greeting'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.doors
+      from: 'off'
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: person.USER2
+      state: 'home'
+    - condition: state
+      entity_id: input_boolean.USER2_greeting
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.disable_notifications
+      state: 'off'
+    - condition: time
+      after: '09:00:00'
+      before: '22:00:00'
+
+  actions:
+    - delay: '00:00:04'
+    - action: media_player.play_media
+      target:
+        entity_id: 
+          - media_player.sonos_living_room
+          - media_player.sonos_kitchen
+          - media_player.sonos_move
+      data:
+        announce: true
+        media_content_id: >
+          media-source://tts/cloud?message="Welcome home, USER2."
+        media_content_type: "music"
+        extra:
+          volume: 45
+    - delay: '00:00:30'
+    - action: homeassistant.turn_off
+      entity_id: input_boolean.USER2_greeting

@@ -1,0 +1,26 @@
+- alias: Motion - Turn Off Upstairs Bathroom Lights when No Motion Detected
+  id: motion_turn_off_upstairs_bathroom_lights_when_no_motion_detected
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.upstairs_bathroom_motion
+    from: 'on'
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 15
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: light.upstairs_bathroom_vanity
+    state: 'on'
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.upstairs_bathroom_vanity

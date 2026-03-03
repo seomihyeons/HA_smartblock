@@ -1,0 +1,53 @@
+- alias: Camera - Turn On Lights when Motion Detected and Away
+  id: camera_turn_on_lights_when_motion_detected_and_away
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.front_door_camera_person_detected
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.front_porch_person_detected
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.front_yard_camera_person_detected
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: sun.sun
+    state: below_horizon
+  - condition: state
+    entity_id: input_boolean.disable_doorbell
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: group.household
+      state: home
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.living_room_lamps
+    data:
+      brightness_pct: 100
+      color_temp: 370
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.kitchen_sink
+    data:
+      brightness_pct: 100
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.back_door
+    data:
+      brightness_pct: 100
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.garage_light
+    data:
+      brightness_pct: 100

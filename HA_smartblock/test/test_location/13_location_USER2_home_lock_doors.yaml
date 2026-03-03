@@ -1,0 +1,27 @@
+- alias: Location - USER2 Home Lock Doors
+  id: 'location_USER2_home_lock_doors'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.USER2_away
+      from: 'on'
+      to: 'off'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_lock_unlock_doors
+      state: 'off'
+    - condition: state
+      entity_id: binary_sensor.front_door_opened
+      state: 'off'
+    - condition: state
+      entity_id: binary_sensor.back_door_opened
+      state: 'off'
+
+  actions:
+    - action: lock.lock
+      target:
+        entity_id:
+          - lock.back_door
+          - lock.front_door
+          - lock.basement_door

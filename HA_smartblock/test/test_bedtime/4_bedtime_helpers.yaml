@@ -1,0 +1,33 @@
+- alias: Bedtime - Helpers
+  id: 'bedtime_helpers'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.bedtime
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 3
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+
+  actions:
+    - action: homeassistant.turn_off
+      target:
+        entity_id:
+          - input_boolean.office_rainbow
+          - input_boolean.livingroom_rainbow
+          - input_boolean.bedroom_rainbow
+          - input_boolean.front_porch_rainbow
+          - input_boolean.pop_music
+          - input_boolean.jazz_music
+          - input_boolean.chill_music
+          - input_boolean.electronic_music
+          - input_boolean.classical_music
+          - input_boolean.group_all_sonos
+          - input_boolean.view_package_camera
+          - input_boolean.package_camera_notification

@@ -1,0 +1,12 @@
+- alias: 3D-Printer - MK4S Off Turn Off Fans
+  id: 3d_printer_mk4s_off_turn_off_fans
+  triggers:
+  - trigger: state
+    entity_id: switch.prusa_mk4s
+    to: 'off'
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.prusa_mk4s_enclosure_fan
+      - switch.prusa_mk4s_psu_fan

@@ -1,0 +1,24 @@
+- alias: Camera - Person Detected in Backyard
+  id: camera_person_detected_in_backyard
+  mode: single
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.backyard_camera_person_detected
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_notifications
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: group.household
+      state: home
+  actions:
+  - action: notify.USER1_devices
+    data:
+      message: Person Detected in Backyard!
+      data:
+        tag: backyard_person_camera
+        entity_id: camera.backyard
+  - delay: 00:05:00

@@ -1,0 +1,18 @@
+- alias: Vacation - Turn On when Thermostat set to Vacation
+  id: vacation_turn_on_when_thermostat_set_to_vacation
+  triggers:
+  - trigger: state
+    entity_id: sensor.thermostat_climate_mode
+    to: vacation
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_home_away
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: group.household
+      state: home
+  actions:
+  - action: homeassistant.turn_on
+    entity_id: input_boolean.vacation_mode

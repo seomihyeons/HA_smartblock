@@ -1,0 +1,16 @@
+- alias: iOS Action - Party Mode TV On
+  id: ios_action_automation_party_mode_tv_on
+  triggers:
+  - trigger: event
+    event_type: ios.action_fired
+    event_data:
+      actionName: Party Mode
+  conditions:
+  - condition: state
+    entity_id: select.living_room_tv_activities
+    state: power_off
+  actions:
+  - action: select.select_option
+    data:
+      entity_id: select.living_room_tv_activities
+      option: Watch TV

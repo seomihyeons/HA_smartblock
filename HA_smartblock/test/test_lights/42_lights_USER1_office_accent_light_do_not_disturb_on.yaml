@@ -1,0 +1,21 @@
+- alias: Lights - USER1's Office Accent Light Do Not Disturb On
+  id: lights_USER1_office_accent_light_do_not_disturb_on
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.USER1_s_office_do_not_disturb
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  - condition: state
+    entity_id: cover.USER1_s_office_blinds
+    state: closed
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.USER1_office_desk_accent
+    data:
+      brightness_pct: 100
+      color_name: red

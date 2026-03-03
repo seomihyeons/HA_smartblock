@@ -1,0 +1,26 @@
+- alias: Garage - Open iOS Notification
+  id: 'garage_open_ios_notification'
+
+  triggers:
+    - trigger: state
+      entity_id: cover.garage_door
+      from: 'closed'
+      to: 'open'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_notifications
+      state: 'off'
+
+  actions:
+    - action: notify.USER1_devices
+      data:
+        message: Garage Door Open
+        data:
+          tag: garage-open
+          entity_id: camera.garage
+          actions:
+            - action: "close_garage"
+              title: "Close Garage Door"
+              destructive: true
+              activationMode: background

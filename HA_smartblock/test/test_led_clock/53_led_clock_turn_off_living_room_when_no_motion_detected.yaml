@@ -1,0 +1,22 @@
+- alias: LED Clock - Turn Off Living Room when No Motion Detected
+  id: led_clock_turn_off_living_room_when_no_motion_detected
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.living_room_motion
+    from: 'on'
+    to: 'off'
+    for:
+      hours: 1
+      minutes: 0
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: state
+    entity_id: light.living_room_clock
+    state: 'on'
+  actions:
+  - action: light.turn_off
+    entity_id:
+    - light.living_room_clock

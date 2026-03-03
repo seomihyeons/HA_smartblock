@@ -1,0 +1,21 @@
+- alias: Christmas - Turn off Christmas Lights after 2a
+  trigger:
+  - platform: state
+    entity_id: switch.exterior_christmas_lights
+    from: 'off'
+    to: 'on'
+    for:
+      hours: 1
+      minutes: 0
+      seconds: 0
+  condition:
+  - condition: time
+    after: 02:00
+    before: 07:30
+  - condition: state
+    entity_id: group.household
+    state: home
+  action:
+  - service: switch.turn_off
+    entity_id:
+    - switch.exterior_christmas_lights

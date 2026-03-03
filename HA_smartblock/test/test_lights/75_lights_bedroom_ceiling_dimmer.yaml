@@ -1,0 +1,14 @@
+- alias: Lights - Bedroom Ceiling Dimmer
+  id: lights_bedroom_ceiling_dimmer
+  triggers:
+  - trigger: mqtt
+    topic: zigbee2mqtt/Bedroom Ceiling Dimmer
+  conditions:
+  - condition: template
+    value_template: '{{ trigger.payload_json.action == "brightness_move_to_level"}}'
+  actions:
+  - data:
+      entity_id: light.bedroom_ceiling
+      brightness: '{{ trigger.payload_json.action_level }}'
+      transition: '{{ 0.7 }}'
+    action: light.turn_on

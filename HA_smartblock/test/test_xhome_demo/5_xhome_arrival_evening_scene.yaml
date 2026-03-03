@@ -1,0 +1,18 @@
+- alias: xHome - Arrival Evening Scene
+  id: xhome_arrival_evening_scene
+
+  triggers:
+    - trigger: state
+      entity_id: lock.doorlock
+      to: 'unlocked'
+
+  actions:
+    - action: light.turn_on
+      target:
+        entity_id:
+          - light.livingroom_light
+          - light.kitchen_light
+
+    - action: fan.turn_on
+      target:
+        entity_id: fan.livingroom_fan

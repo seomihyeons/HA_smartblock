@@ -1,0 +1,10 @@
+- alias: iOS Action - Open Garage
+  id: ios_action_open_garage
+  triggers:
+  - trigger: event
+    event_type: mobile_app_notification_action
+    event_data:
+      action: open_garage
+  actions:
+  - action: cover.open_cover
+    entity_id: cover.garage_door

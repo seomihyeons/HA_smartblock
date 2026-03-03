@@ -1,0 +1,12 @@
+- alias: iOS Action - Toggle Fireplace
+  id: ios_action_automation_toogle_fireplace
+  triggers:
+  - trigger: event
+    event_type: ios.action_fired
+    event_data:
+      actionName: Toggle Fireplace
+  actions:
+  - action: switch.toggle
+    target:
+      entity_id: switch.fireplace
+    data: {}

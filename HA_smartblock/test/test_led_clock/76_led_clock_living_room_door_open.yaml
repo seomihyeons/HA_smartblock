@@ -1,0 +1,29 @@
+- alias: LED Clock - Living Room Door Open
+  id: led_clock_living_room_door_open
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.front_door_opened
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.back_door_opened
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.basement_door_opened
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: light.living_room_clock
+    state: 'on'
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/notify
+      payload: '{  "icon": "door", "pushIcon": 0, "duration": 30, "color": [255,0,0],
+        "stack": false, "text": "{{ trigger.to_state.attributes.friendly_name }} Opened"
+        }'

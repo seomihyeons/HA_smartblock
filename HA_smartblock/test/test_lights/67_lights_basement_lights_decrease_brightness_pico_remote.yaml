@@ -1,0 +1,42 @@
+- alias: Lights - Basement Lights Decrease Brightness Pico Remote
+  id: lights_basement_lights_decrease_brightness_pico_remote
+  triggers:
+  - trigger: event
+    event_type: lutron_caseta_button_event
+    event_data:
+      serial: 42010030
+      button_number: 6
+      action: press
+  conditions:
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: light.basement_stairs
+      state: 'on'
+    - condition: state
+      entity_id: light.basement_lights
+      state: 'on'
+    - condition: state
+      entity_id: light.work_bench_light
+      state: 'on'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.basement_stairs
+    data:
+      brightness_step_pct: -10
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.basement_lights
+    data:
+      brightness_step_pct: -10
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.work_bench_light
+    data:
+      brightness_step_pct: -10
+  - delay:
+      seconds: 1

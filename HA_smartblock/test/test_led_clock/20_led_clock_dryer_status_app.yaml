@@ -1,0 +1,20 @@
+- alias: LED Clock - Dryer Status App
+  id: led_clock_dryer_status_app
+  triggers:
+  - trigger: state
+    entity_id: sensor.dryer_time_remaining
+  conditions:
+  - condition: state
+    entity_id: sensor.dryer
+    state: 'on'
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/dryer
+      payload: '{  "icon": "dryer", "pushIcon": 2, "repeat": 3, "color": [255,0,0],
+        "text": "Dryer: {{ states("sensor.dryer_time_remaining") }}" }'
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/dryer
+      payload: '{  "icon": "dryer", "pushIcon": 2, "repeat": 3, "color": [255,0,0],
+        "text": "Dryer: {{ states("sensor.dryer_time_remaining") }}" }'

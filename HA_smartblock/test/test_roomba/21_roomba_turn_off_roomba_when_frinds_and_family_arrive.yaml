@@ -1,0 +1,36 @@
+- alias: Roomba - Turn Off Roomba when Friends and Family Arrive
+  id: roomba_turn_off_roomba_when_frinds_and_family_arrive
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.guest_mode
+    from: 'off'
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 90
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_home_away
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.disable_roomba
+    state: 'off'
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: vacuum.main_floor_roomba
+      state: cleaning
+    - condition: state
+      entity_id: vacuum.upstairs_roomba
+      state: cleaning
+    - condition: state
+      entity_id: vacuum.basement_roomba
+      state: cleaning
+  actions:
+  - action: vacuum.return_to_base
+    target:
+      entity_id:
+      - vacuum.main_floor_roomba
+      - vacuum.upstairs_roomba
+      - vacuum.basement_roomba
