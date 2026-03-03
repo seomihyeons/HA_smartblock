@@ -82,6 +82,26 @@ code {
   opacity: 0.25 !important;
 }
 
+#btnTaskAlt {
+  position: fixed !important;
+  right: 28px !important;
+  bottom: 190px !important;
+  z-index: 2147483647 !important;
+  pointer-events: auto !important;
+  width: 70px !important;
+  height: 70px !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  font-size: 44px !important;
+  line-height: 1 !important;
+  opacity: 0.3 !important;
+}
+
 /* ===== Debug Modal (override, do NOT touch #btnDebug) ===== */
 #debugModal {
   position: fixed;
@@ -194,4 +214,343 @@ code {
   color: #111827;
   background: #f3f4f6;
   /* match panel */
+}
+
+#taskAltModal {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+#taskAltModal.hidden {
+  display: none !important;
+}
+
+#taskAltModal #taskAltModalBackdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+#taskAltModal .modal-panel {
+  position: relative;
+  width: 760px;
+  height: 560px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  z-index: 1;
+}
+
+#taskAltModal .modal-header {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  padding: 14px 16px;
+  background: #f3f4f6;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+#taskAltModal .modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  white-space: nowrap;
+}
+
+#taskAltModal .modal-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+#taskAltModal .taskalt-actions-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+  flex: 1 1 auto;
+  width: 100%;
+}
+
+#taskAltModal .taskalt-actions-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+
+#taskAltModal .taskalt-actions-row button {
+  width: 100%;
+  white-space: nowrap;
+}
+
+#taskAltModal .taskalt-import-slot {
+  width: 100%;
+  display: flex;
+  gap: 6px;
+}
+
+#taskAltModal .taskalt-import-slot button {
+  width: auto !important;
+  flex: 1 1 0;
+}
+
+#taskAltModal .modal-actions button {
+  appearance: auto;
+  -webkit-appearance: button;
+  padding: 4px 10px;
+  min-height: 32px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: #111827;
+}
+
+#taskAltModal #taskAltModalClose {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  padding: 0;
+  flex: 0 0 32px;
+}
+
+#taskAltModal #taskAltOutput.modal-output {
+  flex: 1;
+  margin: 0;
+  padding: 14px 16px;
+  overflow: auto;
+  white-space: normal;
+  font-size: 12px;
+  color: #111827;
+  background: #f3f4f6;
+}
+
+.taskalt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.taskalt-baseline-list {
+  gap: 5px;
+}
+
+.taskalt-item {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px 10px;
+}
+
+.taskalt-item.selected {
+  border-color: #4b5563;
+  box-shadow: 0 0 0 1px #4b5563 inset;
+}
+
+.taskalt-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.taskalt-name-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-weight: 700;
+  padding: 0;
+  color: #111827;
+}
+
+.taskalt-item-title {
+  font-weight: 700;
+  color: #111827;
+}
+
+.taskalt-meta-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.taskalt-meta-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.taskalt-meta-key {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.taskalt-meta-value {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 12px;
+  color: #111827;
+  white-space: pre-wrap;
+}
+
+.taskalt-note {
+  margin-top: 8px;
+  display: inline-flex;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.taskalt-note.pass {
+  background: #ecfdf3;
+  border-color: #86efac;
+  color: #166534;
+}
+
+.taskalt-note.raw {
+  background: #fef3c7;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+.taskalt-diff-list {
+  margin-top: 8px;
+  border-top: 1px dashed #e5e7eb;
+  padding-top: 6px;
+  display: grid;
+  gap: 4px;
+}
+
+.taskalt-diff-line {
+  font-size: 12px;
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  color: #111827;
+}
+
+.taskalt-change-list {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.taskalt-change-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 8px 10px;
+}
+
+.taskalt-change-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.taskalt-change-body {
+  margin-top: 6px;
+  display: grid;
+  gap: 4px;
+}
+
+.taskalt-change-line {
+  font-size: 12px;
+  white-space: pre-wrap;
+  color: #111827;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.taskalt-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  font-weight: 700;
+}
+
+.taskalt-status.pass {
+  background: #ecfdf3;
+  border-color: #86efac;
+}
+
+.taskalt-status.norm {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.taskalt-status.raw {
+  background: #fef3c7;
+  border-color: #fcd34d;
+}
+
+.taskalt-status.fail {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+.taskalt-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.taskalt-lines {
+  margin-top: 6px;
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.taskalt-filters {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.taskalt-toolbar-tight {
+  margin-top: 0;
+  margin-bottom: 2px;
+}
+
+.taskalt-toolbar-spacer {
+  margin-right: auto;
+}
+
+.taskalt-filter-btn {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 3px 8px;
+}
+
+.taskalt-filter-btn.active {
+  border-color: #4b5563;
+  font-weight: 700;
 }
