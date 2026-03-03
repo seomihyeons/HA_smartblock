@@ -4,4 +4,6 @@ dist/
 .env
 product
 HA_smartblock/xhome_workspace/
-HA_smartblock/src/data/test_entities.json
+HA_smartblock/src/data/test_entities.json# Local-only / private datasets
+HA_smartblock/security/
+HA_smartblock/geekof_automation/
