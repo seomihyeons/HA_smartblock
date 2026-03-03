@@ -6,19 +6,17 @@ export const actionNotifyTagBlocks =
   Blockly.common.createBlockDefinitionsFromJsonArray([
   {
     type: 'action_notify_tag',
-    message0: 'tag %1',
+    message0: 'tag %1 details %2',
     args0: [
       { type: 'field_input', name: 'TAG_NAME', text: 'tag name', spellcheck: true },
-    ],
-    message1: '%1',
-    args1: [
-      { type: 'input_statement', name: 'TAG_BLOCKS', check: 'HA_NOTIFY_TAG' },
+      { type: 'field_checkbox', name: 'USE_DETAILS', checked: false },
     ],
     previousStatement: 'HA_NOTIFY',
     nextStatement: 'HA_NOTIFY',
     colour: '#E3CC57',
     tooltip: 'notify의 data.data(payload)를 구성합니다. (tag + entity_id + actions)',
     helpUrl: '',
+    mutator: 'ha_notify_tag_optional_details',
   },
 
   {

@@ -26,6 +26,7 @@ export const DOMAIN_SPEC = {
     actions: [
       ['on', 'turn_on'],
       ['off', 'turn_off'],
+      ['toggle', 'toggle'],
     ],
     states: [
       ['on', 'on'],
@@ -50,6 +51,11 @@ export const DOMAIN_SPEC = {
       ['play', 'media_play'],
       ['pause', 'media_pause'],
       ['stop', 'media_stop'],
+      ['clear playlist', 'clear_playlist'],
+      ['join', 'join'],
+      ['unjoin', 'unjoin'],
+      ['select source', 'select_source'],
+      ['set volume', 'volume_set'],
       ['next', 'media_next_track'],
       ['previous', 'media_previous_track'],
       ['volume up', 'volume_up'],
@@ -68,6 +74,7 @@ export const DOMAIN_SPEC = {
     actions: [
       ['on', 'turn_on'],
       ['off', 'turn_off'],
+      ['set hvac mode', 'set_hvac_mode'],
       ['set temperature', 'set_temperature'],
       ['set preset mode', 'set_preset_mode'],
     ],
@@ -84,6 +91,7 @@ export const DOMAIN_SPEC = {
       ['open', 'open_cover'],
       ['close', 'close_cover'],
       ['stop', 'stop_cover'],
+      ['toggle', 'toggle'],
       ['set position', 'set_cover_position'],
     ],
     states: [
@@ -106,6 +114,12 @@ export const DOMAIN_SPEC = {
     actions: [
       ['on', 'turn_on'],
       ['off', 'turn_off'],
+      ['toggle', 'toggle'],
+      ['set percentage', 'set_percentage'],
+      ['set preset mode', 'set_preset_mode'],
+      ['oscillate', 'oscillate'],
+      ['increase speed', 'increase_speed'],
+      ['decrease speed', 'decrease_speed'],
     ],
     states: [
       ['on', 'on'],
@@ -146,6 +160,12 @@ export const DOMAIN_SPEC = {
     states: [
       ['on', 'on'],
       ['off', 'off'],
+    ],
+  },
+
+  ecobee: {
+    actions: [
+      ['resume program', 'resume_program'],
     ],
   },
 
@@ -201,6 +221,56 @@ export const DOMAIN_SPEC = {
       ['turn on', 'turn_on'],
       ['turn off', 'turn_off'],
       ['toggle', 'toggle'],
+      ['reload config entry', 'reload_config_entry'],
+    ],
+  },
+
+  backup: {
+    actions: [
+      ['create', 'create'],
+    ],
+  },
+
+  mqtt: {
+    actions: [
+      ['publish', 'publish'],
+    ],
+  },
+
+  script: {
+    actions: [
+      ['turn on', 'turn_on'],
+      ['turn off', 'turn_off'],
+    ],
+  },
+
+  python_script: {
+    actions: [
+      ['run', 'run'],
+    ],
+  },
+
+  unifi: {
+    actions: [
+      ['reconnect client', 'reconnect_client'],
+    ],
+  },
+
+  webostv: {
+    actions: [
+      ['select sound output', 'select_sound_output'],
+    ],
+  },
+
+  zwave_js: {
+    actions: [
+      ['ping', 'ping'],
+    ],
+  },
+
+  lifx: {
+    actions: [
+      ['effect pulse', 'effect_pulse'],
     ],
   },
 
@@ -319,15 +389,28 @@ export const DOMAIN_SPEC = {
 
   valve: {
     actions: [
-      ['open', 'open'],
-      ['close', 'close'],
+      ['open', 'open_valve'],
+      ['close', 'close_valve'],
     ],
     states: [
       ['open', 'open'],
       ['closed', 'closed'],
     ],
   },
-
+  weather: {
+    states: [
+      ['sunny', 'sunny'],
+      ['cloudy', 'cloudy'],
+      ['partlycloudy', 'partlycloudy'],
+      ['rainy', 'rainy'],
+      ['snowy', 'snowy'],
+      ['windy', 'windy'],
+      ['fog', 'fog'],
+      ['clear-night', 'clear-night'],
+      ['unknown', 'unknown'],
+      ['unavailable', 'unavailable'],
+    ],
+  },
   sun: {
     states: [
       ['above horizon', 'above_horizon'],
@@ -513,23 +596,14 @@ export const NOTIFY_TEMPLATE_KINDS = [
  * GROUP ACTION OPTIONS (light / cover)
  * ============================================================ */
 
-export const GROUP_ACTION_DOMAINS = [
-  ['cover', 'cover'],
-  ['light', 'light'],
-  ['switch', 'switch'],
-  ['fan', 'fan'],
-  ['lock', 'lock'],
-  ['select', 'select'],
-  ['input_select', 'input_select'],
-  ['media_player', 'media_player'],
-  ['homeassistant', 'homeassistant'],
-];
+export const GROUP_ACTION_DOMAINS = ACTION_DOMAINS.map((domain) => [domain, domain]);
 
 export const GROUP_DOMAIN_TO_SERVICE_OPTIONS = {
   cover: [
     ['open', 'open_cover'],
     ['close', 'close_cover'],
     ['stop', 'stop_cover'],
+    ['set position', 'set_cover_position'],
   ],
   light: [
     ['on', 'turn_on'],
@@ -542,6 +616,7 @@ export const GROUP_DOMAIN_TO_SERVICE_OPTIONS = {
   fan: [
     ['on', 'turn_on'],
     ['off', 'turn_off'],
+    ['set percentage', 'set_percentage'],
   ],
   lock: [
     ['lock', 'lock'],
@@ -562,6 +637,11 @@ export const GROUP_DOMAIN_TO_SERVICE_OPTIONS = {
     ['play', 'media_play'],
     ['pause', 'media_pause'],
     ['stop', 'media_stop'],
+    ['clear playlist', 'clear_playlist'],
+    ['join', 'join'],
+    ['unjoin', 'unjoin'],
+    ['select source', 'select_source'],
+    ['set volume', 'volume_set'],
     ['next', 'media_next_track'],
     ['previous', 'media_previous_track'],
     ['volume up', 'volume_up'],
@@ -570,6 +650,7 @@ export const GROUP_DOMAIN_TO_SERVICE_OPTIONS = {
   homeassistant: [
     ['turn on', 'turn_on'],
     ['turn off', 'turn_off'],
+    ['toggle', 'toggle'],
   ],
 };
 
@@ -618,5 +699,10 @@ export function getGroupEntityOptions() {
 }
 
 export function getGroupServiceOptionsByDomain(domain) {
-  return GROUP_DOMAIN_TO_SERVICE_OPTIONS[domain] || [];
+  const mapped = GROUP_DOMAIN_TO_SERVICE_OPTIONS[domain];
+  if (Array.isArray(mapped) && mapped.length) return mapped;
+  const fromSpec = getActions(domain);
+  if (Array.isArray(fromSpec) && fromSpec.length) return fromSpec;
+  return [['-', '']];
 }
+

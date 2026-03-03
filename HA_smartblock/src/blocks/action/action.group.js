@@ -13,12 +13,13 @@ Blockly.Extensions.register('action_group_dynamic_service', function () {
 
   const updateServiceOptions = (domain) => {
     const opts = getGroupServiceOptionsByDomain(domain);
+    const safeOpts = (Array.isArray(opts) && opts.length) ? opts : [['-', '']];
     // Blockly dropdown internal generator
-    serviceField.menuGenerator_ = opts;
+    serviceField.menuGenerator_ = safeOpts;
 
-    const validValues = opts.map(o => o[1]);
+    const validValues = safeOpts.map(o => o[1]);
     if (!validValues.includes(serviceField.getValue())) {
-      if (opts[0]) serviceField.setValue(opts[0][1]);
+      if (safeOpts[0]) serviceField.setValue(safeOpts[0][1]);
     }
   };
 

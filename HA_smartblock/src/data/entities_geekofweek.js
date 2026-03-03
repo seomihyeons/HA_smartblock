@@ -4040,7 +4040,8 @@ export const dummyEntities = [
     "name": "REDACTED",
     "state": "unknown",
     "attributes": {
-      "friendly_name": "REDACTED"
+      "friendly_name": "REDACTED",
+      "wind_speed": 14
     }
   }
 ];
