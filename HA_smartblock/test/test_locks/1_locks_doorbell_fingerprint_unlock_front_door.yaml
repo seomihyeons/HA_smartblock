@@ -1,0 +1,27 @@
+- alias: Locks - doorbell fingerprint unlock front door
+  id: locks_doorbell_fingerprint_unlock_front_door
+  triggers:
+  - platform: event
+    event_type: state_changed
+    event_data:
+      entity_id: event.front_door_camera_fingerprint
+  conditions:
+  - condition: state
+    entity_id: lock.front_door
+    state: locked
+  - condition: state
+    entity_id: input_boolean.disable_lock_unlock_doors
+    state: 'off'
+  - condition: state
+    entity_id: binary_sensor.front_door_opened
+    state: 'off'
+  - condition: template
+    value_template: "{{\n  not trigger.event.data.old_state.attributes.get('restored',\
+      \ false) and\n  not trigger.event.data.old_state.state == 'unavailable' and\n\
+      \  trigger.event.data.new_state is not none and\n  trigger.event.data.new_state.attributes.event_type\
+      \ == 'identified' and\n  (trigger.event.data.new_state.attributes.ulp_id|default(''))\
+      \ != '' and\n  trigger.event.data.new_state.attributes.ulp_id in ['REDACTED',\
+      \ 'REDACTED']\n}}\n"
+  actions:
+  - action: lock.unlock
+    entity_id: lock.front_door

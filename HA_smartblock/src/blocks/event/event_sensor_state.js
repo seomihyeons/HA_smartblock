@@ -1,5 +1,5 @@
 import * as Blockly from 'blockly';
-import { dummyEntities } from '../../data/entities';
+import { dummyEntities } from '../../data/entities_index.js';
 
 function getSensorDropdownOptions() {
   const sensors = dummyEntities.filter(

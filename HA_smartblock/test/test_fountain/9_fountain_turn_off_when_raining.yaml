@@ -1,0 +1,35 @@
+- alias: Fountain - Turn Off When Raining
+  id: 'fountain_turn_off_when_raining'
+
+  triggers:
+    - trigger: state
+      entity_id: weather.REDACTED
+      to: 'rainy'
+      for:
+        hours: 1
+        minutes: 0
+        seconds: 0
+    - trigger: state
+      entity_id: weather.REDACTED
+      to: 'lightning-rainy'
+      for:
+        hours: 1
+        minutes: 0
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_fountain
+      state: 'off'
+    - condition: state
+      entity_id: switch.fountain
+      state: 'on'
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+
+  actions:
+    - action: switch.turn_off
+      target:
+        entity_id:
+          - switch.fountain

@@ -1,0 +1,23 @@
+- alias: LED Clock - Living Room Nintendo Switch
+  id: led_clock_living_room_nintendo_switch
+  triggers:
+  - trigger: state
+    entity_id: select.living_room_tv_activities
+    to: Play Nintendo Switch
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/tv_state
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/notify
+      payload: "{  \"icon\": \"mario\", \"pushIcon\": 0, \"duration\": 30, \"stack\"\
+        : false, \"text\": [\n  {\n    \"t\": \"Nintendo \",\n    \"c\": \"FF0000\"\
+        \n  },\n  {\n    \"t\": \"Switch\",\n    \"c\": \"FFFFFF\"\n  }\n] }"
+  - delay: 00:00:20
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/tv_state
+      payload: "{  \"icon\": \"mario\", \"pushIcon\": 0, \"repeat\": 3, \"text\":\
+        \ [\n  {\n    \"t\": \"Nintendo \",\n    \"c\": \"FF0000\"\n  },\n  {\n  \
+        \  \"t\": \"Switch\",\n    \"c\": \"FFFFFF\"\n  }\n] }"

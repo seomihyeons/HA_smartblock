@@ -1,0 +1,32 @@
+- alias: Blinds - Close USER1's Office Blinds When No Motion Detected
+  id: 'blinds_close_USER1_office_blinds_when_no_motion_detected'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.USER1s_office_motion
+      from: 'on'
+      to: 'off'
+      for:
+        hours: 1
+        minutes: 0
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_blinds
+      state: 'off'
+    - condition: state
+      entity_id: binary_sensor.USER1s_office_window_right
+      state: 'off'
+    - condition: state
+      entity_id: cover.USER1_s_office_blinds
+      state: 'open'
+    - condition: state
+      entity_id: input_boolean.USER1_office_portable_ac
+      state: 'off'
+
+  actions:
+    - action: cover.close_cover
+      data:
+        entity_id: 
+          - cover.USER1_s_office_blinds

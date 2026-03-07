@@ -1,0 +1,19 @@
+- alias: Holiday - New Years Eve Lighting
+  id: 'holiday_new_years_eve_lighting'
+
+  triggers:
+    - trigger: sun
+      event: 'sunset'
+      offset: '-00:15:00'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_exterior_on_sunset
+      state: 'off'
+    - condition: state
+      entity_id: input_select.holiday
+      state: "New Year's Eve"
+
+  actions:
+    - action: homeassistant.turn_on
+      entity_id: input_boolean.front_porch_rainbow

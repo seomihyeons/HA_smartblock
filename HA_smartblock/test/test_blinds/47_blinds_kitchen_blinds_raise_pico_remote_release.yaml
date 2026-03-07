@@ -1,0 +1,15 @@
+- alias: Blinds - Kitchen Raise Blinds Pico Remote Release
+  id: 'blinds_kitchen_blinds_raise_pico_remote_release'
+
+  triggers:
+    - trigger: event
+      event_type: lutron_caseta_button_event
+      event_data:
+        serial: 91735138
+        button_number: 5
+        actions: release
+
+  actions:
+    - action: cover.stop_cover
+      entity_id:
+        - cover.kitchen_blinds

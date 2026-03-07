@@ -1,0 +1,22 @@
+- alias: Lights - Living Room Fan Lights Off Pico Remote
+  id: lights_living_room_fan_lights_off_pico_remote
+  triggers:
+  - trigger: event
+    event_type: lutron_caseta_button_event
+    event_data:
+      serial: 49229391
+      button_number: 4
+      action: press
+  conditions:
+  - condition: state
+    entity_id: light.living_room_fan_lights
+    state: 'on'
+  actions:
+  - delay:
+      seconds: 1
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.living_room_fan_lights
+  - delay:
+      seconds: 1

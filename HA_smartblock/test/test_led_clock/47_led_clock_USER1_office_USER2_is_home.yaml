@@ -1,0 +1,30 @@
+- alias: LED Clock - USER1's Office USER2 is Home
+  id: led_clock_USER1_office_USER2_is_home
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.doors
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  - condition: state
+    entity_id: person.USER2
+    state: home
+  - condition: state
+    entity_id: input_boolean.USER1_greeting
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.USER2_greeting
+    state: 'on'
+  - condition: state
+    entity_id: light.USER1s_office_desktop_clock
+    state: 'on'
+  actions:
+  - delay: 00:00:30
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/notify
+      payload: '{  "icon": "house", "pushIcon": 0, "duration": 60, "rainbow": true,
+        "text": "USER2 Home" }'

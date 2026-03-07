@@ -1,0 +1,20 @@
+- alias: Network - Re-Enable Pi-hole After 30 Mins
+  id: network_reenable_pihole_after_30_mins
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.pihole
+    from: 'on'
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 31
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.pihole
+    state: 'off'
+  actions:
+  - action: homeassistant.turn_on
+    target:
+      entity_id:
+      - input_boolean.pihole

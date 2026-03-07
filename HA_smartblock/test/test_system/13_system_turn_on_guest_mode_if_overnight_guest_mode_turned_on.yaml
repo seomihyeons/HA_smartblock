@@ -1,0 +1,19 @@
+- alias: System - Turn On Guest Mode if Overnight Guest Mode Turned On
+  id: system_turn_on_guest_mode_if_overnight_guest_mode_turned_on
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.overnight_guest_mode
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 30
+  conditions:
+  - condition: state
+    entity_id: input_boolean.guest_mode
+    state: 'off'
+  actions:
+  - action: homeassistant.turn_on
+    target:
+      entity_id:
+      - input_boolean.guest_mode

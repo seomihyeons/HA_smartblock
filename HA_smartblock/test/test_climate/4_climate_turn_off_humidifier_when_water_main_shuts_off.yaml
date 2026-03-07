@@ -1,0 +1,24 @@
+- alias: Climate - Turn Off Humidifier When Water Main Shuts Off
+  id: climate_turn_off_humidifier_when_water_main_shuts_off
+  triggers:
+  - trigger: state
+    entity_id: valve.water_main
+    from: open
+    to: closed
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: humidifier.main_floor
+    state: 'on'
+  - condition: state
+    entity_id: input_boolean.disable_climate
+    state: 'off'
+  actions:
+  - action: humidifier.set_mode
+    data:
+      mode: 'off'
+    target:
+      entity_id: humidifier.main_floor

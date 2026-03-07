@@ -1,0 +1,47 @@
+- alias: LED Clock - Household Away Mode
+  id: led_clock_household_away_mode
+  triggers:
+  - trigger: state
+    entity_id: group.household
+    from: home
+    to: not_home
+    for:
+      hours: 0
+      minutes: 6
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_home_away
+    state: 'off'
+  actions:
+  - action: light.turn_off
+    entity_id:
+    - light.USER1s_office_desktop_clock
+    - light.living_room_clock
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/music_song
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/music_album
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/music_song
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/music_album
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/youtube
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/youtube
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/party_time
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/party_time
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/tv_state

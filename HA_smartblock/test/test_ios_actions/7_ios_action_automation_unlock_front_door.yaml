@@ -1,0 +1,12 @@
+- alias: iOS Action - Unlock Front Door
+  id: ios_action_automation_unlock_front_door
+  triggers:
+  - trigger: event
+    event_type: ios.action_fired
+    event_data:
+      actionName: Unlock Front Door
+  actions:
+  - action: lock.unlock
+    target:
+      entity_id: lock.front_door
+    data: {}

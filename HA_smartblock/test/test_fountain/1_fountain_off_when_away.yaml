@@ -1,0 +1,27 @@
+- alias: Fountain - Fountain Off When Away
+  id: 'fountain_off_when_away'
+
+  triggers:
+    - trigger: state
+      entity_id: group.household
+      from: 'home'
+      to: 'not_home'
+      for:
+        hours: 0
+        minutes: 3
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_fountain
+      state: 'off'
+    - condition: state
+      entity_id: switch.fountain
+      state: 'on'
+
+  actions:
+    - action: switch.turn_off
+      target:
+        entity_id:
+          - switch.fountain
+          - switch.fountain_lights

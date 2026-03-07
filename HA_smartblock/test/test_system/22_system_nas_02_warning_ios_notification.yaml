@@ -1,0 +1,16 @@
+- alias: System - NAS-02 Warning iOS Notification
+  id: system_nas_02_warning_ios_notification
+  triggers:
+  - trigger: state
+    entity_id: sensor.nas_02_status
+    to: warning
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_notifications
+    state: 'off'
+  actions:
+  - action: notify.USER1_devices
+    data:
+      message: NAS-02 RAID Failing
+      data:
+        tag: nas-02

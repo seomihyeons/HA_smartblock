@@ -1,0 +1,21 @@
+- alias: Blinds - Close Kitchen South Blind Before Sunset
+  id: 'blinds_close_kitchen_south_blind_before_sunset'
+
+  triggers:
+    - trigger: sun
+      event: 'sunset'
+      offset: '-00:30:00'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_blinds
+      state: 'off'
+    - condition: state
+      entity_id: cover.kitchen_blinds_south
+      state: 'open'
+
+  actions:
+    - action: cover.close_cover
+      data:
+        entity_id: 
+          - cover.kitchen_blinds_south

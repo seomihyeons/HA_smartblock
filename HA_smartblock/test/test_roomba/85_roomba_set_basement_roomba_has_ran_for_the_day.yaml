@@ -1,0 +1,19 @@
+- alias: Roomba - Set Basement Roomba has Ran for the Day
+  id: roomba_set_basement_roomba_has_ran_for_the_day
+  triggers:
+  - trigger: state
+    entity_id: vacuum.basement_roomba
+    to: cleaning
+    for:
+      hours: 0
+      minutes: 45
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_roomba
+    state: 'off'
+  actions:
+  - action: homeassistant.turn_on
+    target:
+      entity_id:
+      - input_boolean.basement_roomba_ran

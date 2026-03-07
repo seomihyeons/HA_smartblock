@@ -1,0 +1,42 @@
+- alias: Blinds - Open Bedroom Blinds at 10a Weekdays
+  id: 'blinds_open_bedroom_blinds_at_10a_weekdays'
+
+  triggers:
+   - trigger: time
+     at: '10:00:00'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_blinds
+      state: 'off'
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: cover.bedroom_closet_blinds
+      state: 'closed'
+    - condition: numeric_state
+      entity_id: sensor.REDACTED_temperature
+      below: 90
+    - condition: numeric_state
+      entity_id: sensor.REDACTED_temperature
+      above: 20
+    - condition: numeric_state
+      entity_id: sensor.REDACTED_forecasted_temperature_high
+      below: 95
+    - condition: numeric_state
+      entity_id: sensor.REDACTED_forecasted_temperature_high
+      above: 20
+    - condition: time
+      weekday:
+        - mon
+        - tue
+        - wed
+        - thu
+        - fri
+
+  actions:
+    - action: cover.open_cover
+      data:
+        entity_id: 
+          - cover.bedroom_closet_blinds

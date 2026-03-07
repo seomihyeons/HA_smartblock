@@ -1,0 +1,51 @@
+- alias: Location - Household Away Mode Lights
+  id: 'location_household_away_mode_lights'
+
+  triggers:
+    - trigger: state
+      entity_id: group.household
+      from: 'home'
+      to: 'not_home'
+      for:
+        hours: 0
+        minutes: 1
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_home_away
+      state: 'off'
+    - condition: state
+      entity_id: light.interior_lights
+      state: 'on'
+
+  actions:
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.interior_lights
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.backyard_deck
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.backyard_patio
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.garage_interior
+    - delay: '00:00:60'
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.interior_lights
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.backyard_deck
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.backyard_patio

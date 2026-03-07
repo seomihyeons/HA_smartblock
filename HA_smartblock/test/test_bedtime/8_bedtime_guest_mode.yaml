@@ -1,0 +1,110 @@
+- alias: Bedtime - Guest Mode
+  id: 'bedtime_guest_mode'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.bedtime
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: input_boolean.overnight_guest_mode
+      state: 'on'
+
+  actions:
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.living_room_lights
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.dining_room_lights
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.bedroom_lights
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.USER2s_bedroom_closet
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.kitchen_lights
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.hallway_light
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.bathroom_lights
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.basement_lights
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.basement_stairs
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.work_bench_light
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.laundry_room_light
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.basement_stairs
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.craft_room_ceiling
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.fitness_room_ceiling
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.basement_lamp
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.USER1_office_lights
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.USER2_office_lights
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.backyard_deck
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.backyard_patio
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.garage_interior
+    - action: climate.set_preset_mode
+      data:
+        entity_id: climate.main_floor
+        preset_mode: 'Guest'
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.USER1s_office_desktop_clock
+          - light.living_room_clock

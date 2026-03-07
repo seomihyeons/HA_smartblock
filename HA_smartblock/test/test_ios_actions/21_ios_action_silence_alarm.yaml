@@ -1,0 +1,10 @@
+- alias: iOS Action - Silence Alarm
+  id: ios_action_silence_alarm
+  triggers:
+  - trigger: event
+    event_type: mobile_app_notification_action
+    event_data:
+      action: disarm_alarm
+  actions:
+  - action: alarm_control_panel.alarm_disarm
+    entity_id: alarm_control_panel.alarm

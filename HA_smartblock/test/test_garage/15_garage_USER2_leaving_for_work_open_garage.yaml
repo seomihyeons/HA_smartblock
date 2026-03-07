@@ -1,0 +1,39 @@
+- alias: Garage - USER2 Leaving for Work Open Garage
+  id: 'garage_USER2_leaving_for_work_open_garage'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.back_door_opened
+      from: 'off'
+      to: 'on'
+
+  conditions:
+    - condition: time
+      after: '06:00:00'
+      before: '07:30:00'
+    - condition: state
+      entity_id: input_boolean.disable_auto_garage
+      state: 'off'
+    - condition: state
+      entity_id: person.USER2
+      state: 'home'
+    - condition: state
+      entity_id: input_boolean.USER2_away
+      state: 'off'
+    - condition: time
+      weekday:
+        - mon
+        - tue
+        - wed
+        - thu
+        - fri
+    - condition: state
+      entity_id: cover.garage_door
+      state: 'closed'
+    - condition: state
+      entity_id: input_boolean.garage_door_motor
+      state: 'off'
+
+  actions:
+    - action: cover.open_cover
+      entity_id: cover.garage_door

@@ -1,0 +1,22 @@
+- alias: Lights - Living Room Lights Decrease Brightness Pico Remote
+  id: lights_living_room_lights_decrease_brightness_pico_remote
+  triggers:
+  - trigger: event
+    event_type: lutron_caseta_button_event
+    event_data:
+      serial: 43846935
+      button_number: 6
+      action: press
+  conditions:
+  - condition: state
+    entity_id: light.living_room_accent_lights
+    state: 'on'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.living_room_accent_lights
+    data:
+      brightness_step_pct: -10
+  - delay:
+      seconds: 1

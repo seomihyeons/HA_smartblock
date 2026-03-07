@@ -1,0 +1,28 @@
+- alias: Blinds - Turn Off USER1's Office Desk Lamp when Blinds are Open
+  id: 'blinds_turn_off_USER1_office_desk_lamp_when_blinds_are_open'
+
+  triggers:
+    - trigger: state
+      entity_id: cover.USER1_s_office_blinds
+      from: 'closed'
+      to: 'opening'
+    - trigger: state
+      entity_id: cover.USER1_s_office_blinds
+      to: 'open'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_blinds
+      state: 'off'
+    - condition: state
+      entity_id: input_boolean.USER1_s_office_do_not_disturb
+      state: 'off'
+
+  actions:
+    - action: light.turn_off
+      entity_id:
+        - light.USER1_office_desk_lamp
+    - delay: '00:00:30'
+    - action: light.turn_off
+      entity_id:
+        - light.USER1_office_desk_lamp

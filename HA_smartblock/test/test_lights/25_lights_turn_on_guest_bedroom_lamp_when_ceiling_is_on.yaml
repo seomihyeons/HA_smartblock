@@ -1,0 +1,18 @@
+- alias: Lights - Turn On Guest Bedroom Lamp when Ceiling is On
+  id: lights_turn_on_guest_bedroom_lamp_when_ceiling_is_on
+  triggers:
+  - trigger: state
+    entity_id: light.guest_bedroom_ceiling
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: light.guest_bedroom_nightstand
+    state: 'off'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.guest_bedroom_nightstand
+    data:
+      brightness_pct: 50

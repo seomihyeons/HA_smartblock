@@ -1,0 +1,24 @@
+- alias: Doors - Turn On Back Door Lights when Back Door Opens
+  id: 'doors_turn_on_back_door_lights_when_back_door_opens'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.back_door_opened
+      from: 'off'
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: sun.sun
+      state: 'below_horizon'
+    - condition: state
+      entity_id: input_boolean.disable_door_open_lights_on
+      state: 'off'
+
+  actions:
+    - action: light.turn_on
+      target:
+        entity_id:
+          - light.back_door
+      data:
+       brightness_pct: 100

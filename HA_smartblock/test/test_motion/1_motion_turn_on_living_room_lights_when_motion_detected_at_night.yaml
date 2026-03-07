@@ -1,0 +1,67 @@
+- alias: Motion - Turn On Living Room Lights when Motion Detected at Night
+  id: motion_turn_on_living_room_lights_when_motion_detected_at_night
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.living_room_motion
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.living_room_guest
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.watching_plex
+    state: 'off'
+  - condition: state
+    entity_id: light.living_room_lights
+    state: 'off'
+  - condition: state
+    entity_id: sun.sun
+    state: below_horizon
+  - condition: time
+    after: 07:00:00
+    before: 02:00:00
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: media_player.living_room_apple_tv
+      state: playing
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: select.living_room_tv_activities
+      state: Play Xbox
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: select.living_room_tv_activities
+      state: Play Nintendo Switch
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.living_room_lamps
+    data:
+      transition: 5
+      brightness_pct: 100
+      color_temp: 370
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.media_center_lighting
+    data:
+      transition: 5
+      brightness_pct: 100
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.globe
+    data:
+      transition: 5
+      brightness_pct: 65

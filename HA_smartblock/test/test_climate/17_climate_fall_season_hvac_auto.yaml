@@ -1,0 +1,11 @@
+- alias: Climate - Fall Season HVAC Auto
+  id: climate_fall_season_hvac_auto
+  triggers:
+  - trigger: state
+    entity_id: sensor.season
+    to: autumn
+  actions:
+  - action: climate.set_hvac_mode
+    data:
+      entity_id: climate.main_floor
+      hvac_mode: heat_cool

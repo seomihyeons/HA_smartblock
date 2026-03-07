@@ -1,0 +1,15 @@
+- alias: iOS Action - Lock Doors
+  id: ios_action_automation_lock_doors
+  triggers:
+  - trigger: event
+    event_type: ios.action_fired
+    event_data:
+      actionName: Lock Doors
+  actions:
+  - action: lock.lock
+    target:
+      entity_id:
+      - lock.front_door
+      - lock.back_door
+      - lock.basement_door
+    data: {}

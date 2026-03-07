@@ -1,0 +1,20 @@
+- alias: Network - WAN Down Notification
+  id: network_wan_down_notification
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.wan
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_notifications
+    state: 'off'
+  actions:
+  - action: notify.USER1_devices
+    data:
+      message: Internet is Down!
+      data:
+        tag: network

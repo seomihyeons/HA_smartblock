@@ -1,0 +1,35 @@
+- alias: LED Clock - USER1's Office YouTube Title
+  id: led_clock_USER1_office_youtube_title
+  triggers:
+  - trigger: state
+    entity_id: media_player.USER1_s_office_apple_tv
+    attribute: media_title
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  conditions:
+  - condition: state
+    entity_id: media_player.USER1_s_office_apple_tv
+    state: playing
+  - condition: state
+    entity_id: select.USER1_s_office_tv_activities
+    state: Watch TV
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: media_player.USER1_s_office_apple_tv
+      attribute: app_id
+      state: com.google.ios.youtube
+    - condition: state
+      entity_id: media_player.USER1_s_office_apple_tv
+      attribute: app_name
+      state: YouTube
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/youtube
+      payload: '{  "icon": "youtube", "pushIcon": 2, "repeat": 6, "rainbow": true,
+        "text": "{{ state_attr(''media_player.USER1_s_office_apple_tv'', ''media_artist'')
+        }} : {{ state_attr(''media_player.USER1_s_office_apple_tv'', ''media_title'')
+        }}" }'

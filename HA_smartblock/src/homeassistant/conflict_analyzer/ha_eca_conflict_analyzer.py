@@ -7,6 +7,7 @@ import os
 import ssl
 import urllib.request
 import urllib.error
+import re
 from collections import defaultdict, Counter
 from dataclasses import dataclass
 from typing import Dict, List, Tuple, Optional, Set, Any
@@ -98,6 +99,20 @@ def make_hashable(obj):
         return tuple(make_hashable(x) for x in obj)
     return obj
 
+_SURROGATE_RE = re.compile(r"[\ud800-\udfff]")
+_BAD_CTRL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+def _sanitize_yaml_text(text: str) -> str:
+    """
+    PyYAML fails on lone UTF-16 surrogate chars and disallowed control chars.
+    Replace them with U+FFFD so analysis can proceed instead of crashing.
+    """
+    if not isinstance(text, str) or not text:
+        return ""
+    text = _SURROGATE_RE.sub("\uFFFD", text)
+    text = _BAD_CTRL_RE.sub("\uFFFD", text)
+    return text
+
 def _normalize_event(trigger: Dict[str, Any]) -> List[Event]:
     if trigger.get("platform") == "state" or trigger.get("type") == "state" or trigger.get("trigger") == "state":
         entity = trigger.get("entity_id")
@@ -178,7 +193,8 @@ def _normalize_action(step: Dict[str, Any]) -> List[Action]:
     return make_hashable(out)
 
 def parse_ha_automations(yaml_text: str) -> List[Dict[str, Any]]:
-    docs = list(yaml.safe_load_all(yaml_text))
+    safe_yaml_text = _sanitize_yaml_text(yaml_text)
+    docs = list(yaml.safe_load_all(safe_yaml_text))
     automations: List[Dict[str, Any]] = []
     for doc in docs:
         if isinstance(doc, list):
@@ -372,9 +388,11 @@ def _ha_get_json(base_url: str, token: str, path: str) -> Any:
     req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
     ctx = None
     if url.lower().startswith("https://"):
-        ctx = ssl.create_default_context()
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE
+        verify = os.getenv("HA_SSL_VERIFY", "true").strip().lower() not in ("0", "false", "no")
+        if not verify:
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
     with urllib.request.urlopen(req, context=ctx, timeout=20) as resp:
         data = resp.read().decode("utf-8", errors="replace")
         return json.loads(data) if data else None
@@ -437,13 +455,16 @@ def main(argv=None) -> int:
         yaml_text = yaml.safe_dump(configs, allow_unicode=True, sort_keys=False)
     else:
         if args.infile:
-            with open(args.infile, "r", encoding="utf-8") as f:
+            with open(args.infile, "r", encoding="utf-8", errors="replace") as f:
                 yaml_text = f.read()
         else:
-            yaml_text = sys.stdin.read()
+            # Read raw bytes and force UTF-8 with replacement to avoid
+            # locale/encoding-induced surrogate characters on Windows.
+            yaml_text = sys.stdin.buffer.read().decode("utf-8", errors="replace")
 
     report = analyze_ha_automations(yaml_text)
-    out_json = json.dumps(report, ensure_ascii=False, indent=2)
+    # Keep stdout ASCII-safe on Windows consoles with legacy encodings.
+    out_json = json.dumps(report, ensure_ascii=True, indent=2)
 
     if args.outfile and args.outfile.strip().lower() == "stdout":
         print(out_json)

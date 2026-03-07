@@ -1,0 +1,20 @@
+- alias: LED Clock - Doorbell Living Room
+  id: led_clock_doorbell_living_room
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.front_door_doorbell
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: light.living_room_clock
+    state: 'on'
+  - condition: state
+    entity_id: group.household
+    state: home
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/notify
+      payload: '{  "icon": "doorbell", "pushIcon": 0, "duration": 60, "stack": false,
+        "text": "Doorbell" }'

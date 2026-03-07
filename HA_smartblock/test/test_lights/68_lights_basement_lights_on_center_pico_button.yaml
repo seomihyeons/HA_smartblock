@@ -1,0 +1,44 @@
+- alias: Lights - Basement Lights On Center Pico Button
+  id: lights_basement_lights_on_center_pico_button
+  triggers:
+  - trigger: event
+    event_type: lutron_caseta_button_event
+    event_data:
+      serial: 42010030
+      button_number: 3
+      action: press
+  conditions:
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: light.basement_stairs
+      state: 'off'
+    - condition: state
+      entity_id: light.basement_lights
+      state: 'off'
+    - condition: state
+      entity_id: light.work_bench_light
+      state: 'off'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.basement_stairs
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.basement_lights
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.work_bench_light
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.laundry_room_light
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.basement_lamp
+  - delay:
+      seconds: 1

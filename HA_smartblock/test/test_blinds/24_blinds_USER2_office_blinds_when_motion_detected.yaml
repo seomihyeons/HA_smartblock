@@ -1,0 +1,66 @@
+- alias: Blinds - USER2's Office Blinds When Motion Detected
+  id: 'blinds_USER2_office_blinds_when_motion_detected'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.USER2s_office_motion
+      from: 'off'
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_blinds
+      state: 'off'
+    - condition: state
+      entity_id: person.USER2
+      state: 'home'
+    - condition: state
+      entity_id: sun.sun
+      state: 'above_horizon'
+    - condition: numeric_state
+      entity_id: sensor.REDACTED_temperature
+      below: 85
+    - condition: numeric_state
+      entity_id: sensor.REDACTED_temperature
+      above: 20
+    - condition: numeric_state
+      entity_id: sensor.REDACTED_forecasted_temperature_high
+      below: 90
+    - condition: numeric_state
+      entity_id: sensor.REDACTED_forecasted_temperature_high
+      above: 20
+    - condition: sun
+      before: sunset
+      before_offset: "-00:45:00"
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: sensor.season
+        state: 'winter'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: sensor.season
+        state: 'autumn'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: vacuum.upstairs_roomba
+        state: 'cleaning'
+      - condition: state
+        entity_id: vacuum.upstairs_roomba
+        state: 'returning'
+    - condition: or
+      conditions:
+      - condition: state
+        entity_id: cover.USER2_s_office_blinds
+        state: 'closed'
+      - condition: state
+        entity_id: input_boolean.USER2_office_portable_ac
+        state: 'on'
+
+  actions:
+    - action: cover.open_cover
+      data:
+        entity_id: 
+          - cover.USER2_s_office_blinds

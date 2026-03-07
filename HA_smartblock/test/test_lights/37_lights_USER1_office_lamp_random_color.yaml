@@ -1,0 +1,27 @@
+- alias: Lights - USER1's Office Lamp Random Color
+  id: lights_USER1_office_lamp_random_color
+  triggers:
+  - trigger: time_pattern
+    seconds: /15
+  conditions:
+  - condition: state
+    entity_id: input_boolean.office_rainbow
+    state: 'on'
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: input_boolean.bedtime
+    state: 'off'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.office_lamp
+      - light.USER1_office_desk_accent
+    data:
+      transition: 5
+      hs_color:
+      - '{{ (range(0, 360)|random) }}'
+      - '100'
+      brightness_pct: 100

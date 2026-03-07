@@ -5,6 +5,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Home Assistant Automation Builder</title>
+  <link rel="icon" type="image/png" href="/utils/favicon.png" />
   <link rel="stylesheet" href="./index.css" />
 </head>
 
@@ -25,6 +26,10 @@
     🛠
   </button>
 
+  <button id="btnTaskAlt" class="floating-btn" type="button" title="Batch Verify" aria-label="Batch Verify">
+    ⛏
+  </button>
+
   <!-- Debug modal -->
   <div id="debugModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="debugModalTitle">
     <div id="debugModalBackdrop" class="modal-backdrop" aria-hidden="true"></div>
@@ -40,6 +45,24 @@
       </div>
 
       <pre id="debugOutput" class="modal-output">(no output)</pre>
+    </div>
+  </div>
+
+  <div id="taskAltModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="taskAltModalTitle">
+    <div id="taskAltModalBackdrop" class="modal-backdrop" aria-hidden="true"></div>
+
+    <div class="modal-panel">
+      <div class="modal-header">
+        <div class="modal-title" id="taskAltModalTitle">Task Alt Batch Verify</div>
+        <div class="modal-actions">
+          <button id="taskAltImport" type="button">Import YAMLs</button>
+          <button id="taskAltRun" type="button">Run</button>
+          <button id="taskAltCopy" type="button">Copy</button>
+          <button id="taskAltModalClose" type="button" aria-label="Close">×</button>
+        </div>
+      </div>
+
+      <div id="taskAltOutput" class="modal-output">(no files)</div>
     </div>
   </div>
 

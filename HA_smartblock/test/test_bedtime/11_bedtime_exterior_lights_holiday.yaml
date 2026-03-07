@@ -1,0 +1,69 @@
+- alias: Bedtime - Bedtime Exterior Lights Holiday
+  id: 'bedtime_exterior_lights_holiday'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.bedtime
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 4
+        seconds: 30
+
+  conditions:
+    - condition: time
+      after: '00:00:00'
+      before: '07:30:00'
+    - condition: not
+      conditions:
+        - condition: state
+          entity_id: input_select.holiday
+          state: 'None'
+
+  actions:
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.back_door
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.garage_light
+    - action: light.turn_off
+      target:
+        entity_id:
+           light.backyard_patio
+    - action: light.turn_off
+      target:
+        entity_id:
+           light.backyard_deck
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.garage_interior
+    - action: switch.turn_off
+      target:
+        entity_id:
+          - switch.lower_backyard_lighting
+          - switch.backyard_patio_lighting
+    - delay: '00:00:30'
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.back_door
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.garage_light
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.backyard_deck
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.garage_interior
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.backyard_patio

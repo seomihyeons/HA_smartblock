@@ -1,0 +1,24 @@
+- alias: Camera - Person Detected in Front Porch
+  id: camera_person_detected_in_front_porch
+  mode: single
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.front_porch_person_detected
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_notifications
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: group.household
+      state: home
+  actions:
+  - action: notify.USER1_devices
+    data:
+      message: Person Detected on Front Porch!
+      data:
+        tag: front_porch_person_camera
+        entity_id: camera.front_porch
+  - delay: 00:05:00

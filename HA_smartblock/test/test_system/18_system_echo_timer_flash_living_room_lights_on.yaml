@@ -1,0 +1,92 @@
+- alias: System - Echo Timer Flash Living Room Lights On
+  id: system_echo_timer_flash_living_room_lights_on
+  mode: parallel
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.USER1_s_office_echo_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.basement_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.bathroom_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.bedroom_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.craft_room_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.dining_room_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.fitness_room_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.guest_bedroom_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.kitchen_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.USER2_s_office_timer
+    from: 'on'
+    to: 'off'
+  conditions:
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: light.globe
+      state: 'on'
+    - condition: state
+      entity_id: light.media_center_lighting
+      state: 'on'
+  - condition: state
+    entity_id: input_boolean.disable_echo
+    state: 'off'
+  actions:
+  - action: light.turn_on
+    data:
+      flash: long
+      color_name: green
+      brightness_pct: 100
+    target:
+      entity_id:
+      - light.globe
+  - action: light.turn_on
+    data:
+      flash: long
+      color_name: green
+      brightness_pct: 100
+    target:
+      entity_id:
+      - light.media_center_lighting
+  - delay: 00:03:00
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.media_center_lighting
+    data:
+      transition: 5
+      brightness_pct: 100
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.globe
+    data:
+      transition: 5
+      brightness_pct: 65
+      color_temp: 366

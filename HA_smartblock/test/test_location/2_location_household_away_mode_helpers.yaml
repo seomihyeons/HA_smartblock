@@ -1,0 +1,28 @@
+- alias: Location - Household Away Mode Helpers
+  id: 'location_household_away_mode_helpers'
+
+  triggers:
+    - trigger: state
+      entity_id: group.household
+      from: 'home'
+      to: 'not_home'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_home_away
+      state: 'off'
+
+  actions:
+    - action: homeassistant.turn_off
+      target:
+        entity_id:
+          - input_boolean.guest_mode
+          - input_boolean.office_rainbow
+          - input_boolean.livingroom_rainbow
+          - input_boolean.front_porch_rainbow
+          - input_boolean.pop_music
+          - input_boolean.jazz_music
+          - input_boolean.chill_music
+          - input_boolean.electronic_music
+          - input_boolean.classical_music
+          - input_boolean.group_all_sonos

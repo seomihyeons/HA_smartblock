@@ -1,0 +1,15 @@
+- alias: LED Clock - Living Room TV Off
+  id: led_clock_living_room_tv_off
+  triggers:
+  - trigger: state
+    entity_id: select.living_room_tv_activities
+    to: power_off
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/tv_state
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/notify
+      payload: '{  "icon": "tv_off", "pushIcon": 0, "duration": 30, "color": [255,0,0],
+        "stack": false, "text": "TV Off" }'

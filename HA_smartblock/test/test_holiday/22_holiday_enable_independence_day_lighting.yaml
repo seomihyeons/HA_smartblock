@@ -1,0 +1,22 @@
+- alias: Holiday - Enable Independence Day Lighting
+  id: 'holiday_enable_independence_day_lighting'
+
+  triggers:
+    - trigger: state
+      entity_id: calendar.holiday
+      to: 'on'
+      for:
+        hours: 9
+        minutes: 0
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: sensor.holidays_calendar
+      state: "Independence Day"
+
+  actions:
+    - action: input_select.select_option
+      data:
+        entity_id: input_select.holiday
+        option: 'Independence Day'

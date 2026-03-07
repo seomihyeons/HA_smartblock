@@ -1,0 +1,20 @@
+- alias: LED Clock - Doorbell USER1's Office
+  id: led_clock_doorbell_USER1_office
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.front_door_doorbell
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: light.USER1s_office_desktop_clock
+    state: 'on'
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/notify
+      payload: '{  "icon": "doorbell", "pushIcon": 0, "duration": 60, "text": "Doorbell"
+        }'

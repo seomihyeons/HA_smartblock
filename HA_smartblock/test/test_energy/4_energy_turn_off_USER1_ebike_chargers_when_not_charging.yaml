@@ -1,0 +1,21 @@
+- alias: Energy - Turn Off USER1 Electric Bike Chargers when Not Charging
+  id: 'energy_turn_off_USER1_ebike_chargers_when_not_charging'
+
+  trigger:
+    - trigger: numeric_state
+      entity_id: sensor.USER1s_bike_charger_current_consumption
+      below: 1
+      for:
+        hours: 0
+        minutes: 30
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: switch.USER1s_bike_charger
+      state: 'on'
+
+  actions:
+    - action: switch.turn_off
+      data:
+        entity_id: switch.USER1s_bike_charger

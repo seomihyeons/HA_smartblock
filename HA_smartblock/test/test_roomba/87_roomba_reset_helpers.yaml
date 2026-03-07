@@ -1,0 +1,29 @@
+- alias: Roomba - Reset Helpers
+  id: roomba_reset_helpers
+  triggers:
+  - trigger: time
+    at: 00:01:00
+  actions:
+  - action: homeassistant.turn_off
+    target:
+      entity_id:
+      - input_boolean.main_floor_roomba_ran
+      - input_boolean.upstairs_roomba_ran
+      - input_boolean.basement_roomba_ran
+      - input_boolean.upstairs_roomba_ran_USER1_office
+      - input_boolean.roomba_clean_living_room_lights
+      - input_boolean.roomba_clean_dining_room_lights
+      - input_boolean.roomba_clean_kitchen_lights
+      - input_boolean.roomba_clean_hallway_lights
+      - input_boolean.roomba_clean_bathroom_lights
+      - input_boolean.roomba_clean_bedroom_lights
+      - input_boolean.roomba_clean_bedroom_closet_lights
+      - input_boolean.roomba_clean_utility_area_lights
+      - input_boolean.roomba_clean_fitness_room_lights
+      - input_boolean.roomba_clean_craft_room_lights
+      - input_boolean.roomba_clean_laundry_room_lights
+      - input_boolean.roomba_clean_workbench_lights
+      - input_boolean.roomba_clean_USER1_office_lights
+      - input_boolean.roomba_clean_USER2_office_lights
+      - input_boolean.roomba_clean_guest_bedroom_lights
+      - input_boolean.roomba_clean_upstairs_hallway_lights

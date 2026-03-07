@@ -1,0 +1,17 @@
+- alias: Water Works - Water Leak Detected iOS Notification
+  id: water_works_water_leak_detected_ios_notification
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.water_meter_leak_detected
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_notifications
+    state: 'off'
+  actions:
+  - action: notify.USER1_devices
+    data:
+      message: Possible Water Leak Detected!
+      data:
+        tag: water-leak

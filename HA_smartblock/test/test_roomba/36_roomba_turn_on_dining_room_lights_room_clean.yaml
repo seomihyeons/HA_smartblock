@@ -1,0 +1,24 @@
+- alias: Roomba - Turn On Dining Room Lights Room Clean
+  id: roomba_turn_on_dining_room_lights_room_clean
+  triggers:
+  - trigger: state
+    entity_id: vacuum.main_floor_roomba
+    to: cleaning
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 5
+  conditions:
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: input_boolean.roomba_clean_dining_room_lights
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.roomba_clean_dining_room_table
+      state: 'on'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.dining_room_lights

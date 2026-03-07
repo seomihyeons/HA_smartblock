@@ -1,0 +1,31 @@
+- alias: Holiday - Halloween Lighting Rotate 45 Mins After the Hour
+  id: 'holiday_halloween_lighting_rotate_45_mins_after_the_hour'
+
+  triggers:
+    trigger: time_pattern
+    minutes: 45
+
+  conditions:
+    - condition: state
+      entity_id: sun.sun
+      state: 'below_horizon'
+    - condition: time
+      after: '15:00:00'
+      before: '23:45:00'
+    - condition: state
+      entity_id: input_select.holiday
+      state: 'Halloween'
+
+  actions:
+    - action: light.turn_on
+      entity_id: light.front_porch_left
+      data:
+        transition: 2
+        brightness_pct: 100
+        rgb_color: [255,85,7]
+    - action: light.turn_on
+      entity_id: light.front_porch_right
+      data:
+        transition: 2
+        brightness_pct: 100
+        rgb_color: 152,39,25

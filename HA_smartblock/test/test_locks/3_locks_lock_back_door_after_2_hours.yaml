@@ -1,0 +1,28 @@
+- alias: Locks - Lock Back Door After 2 Hours
+  id: locks_lock_back_door_after_2_hours
+  triggers:
+  - trigger: state
+    entity_id: lock.back_door
+    from: locked
+    to: unlocked
+    for:
+      hours: 2
+      minutes: 0
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_lock_unlock_doors
+    state: 'off'
+  - condition: state
+    entity_id: binary_sensor.back_door_opened
+    state: 'off'
+    for:
+      hours: 1
+      minutes: 0
+      seconds: 0
+  - condition: state
+    entity_id: lock.back_door
+    state: unlocked
+  actions:
+  - action: lock.lock
+    entity_id: lock.back_door

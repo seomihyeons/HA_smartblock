@@ -1,0 +1,31 @@
+- alias: Christmas - Late Night TV Watching before Midnight Tree Off
+  trigger:
+  - platform: state
+    entity_id: media_player.living_room_apple_tv
+    to: playing
+    for:
+      hours: 0
+      minutes: 2
+      seconds: 0
+  condition:
+  - condition: state
+    entity_id: sun.sun
+    state: below_horizon
+  - condition: state
+    entity_id: input_boolean.disable_media_lights
+    state: 'off'
+  - condition: time
+    after: '21:30'
+  - condition: state
+    entity_id: input_boolean.watching_plex
+    state: 'off'
+  - condition: state
+    entity_id: select.living_room_tv_activities
+    state: Watch TV
+  - condition: state
+    entity_id: switch.christmas_tree
+    state: 'on'
+  action:
+  - service: switch.turn_off
+    entity_id:
+    - switch.christmas_tree

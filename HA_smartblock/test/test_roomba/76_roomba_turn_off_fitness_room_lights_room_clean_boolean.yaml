@@ -1,0 +1,30 @@
+- alias: Roomba - Turn Off Fitness Room Lights Room Clean Boolean
+  id: roomba_turn_off_fitness_room_lights_room_clean_boolean
+  triggers:
+  - trigger: state
+    entity_id: vacuum.basement_roomba
+    to: docked
+    for:
+      hours: 0
+      minutes: 6
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.roomba_clean_fitness_room_lights
+    state: 'on'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: vacuum.basement_roomba
+      state: cleaning
+    - condition: state
+      entity_id: vacuum.basement_roomba
+      state: returning
+  - condition: time
+    after: 08:30:00
+    before: '23:00:00'
+  actions:
+  - action: homeassistant.turn_off
+    target:
+      entity_id:
+      - input_boolean.roomba_clean_fitness_room_lights

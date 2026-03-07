@@ -1,0 +1,16 @@
+- alias: Vacation - Mode Off
+  id: vacation_mode_off
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.vacation_mode
+    to: 'off'
+  actions:
+  - action: homeassistant.turn_off
+    target:
+      entity_id:
+      - input_boolean.disable_rainy_day
+      - input_boolean.disable_interior_lights_sunset
+      - input_boolean.disable_media_lights
+      - input_boolean.disable_occupancy
+      - input_boolean.thermostat_away
+      - input_boolean.disable_motion

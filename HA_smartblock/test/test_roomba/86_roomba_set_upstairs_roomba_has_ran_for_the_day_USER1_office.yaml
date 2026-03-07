@@ -1,0 +1,22 @@
+- alias: Roomba - Set Upstairs Roomba has Ran USER1's Office
+  id: roomba_set_upstairs_roomba_has_ran_for_the_day_USER1_office
+  triggers:
+  - trigger: state
+    entity_id: vacuum.upstairs_roomba
+    to: cleaning
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.upstairs_roomba_ran_USER1_office
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.roomba_clean_USER1_office
+    state: 'on'
+  actions:
+  - action: homeassistant.turn_on
+    target:
+      entity_id:
+      - input_boolean.upstairs_roomba_ran_USER1_office

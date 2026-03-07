@@ -1,0 +1,20 @@
+- alias: LED Clock - USER1's Office USER2 Left
+  id: led_clock_USER1_office_USER2_left_work
+  triggers:
+  - trigger: state
+    entity_id: person.USER2
+    from: Work
+    to: not_home
+  conditions:
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  - condition: state
+    entity_id: light.USER1s_office_desktop_clock
+    state: 'on'
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/notify
+      payload: '{  "icon": "cars", "pushIcon": 0, "duration": 60, "text": "USER2 ETA:
+        {{states(''sensor.USER2_to_home'')}} mins" }'

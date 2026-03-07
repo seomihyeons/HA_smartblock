@@ -1,0 +1,34 @@
+- alias: Occupancy - Turn Off Bedroom Lights when Unoccupied
+  id: occupancy_turn_off_bedroom_lights_when_unoccupied
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.bedroom_occupancy
+    from: 'on'
+    to: 'off'
+    for:
+      hours: 1
+      minutes: 0
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_occupancy
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: vacuum.main_floor_roomba
+      state: cleaning
+    - condition: state
+      entity_id: vacuum.main_floor_roomba
+      state: returning
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: light.closet_lamp
+      attribute: effect
+      state: Plantgrowth
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.bedroom_lights

@@ -1,0 +1,44 @@
+- alias: Climate - Turn Off Office Fan Heat when warmer Outside
+  id: climate_turn_off_office_fan_heat_when_warmer_outside
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.REDACTED_temperature
+    above: 15
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_climate
+    state: 'off'
+  - condition: state
+    entity_id: sensor.season
+    state: winter
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  - condition: state
+    entity_id: binary_sensor.office_occupancy
+    state: 'on'
+  - condition: state
+    entity_id: fan.USER1s_office_fan
+    state: 'on'
+  actions:
+  - action: fan.turn_on
+    target:
+      entity_id:
+      - fan.USER1s_office_fan
+  - delay: 00:00:01
+  - action: fan.set_preset_mode
+    target:
+      entity_id:
+      - fan.USER1s_office_fan
+    data:
+      preset_mode: Auto
+  - delay: 00:00:01
+  - action: climate.set_hvac_mode
+    data:
+      entity_id: climate.office_fan
+      hvac_mode: cool
+  - delay: 00:00:01
+  - action: fan.oscillate
+    data:
+      entity_id: fan.USER1s_office_fan
+      oscillating: 'true'

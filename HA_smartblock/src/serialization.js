@@ -27,6 +27,14 @@ export const load = function (workspace) {
 
   // Don't emit events during loading.
   Blockly.Events.disable();
-  Blockly.serialization.workspaces.load(JSON.parse(data), workspace, false);
-  Blockly.Events.enable();
+  try {
+    Blockly.serialization.workspaces.load(JSON.parse(data), workspace, false);
+  } catch (err) {
+    // 블록 정의 변경(입력 소켓 제거 등)으로 기존 저장 데이터가 호환되지 않을 수 있다.
+    // 이 경우 저장 데이터를 지우고 빈 워크스페이스로 시작한다.
+    console.warn('[serialization] load failed, clearing incompatible workspace state:', err);
+    window.localStorage?.removeItem(storageKey);
+  } finally {
+    Blockly.Events.enable();
+  }
 };

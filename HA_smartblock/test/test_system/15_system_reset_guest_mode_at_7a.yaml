@@ -1,0 +1,14 @@
+- alias: System - Reset Guest Mode at 7a
+  id: system_reset_guest_mode_at_7a
+  triggers:
+  - trigger: time
+    at: 07:00:00
+  conditions:
+  - condition: state
+    entity_id: input_boolean.overnight_guest_mode
+    state: 'off'
+  actions:
+  - action: homeassistant.turn_off
+    target:
+      entity_id:
+      - input_boolean.guest_mode

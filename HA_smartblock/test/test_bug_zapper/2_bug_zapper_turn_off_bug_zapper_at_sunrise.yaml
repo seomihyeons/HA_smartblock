@@ -1,0 +1,15 @@
+- alias: Bug Zapper - Turn Off Bug Zapper at Sunrise
+  id: bug_zapper_turn_off_bug_zapper_at_sunrise
+  triggers:
+  - trigger: sun
+    event: sunrise
+    offset: +00:15:00
+  conditions:
+  - condition: state
+    entity_id: switch.bug_zapper
+    state: 'on'
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.bug_zapper

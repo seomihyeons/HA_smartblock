@@ -1,0 +1,29 @@
+- alias: Climate - Fireplace On for 4 Hours iOS Notification
+  id: climate_fireplace_on_for_4_hours_ios_notification
+  triggers:
+  - trigger: state
+    entity_id: switch.fireplace
+    from: 'off'
+    to: 'on'
+    for:
+      hours: 4
+      minutes: 0
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: input_boolean.disable_notifications
+    state: 'off'
+  actions:
+  - action: notify.USER1_devices
+    data:
+      message: Fireplace has been On for 4 Hours
+      data:
+        tag: fireplace-climate
+        actions:
+        - action: fireplace_off
+          title: Turn Off Fireplace
+          destructive: true
+          activationMode: background

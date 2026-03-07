@@ -1,0 +1,29 @@
+- alias: Holiday - Halloween Lighting
+  id: 'holiday_halloween_lighting'
+
+  triggers:
+    - trigger: sun
+      event: 'sunset'
+      offset: '-00:15:00'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_exterior_on_sunset
+      state: 'off'
+    - condition: state
+      entity_id: input_select.holiday
+      state: 'Halloween'
+
+  actions:
+    - action: light.turn_on
+      entity_id: light.front_porch_left
+      data:
+        transition: 900
+        brightness_pct: 100
+        rgb_color: [255,85,7]
+    - action: light.turn_on
+      entity_id: light.front_porch_right
+      data:
+        transition: 900
+        brightness_pct: 100
+        rgb_color: [160,6,255]

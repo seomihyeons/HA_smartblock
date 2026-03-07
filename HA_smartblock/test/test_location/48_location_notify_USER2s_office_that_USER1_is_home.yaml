@@ -1,0 +1,45 @@
+- alias: Location - Notify USER2s Office that USER1 is Home
+  id: 'location_notify_USER2s_office_that_USER1_is_home'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.doors
+      from: 'off'
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: person.USER1
+      state: 'home'
+    - condition: state
+      entity_id: person.USER2
+      state: 'home'
+    - condition: state
+      entity_id: input_boolean.USER1_greeting
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.USER2_greeting
+      state: 'off'
+    - condition: state
+      entity_id: binary_sensor.USER2_office_occupancy
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.disable_notifications
+      state: 'off'
+    - condition: time
+      after: '09:00:00'
+      before: '22:00:00'
+
+  actions:
+    - delay: '00:00:10'
+    - action: media_player.play_media
+      target:
+        entity_id: 
+          - media_player.sonos_USER2s_office
+      data:
+        announce: true
+        media_content_id: >
+          media-source://tts/cloud?message="USER1, is Home."
+        media_content_type: "music"
+        extra:
+          volume: 45

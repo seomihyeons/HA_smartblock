@@ -1,0 +1,43 @@
+- alias: Motion - Turn On Dining Room Lights When USER2 Working
+  id: motion_turn_on_dining_room_lights_when_USER2_working
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.dining_room_motion
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: state
+    entity_id: person.USER2
+    state: home
+  - condition: state
+    entity_id: light.dining_room_lights
+    state: 'off'
+  - condition: state
+    entity_id: sun.sun
+    state: below_horizon
+  - condition: time
+    after: 04:45:00
+    before: 07:00:00
+  - condition: time
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.dining_room_table
+    data:
+      brightness_pct: 2
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.hallway_light
+    data:
+      brightness_pct: 2

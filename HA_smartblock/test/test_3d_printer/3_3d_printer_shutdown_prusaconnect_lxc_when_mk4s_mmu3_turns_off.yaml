@@ -1,0 +1,24 @@
+- alias: Shutdown PrusaConnect LXC When MK4S MMU3 Turns Off
+  id: 3d_printer_shutdown_prusaconnect_lxc_when_mk4s_mmu3_turns_off
+  triggers:
+  - trigger: state
+    entity_id: switch.prusa_mk4s_mmu3
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.lxc_prusaconnect_cam_108_status
+    state: 'on'
+  - condition: state
+    entity_id: switch.prusa_mk4s
+    state: 'off'
+  - condition: state
+    entity_id: switch.prusa_mk4s_mmu3
+    state: 'off'
+  actions:
+  - action: button.press
+    target:
+      entity_id: button.lxc_prusaconnect_cam_108_shutdown

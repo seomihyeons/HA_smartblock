@@ -1,0 +1,29 @@
+- alias: Occupancy - Turn Off Guest Bedroom Lights when Unoccupied
+  id: occupancy_turn_off_guest_bedroom_lights_when_unoccupied
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.guest_bedroom_occupancy
+    from: 'on'
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 30
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_occupancy
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.guest_mode
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: vacuum.upstairs_roomba
+      state: cleaning
+    - condition: state
+      entity_id: vacuum.upstairs_roomba
+      state: returning
+  actions:
+  - action: light.turn_off
+    entity_id: light.guest_bedroom_lights

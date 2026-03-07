@@ -1,0 +1,94 @@
+- alias: System - Ping Locks if they become Unavailable
+  id: system_ping_locks_if_they_become_unavailable
+  triggers:
+  - trigger: state
+    entity_id: lock.front_door
+    to: unavailable
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  - trigger: state
+    entity_id: lock.back_door
+    to: unavailable
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  - trigger: state
+    entity_id: lock.basement_door
+    to: unavailable
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  - trigger: state
+    entity_id: lock.front_door
+    to: unavailable
+    for:
+      hours: 0
+      minutes: 10
+      seconds: 0
+  - trigger: state
+    entity_id: lock.back_door
+    to: unavailable
+    for:
+      hours: 0
+      minutes: 10
+      seconds: 0
+  - trigger: state
+    entity_id: lock.basement_door
+    to: unavailable
+    for:
+      hours: 0
+      minutes: 10
+      seconds: 0
+  - trigger: state
+    entity_id: lock.front_door
+    to: unknown
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  - trigger: state
+    entity_id: lock.back_door
+    to: unknown
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  - trigger: state
+    entity_id: lock.basement_door
+    to: unknown
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  - trigger: state
+    entity_id: lock.front_door
+    to: unknown
+    for:
+      hours: 0
+      minutes: 10
+      seconds: 0
+  - trigger: state
+    entity_id: lock.back_door
+    to: unknown
+    for:
+      hours: 0
+      minutes: 10
+      seconds: 0
+  - trigger: state
+    entity_id: lock.basement_door
+    to: unknown
+    for:
+      hours: 0
+      minutes: 10
+      seconds: 0
+  actions:
+  - action: zwave_js.ping
+    target:
+      entity_id:
+      - lock.front_door
+      - lock.back_door
+      - lock.basement_door

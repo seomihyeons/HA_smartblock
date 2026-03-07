@@ -1,0 +1,52 @@
+- alias: LED Clock - Bedtime
+  id: led_clock_bedtime
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.bedtime
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 6
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: group.household
+    state: home
+  actions:
+  - action: light.turn_off
+    entity_id:
+    - light.USER1s_office_desktop_clock
+    - light.living_room_clock
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/music_song
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/music_album
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/music_song
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/music_album
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/youtube
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/youtube
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/party_time
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/party_time
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/tv_state
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/temp
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/temp

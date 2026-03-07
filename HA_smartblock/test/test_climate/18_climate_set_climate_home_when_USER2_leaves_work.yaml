@@ -1,0 +1,22 @@
+- alias: Climate - Set Climate Home When USER2 Leaves Work
+  id: climate_set_climate_home_when_USER2_leaves_work
+  triggers:
+  - trigger: state
+    entity_id: person.USER2
+    from: Work
+    to: not_home
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_home_away
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.disable_climate
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: group.household
+      state: home
+  actions:
+  - action: homeassistant.turn_off
+    entity_id: input_boolean.thermostat_away

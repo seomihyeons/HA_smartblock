@@ -1,0 +1,29 @@
+- alias: 3D-Printer - Prusa MK4S MMU3 Print Attention
+  id: 3d_printer_prusa_mk4s_mmu3_print_attention
+  triggers:
+  - trigger: state
+    entity_id: sensor.prusa_mk4s_mmu3
+    to: attention
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_notifications
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: sensor.prusa_mk4s_mmu3
+      state: printing
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.prusa_mk4s_mmu3
+    data:
+      brightness_pct: 100
+      color_name: red
+  - action: notify.USER1_devices
+    data:
+      message: Print Needs Attention (MMU)
+      data:
+        tag: prusa_mk4s_mmu3
+        entity_id: camera.prusa_mk4s_mmu3

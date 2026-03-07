@@ -1,0 +1,28 @@
+- alias: Climate - Home
+  id: climate_home
+  triggers:
+  - trigger: state
+    entity_id: group.household
+    from: not_home
+    to: home
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_home_away
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.disable_climate
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.thermostat_away
+    state: 'on'
+  - condition: state
+    entity_id: group.household
+    state: home
+  actions:
+  - action: homeassistant.turn_off
+    entity_id: input_boolean.thermostat_away
+  - delay: 00:00:30
+  - action: ecobee.set_fan_min_on_time
+    data:
+      entity_id: climate.main_floor
+      fan_min_on_time: '15'

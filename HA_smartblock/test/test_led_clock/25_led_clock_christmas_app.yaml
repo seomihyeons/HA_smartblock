@@ -1,0 +1,25 @@
+- alias: LED Clock - Christmas App
+  id: led_clock_christmas_app
+  triggers:
+  - trigger: time
+    at: 09:30:00
+  - trigger: state
+    entity_id: input_select.holiday
+    to: Christmas
+  conditions:
+  - condition: state
+    entity_id: input_select.holiday
+    state: Christmas
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/holiday
+      payload: "{  \"icon\": \"christmas_tree\", \"pushIcon\": 0, \"repeat\": 3, \"\
+        text\": [\n  {\n    \"t\": \"Merry \",\n    \"c\": \"FF0000\"\n  },\n  {\n\
+        \    \"t\": \"Christmas\",\n    \"c\": \"00FF00\"\n  }\n] }"
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/holiday
+      payload: "{  \"icon\": \"christmas_tree\", \"pushIcon\": 0, \"repeat\": 3, \"\
+        text\": [\n  {\n    \"t\": \"Merry \",\n    \"c\": \"FF0000\"\n  },\n  {\n\
+        \    \"t\": \"Christmas\",\n    \"c\": \"00FF00\"\n  }\n] }"

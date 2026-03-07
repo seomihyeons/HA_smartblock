@@ -1,0 +1,70 @@
+- alias: Motion - Turn On USER1 Office Lights when Motion Detected Daytime
+  id: motion_turn_on_USER1_office_lights_when_motion_detected_daytime
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.USER1s_office_motion
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: light.USER1_s_office_ceiling
+    state: 'off'
+  - condition: state
+    entity_id: light.office_lamp
+    state: 'off'
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  - condition: state
+    entity_id: sun.sun
+    state: above_horizon
+  - condition: state
+    entity_id: cover.USER1_s_office_blinds
+    state: closed
+  - condition: state
+    entity_id: input_boolean.USER1_office_guest
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: select.USER1_s_office_tv_activities
+      state: Play Xbox One
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: media_player.USER1_s_office_apple_tv
+      state: playing
+  - condition: state
+    entity_id: input_boolean.USER1_office_guest
+    state: 'off'
+  actions:
+  - action: light.turn_on
+    entity_id: light.office_lamp
+    data:
+      brightness_pct: 100
+      color_temp: 370
+  - action: light.turn_on
+    entity_id: light.USER1_office_desk_accent
+    data:
+      transition: 15
+      brightness_pct: 80
+      color_temp: 370
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.USER1_s_office_ceiling
+    data:
+      brightness_pct: 15
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.USER1_office_desk_lamp
+    data:
+      brightness_pct: 25
+      color_temp: 370

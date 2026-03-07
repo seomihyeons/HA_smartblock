@@ -1,0 +1,44 @@
+- alias: Motion - Turn On Dining Room Lights when Motion Detected Night Weekends
+  id: motion_turn_on_dining_room_lights_when_motion_detected_night_weekends
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.dining_room_motion
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.living_room_guest
+    state: 'off'
+  - condition: state
+    entity_id: light.dining_room_lights
+    state: 'off'
+  - condition: state
+    entity_id: sun.sun
+    state: below_horizon
+  - condition: time
+    after: '21:00:00'
+    before: 02:00:00
+  - condition: time
+    weekday:
+    - fri
+    - sat
+    - sun
+  - condition: state
+    entity_id: group.household
+    state: home
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.dining_room_table
+    data:
+      brightness_pct: 2
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.hallway_light
+    data:
+      brightness_pct: 2

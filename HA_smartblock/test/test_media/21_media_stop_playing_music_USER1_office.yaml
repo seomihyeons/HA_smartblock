@@ -1,0 +1,12 @@
+- alias: Media - Stop Playing Music USER1's Office
+  id: media_stop_playing_music_USER1_office
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.USER1_s_office_music
+    from: 'on'
+    to: 'off'
+  actions:
+  - action: media_player.media_stop
+    target:
+      entity_id:
+      - media_player.sonos_USER1s_office

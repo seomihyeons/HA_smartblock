@@ -1,0 +1,18 @@
+- alias: System - Guest Mode is Still On
+  id: system_guest_mode_is_still_on
+  triggers:
+  - trigger: time
+    at: 09:00:00
+  conditions:
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: input_boolean.overnight_guest_mode
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.guest_mode
+      state: 'on'
+  actions:
+  - action: notify.USER1_devices
+    data:
+      message: Guest Mode is Still On

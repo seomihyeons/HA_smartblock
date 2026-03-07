@@ -1,0 +1,12 @@
+- alias: Media - Turn Down Backyard Sonos at 10p
+  id: media_turn_down_backyard_sonos_at_10p
+  triggers:
+  - trigger: time
+    at: '22:00:00'
+  actions:
+  - action: media_player.volume_set
+    target:
+      entity_id:
+      - media_player.sonos_backyard_patio
+    data:
+      volume_level: 0.3

@@ -1,0 +1,27 @@
+- alias: Blinds - Open Bedroom Blinds at 9a When Away
+  id: 'blinds_open_bedroom_blinds_at_9a_when_away'
+
+  triggers:
+   - trigger: time
+     at: '09:00:00'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_blinds
+      state: 'off'
+    - condition: numeric_state
+      entity_id: sensor.REDACTED_temperature
+      below: 85
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: group.household
+        state: 'home'
+
+  actions:
+    - action: cover.set_cover_position
+      data:
+        entity_id: 
+          - cover.bedroom_closet_blinds_center
+          - cover.bedroom_closet_blinds_left
+        position: 40

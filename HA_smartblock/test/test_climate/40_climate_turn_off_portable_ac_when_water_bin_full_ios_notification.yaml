@@ -1,0 +1,12 @@
+- alias: Climate - Turn Off Portable AC when Water Bin Full iOS Notification
+  id: climate_turn_off_portable_ac_when_water_bin_full_ios_notification
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.portable_ac_water_sensor
+    to: 'on'
+  actions:
+  - action: notify.USER1_devices
+    data:
+      message: Empty Portable AC Water Bin
+      data:
+        tag: portable-ac-climate

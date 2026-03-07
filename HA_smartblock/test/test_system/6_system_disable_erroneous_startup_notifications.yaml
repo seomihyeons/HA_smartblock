@@ -1,0 +1,15 @@
+- alias: System - Disable Erroneous Startup Notifications
+  id: system_disable_erroneous_startup_notifications
+  triggers:
+  - trigger: homeassistant
+    event: start
+  actions:
+  - action: homeassistant.turn_on
+    target:
+      entity_id:
+      - input_boolean.disable_startup_notifications
+  - delay: 00:02:00
+  - action: homeassistant.turn_off
+    target:
+      entity_id:
+      - input_boolean.disable_startup_notifications

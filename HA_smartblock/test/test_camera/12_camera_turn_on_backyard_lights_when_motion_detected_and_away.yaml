@@ -1,0 +1,66 @@
+- alias: Camera - Turn On Backyard Lights when Motion Detected and Away
+  id: camera_turn_on_backyard_lights_when_motion_detected_and_away
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.backyard_gate_camera_person_detected
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.backyard_camera_person_detected
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.side_yard_camera_person_detected
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: sun.sun
+    state: below_horizon
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: light.back_door
+      state: 'off'
+    - condition: state
+      entity_id: light.backyard_deck
+      state: 'off'
+    - condition: state
+      entity_id: light.backyard_patio
+      state: 'off'
+    - condition: state
+      entity_id: switch.backyard_lighting
+      state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: group.household
+      state: home
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id:
+      - switch.backyard_patio_lighting
+      - switch.lower_backyard_lighting
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.backyard_patio
+    data:
+      brightness_pct: 100
+      color_temp: 370
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.backyard_deck
+    data:
+      brightness_pct: 100
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.back_door
+    data:
+      brightness_pct: 100

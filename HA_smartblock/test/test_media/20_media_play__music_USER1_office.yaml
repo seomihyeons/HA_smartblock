@@ -1,0 +1,25 @@
+- alias: Media - Play Music USER1's Office
+  id: media_play__music_USER1_office
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.USER1_s_office_music
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  actions:
+  - action: media_player.volume_set
+    target:
+      entity_id:
+      - media_player.sonos_USER1s_office
+    data:
+      volume_level: 0.1
+  - delay: 00:00:01
+  - action: media_player.select_source
+    data:
+      source: Chill
+    target:
+      entity_id:
+      - media_player.sonos_USER1s_office

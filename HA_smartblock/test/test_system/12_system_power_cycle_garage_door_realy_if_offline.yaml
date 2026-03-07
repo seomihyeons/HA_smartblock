@@ -1,0 +1,46 @@
+- alias: System - Power Cycle Garage Door Relay if Offline
+  id: system_power_cycle_garage_door_realy_if_offline
+  triggers:
+  - trigger: state
+    entity_id: cover.garage_door
+    to: unavailable
+    for:
+      hours: 0
+      minutes: 10
+      seconds: 0
+  - trigger: state
+    entity_id: cover.garage_door
+    to: unknown
+    for:
+      hours: 0
+      minutes: 10
+      seconds: 0
+  - trigger: state
+    entity_id: cover.garage_door
+    to: unavailable
+    for:
+      hours: 0
+      minutes: 30
+      seconds: 0
+  - trigger: state
+    entity_id: cover.garage_door
+    to: unknown
+    for:
+      hours: 0
+      minutes: 30
+      seconds: 0
+  actions:
+  - action: notify.USER1_devices
+    data:
+      message: Power Cycling Garage Door Relay
+      data:
+        tag: garage
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.garage_door_relay
+  - delay: 00:00:30
+  - action: switch.turn_on
+    target:
+      entity_id:
+      - switch.garage_door_relay

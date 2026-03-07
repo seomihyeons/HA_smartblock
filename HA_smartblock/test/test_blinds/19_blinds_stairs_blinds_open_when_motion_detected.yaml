@@ -1,0 +1,53 @@
+- alias: Blinds - Open Stairs Blinds When Motion Detected
+  id: 'blinds_stairs_blinds_open_when_motion_detected'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.stairs_motion
+      from: 'off'
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_blinds
+      state: 'off'
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: sun.sun
+      state: 'above_horizon'
+    - condition: numeric_state
+      entity_id: sensor.REDACTED_temperature
+      below: 85
+    - condition: numeric_state
+      entity_id: sensor.REDACTED_temperature
+      above: 20
+    - condition: numeric_state
+      entity_id: sensor.REDACTED_forecasted_temperature_high
+      below: 90
+    - condition: numeric_state
+      entity_id: sensor.REDACTED_forecasted_temperature_high
+      above: 20
+    - condition: state
+      entity_id: cover.stairs_blinds
+      state: 'closed'
+    - condition: sun
+      after: sunrise
+      after_offset: "00:60:00"
+      before: sunset
+      before_offset: "-00:45:00"
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: vacuum.upstairs_roomba
+        state: 'cleaning'
+      - condition: state
+        entity_id: vacuum.upstairs_roomba
+        state: 'returning'
+
+  actions:
+    - action: cover.open_cover
+      data:
+        entity_id: 
+          - cover.stairs_blinds

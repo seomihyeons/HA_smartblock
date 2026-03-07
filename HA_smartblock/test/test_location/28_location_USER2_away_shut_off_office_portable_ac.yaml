@@ -1,0 +1,31 @@
+- alias: Location - USER2 Away Shut Off Office Portable AC
+  id: 'location_USER2_away_shut_off_office_portable_ac'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.USER2_away
+      from: 'off'
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_home_away
+      state: 'off'
+    - condition: state
+      entity_id: input_boolean.USER2_office_portable_ac
+      state: 'on'
+
+  actions:
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.USER2_s_office_ceiling
+    - action: cover.close_cover
+      data:
+        entity_id: 
+          - cover.USER2s_office_blinds_left
+    - action: cover.set_cover_position
+      data:
+        entity_id: 
+          - cover.USER2s_office_blinds_right
+        position: 15

@@ -1,0 +1,34 @@
+- alias: Bedtime USER1's Office Blinds Portable AC
+  id: 'bedtime_USER1_office_blinds_portable_ac'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.bedtime
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 30
+
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.USER1s_office_window_right
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.disable_blinds
+      state: 'off'
+    - condition: state
+      entity_id: input_boolean.USER1_office_portable_ac
+      state: 'on'
+
+  actions:
+    - action: cover.close_cover
+      target:
+        entity_id:  
+          - cover.USER1s_office_blinds_left
+          - cover.USER1s_office_blinds_center
+    - action: cover.set_cover_position
+      data:
+        entity_id: 
+          - cover.USER1s_office_blinds_right
+        position: 13

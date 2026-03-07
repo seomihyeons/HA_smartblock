@@ -1,0 +1,44 @@
+- alias: Location - Household Away Mode Blinds
+  id: 'location_household_away_mode_blinds'
+
+  triggers:
+    - trigger: state
+      entity_id: group.household
+      from: 'home'
+      to: 'not_home'
+      for:
+        hours: 0
+        minutes: 3
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_home_away
+      state: 'off'
+    - condition: or
+      conditions:
+      - condition: state
+        entity_id: cover.kitchen_blinds
+        state: 'open'
+      - condition: state
+        entity_id: cover.bedroom_closet_blinds
+        state: 'open'
+      - condition: state
+        entity_id: cover.stairs_blinds
+        state: 'open'
+
+  actions:
+    - action: cover.close_cover
+      data:
+        entity_id: 
+          - cover.stairs_blinds
+    - delay: '00:00:15'
+    - action: cover.close_cover
+      data:
+        entity_id: 
+          - cover.bedroom_closet_blinds
+    - delay: '00:00:15'
+    - action: cover.close_cover
+      data:
+        entity_id: 
+          - cover.kitchen_blinds

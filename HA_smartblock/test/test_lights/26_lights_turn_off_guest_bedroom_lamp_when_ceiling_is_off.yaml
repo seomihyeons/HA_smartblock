@@ -1,0 +1,16 @@
+- alias: Lights - Turn Off Guest Bedroom Lamp when Ceiling is Off
+  id: lights_turn_off_guest_bedroom_lamp_when_ceiling_is_off
+  triggers:
+  - trigger: state
+    entity_id: light.guest_bedroom_ceiling
+    from: 'on'
+    to: 'off'
+  conditions:
+  - condition: state
+    entity_id: light.guest_bedroom_nightstand
+    state: 'on'
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.guest_bedroom_nightstand

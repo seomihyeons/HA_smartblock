@@ -1,0 +1,36 @@
+- alias: Motion - Turn On Kitchen Lights when Motion Detected Night
+  id: motion_turn_on_kitchen_lights_when_motion_detected_night
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.kitchen_motion
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: state
+    entity_id: light.kitchen_lights
+    state: 'off'
+  - condition: state
+    entity_id: sun.sun
+    state: below_horizon
+  - condition: time
+    after: '22:00:00'
+    before: 07:00:00
+  - condition: state
+    entity_id: group.household
+    state: home
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.kitchen_cabinets
+    data:
+      brightness_pct: 2
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.kitchen_sink
+    data:
+      brightness_pct: 2

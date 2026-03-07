@@ -1,0 +1,29 @@
+- alias: Climate - Adjust Thermostat if Fireplace On
+  id: climate_adjust_thermostat_if_fireplace_on
+  triggers:
+  - trigger: state
+    entity_id: switch.fireplace
+    from: 'off'
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 15
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: sensor.season
+    state: winter
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: input_boolean.thermostat_away
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.disable_climate
+    state: 'off'
+  actions:
+  - action: climate.set_preset_mode
+    data:
+      entity_id: climate.main_floor
+      preset_mode: Fireplace

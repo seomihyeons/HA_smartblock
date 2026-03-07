@@ -1,0 +1,24 @@
+- alias: Fountain - Turn Off at Midnight
+  id: 'fountain_turn_off_at_midnight'
+
+  triggers:
+   - trigger: time
+     at: '23:59:00'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_fountain
+      state: 'off'
+    - condition: state
+      entity_id: switch.fountain
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.guest_mode
+      state: 'off'
+
+  actions:
+    - action: switch.turn_off
+      target:
+        entity_id:
+          - switch.fountain
+          - switch.fountain_lights

@@ -1,0 +1,21 @@
+- alias: Blinds - Bedroom Closet Close Pico Remote
+  id: 'blinds_bedroom_closet_close_pico_remote'
+
+  triggers:
+    - trigger: event
+      event_type: lutron_caseta_button_event
+      event_data:
+        serial: 92034753
+        button_number: 3
+        action: press
+  
+  conditions:
+    - condition: state
+      entity_id: cover.bedroom_closet_blinds
+      state: 'open'
+
+  actions:
+    - action: cover.close_cover
+      data:
+        entity_id: 
+          - cover.bedroom_closet_blinds

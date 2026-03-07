@@ -1,0 +1,14 @@
+- alias: Vacation - Turn off when Home
+  id: vacation_turn_off_when_home
+  triggers:
+  - trigger: state
+    entity_id: group.household
+    from: not_home
+    to: home
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_home_away
+    state: 'off'
+  actions:
+  - action: homeassistant.turn_off
+    entity_id: input_boolean.vacation_mode

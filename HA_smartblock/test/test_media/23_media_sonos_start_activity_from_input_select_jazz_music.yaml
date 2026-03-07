@@ -1,0 +1,9 @@
+- alias: Media - Sonos start activity from input select Jazz Music
+  id: media_sonos_start_activity_from_input_select_jazz_music
+  triggers:
+  - trigger: state
+    entity_id: input_select.sonos
+    to: Jazz Music
+  actions:
+  - action: homeassistant.turn_on
+    entity_id: input_boolean.jazz_music

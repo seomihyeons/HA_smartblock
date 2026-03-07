@@ -1,0 +1,35 @@
+- alias: Blinds - Close USER1's Office Blinds Partially when Sun Below Horizon Portable AC
+  id: 'blinds_close_USER1s_office_blinds_partially_when_sun_below_horizon_and_window_open_portable_ac'
+
+  triggers:
+    - trigger: state
+      entity_id: sun.sun
+      from: 'above_horizon'
+      to: 'below_horizon'
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 30
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_blinds
+      state: 'off'
+    - condition: state
+      entity_id: binary_sensor.USER1s_office_window_right
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.USER1_office_portable_ac
+      state: 'on'
+
+  actions:
+    - action: cover.close_cover
+      data:
+        entity_id: 
+          - cover.USER1s_office_blinds_left
+          - cover.USER1s_office_blinds_center
+    - action: cover.set_cover_position
+      data:
+        entity_id: 
+          - cover.USER1s_office_blinds_right
+        position: 13

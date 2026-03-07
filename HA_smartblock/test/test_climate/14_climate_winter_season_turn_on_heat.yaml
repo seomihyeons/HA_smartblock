@@ -1,0 +1,11 @@
+- alias: Climate - Winter Season Turn On Heat
+  id: climate_winter_season_turn_on_heat
+  triggers:
+  - trigger: state
+    entity_id: sensor.season
+    to: winter
+  actions:
+  - action: climate.set_hvac_mode
+    data:
+      entity_id: climate.main_floor
+      hvac_mode: heat
