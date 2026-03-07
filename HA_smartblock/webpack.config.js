@@ -257,6 +257,10 @@ module.exports = (env, argv) => {
       port: 8080,
       hot: true,
       historyApiFallback: true,
+      static: [
+        { directory: path.resolve(__dirname, 'build') },
+        { directory: path.resolve(__dirname, 'src', 'utils'), publicPath: '/utils', watch: false },
+      ],
 
       proxy: {
         '/ha/api': {
