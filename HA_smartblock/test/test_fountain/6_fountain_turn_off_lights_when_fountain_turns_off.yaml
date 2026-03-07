@@ -1,0 +1,24 @@
+- alias: Fountain - Turn off Lights when Fountain turns off
+  id: 'fountain_turn_off_lights_when_fountain_turns_off'
+
+  triggers:
+    - trigger: state
+      entity_id: switch.fountain
+      to: 'off'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_fountain
+      state: 'off'
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: switch.fountain_lights
+      state: 'on'
+
+  actions:
+    - action: switch.turn_off
+      target:
+        entity_id:
+          - switch.fountain_lights

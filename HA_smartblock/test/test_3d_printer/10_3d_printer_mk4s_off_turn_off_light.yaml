@@ -1,0 +1,15 @@
+- alias: 3D-Printer - MK4S Off Turn Off Light
+  id: 3d_printer_mk4s_off_turn_off_light
+  triggers:
+  - trigger: state
+    entity_id: switch.prusa_mk4s
+    to: 'off'
+  conditions:
+  - condition: state
+    entity_id: light.prusa_mk4s
+    state: 'on'
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.prusa_mk4s

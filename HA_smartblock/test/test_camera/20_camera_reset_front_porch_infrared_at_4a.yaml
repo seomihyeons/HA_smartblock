@@ -1,0 +1,14 @@
+- alias: Camera - Reset Front Porch Infrared at 4a
+  id: camera_reset_front_porch_infrared_at_4a
+  triggers:
+  - trigger: time
+    at: 04:00:00
+  conditions:
+  - condition: state
+    entity_id: select.front_porch_camera_infrared_mode
+    state: Always Enable
+  actions:
+  - action: select.select_option
+    data:
+      entity_id: select.front_porch_camera_infrared_mode
+      option: Auto

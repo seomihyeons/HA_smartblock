@@ -1,0 +1,28 @@
+- alias: LED Clock - Washing Machine Done App
+  id: led_clock_washing_machine_done_app
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.washer_wash_completed
+    from: 'off'
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/washer
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/notify
+      payload: '{  "icon": "washer", "pushIcon": 0, "duration": 60, "color": [0,255,255],
+        "text": "Washer Finished" }'
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/washer
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/notify
+      payload: '{  "icon": "washer", "pushIcon": 0, "duration": 60, "color": [0,255,255],
+        "text": "Washer Finished" }'

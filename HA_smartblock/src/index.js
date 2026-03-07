@@ -13,6 +13,7 @@ import { renderAutomationToWorkspace } from './import/yamlToBlocks';
 import './blocks/extensions.js';
 
 import { initConflictAnalyzerUI } from "./homeassistant/conflict_analyzer/debug_ui";
+import { initTaskAltUI } from '../test/task_alt/task_alt_ui';
 
 import './index.css';
 import { yamlGenerator } from './generators/yaml';
@@ -28,47 +29,69 @@ Blockly.common.defineBlocks(rawLinesBlocks);
 
 import { haEventStateBlocks } from './blocks/event/event_HA_state';
 import { eventEntityBlocks } from './blocks/event/event_entity.js';
+import { eventGroupBlocks } from './blocks/event/event_group.js';
 import { eventNumericSensorBlocks } from './blocks/event/event_sensor_state';
 import { eventTimeStateBlocks } from './blocks/event/event_time_state';
+import { eventTemplateBlocks } from './blocks/event/event_template';
 import { eventForBlocks } from './blocks/event/event_for';
 import { haEventSunBlocks } from './blocks/event/event_sun';
 import { eventSunStateBlocks } from './blocks/event/event_sun_state';
+import { eventEventBlocks } from './blocks/event/event_event';
+import { eventMqttBlocks } from './blocks/event/event_mqtt';
 
 import { conditionLogicBlocks } from './blocks/condition/condition_logic';
 import { conditionStateBlocks } from './blocks/condition/condition_entity_state';
+import { conditionSunBlocks } from './blocks/condition/condition_sun';
+import { conditionTimeBlocks } from './blocks/condition/condition_time';
+import { conditionTemplateBlocks } from './blocks/condition/condition_template';
 import { conditionNumericStateEntityBlocks } from './blocks/condition/condition_numeric_state_entity';
 import { conditionNumericStateAttributeBlocks } from './blocks/condition/condition_numeric_state_attribute';
 
 import { actionEntityBlocks } from './blocks/action/action_entity';
+import { actionEcobeeBlocks } from './blocks/action/action_ecobee';
 import { actionDelayBlocks } from './blocks/action/action_delay';
 import { actionIfBlocks } from './blocks/action/action_if';
 import { actionNotifyBlocks } from './blocks/action/action_notify';
 import { actionGroupBlocks } from './blocks/action/action.group';
+import { actionJoinBlocks } from './blocks/action/action_join';
+import { actionScriptBlocks } from './blocks/action/action_script.js';
 import { actionNotifyTagBlocks } from './blocks/action/action_notify_tag.js';
 import { actionDataBlocks } from './blocks/action/action_data.js';
+import { actionMqttBlocks } from './blocks/action/action_mqtt.js';
 
 Blockly.common.defineBlocks(ruleBlocks);
 
 Blockly.common.defineBlocks(haEventStateBlocks);
 Blockly.common.defineBlocks(eventEntityBlocks);
+Blockly.common.defineBlocks(eventGroupBlocks);
 Blockly.common.defineBlocks(eventNumericSensorBlocks);
 Blockly.common.defineBlocks(eventTimeStateBlocks);
+Blockly.common.defineBlocks(eventTemplateBlocks);
 Blockly.common.defineBlocks(eventForBlocks);
 Blockly.common.defineBlocks(haEventSunBlocks);
 Blockly.common.defineBlocks(eventSunStateBlocks);
+Blockly.common.defineBlocks(eventEventBlocks);
+Blockly.common.defineBlocks(eventMqttBlocks);
 
 Blockly.common.defineBlocks(conditionLogicBlocks);
 Blockly.common.defineBlocks(conditionStateBlocks);
+Blockly.common.defineBlocks(conditionSunBlocks);
+Blockly.common.defineBlocks(conditionTimeBlocks);
+Blockly.common.defineBlocks(conditionTemplateBlocks);
 Blockly.common.defineBlocks(conditionNumericStateEntityBlocks);
 Blockly.common.defineBlocks(conditionNumericStateAttributeBlocks);
 
 Blockly.common.defineBlocks(actionEntityBlocks);
+Blockly.common.defineBlocks(actionEcobeeBlocks);
 Blockly.common.defineBlocks(actionDataBlocks);
 Blockly.common.defineBlocks(actionDelayBlocks);
 Blockly.common.defineBlocks(actionIfBlocks);
 Blockly.common.defineBlocks(actionNotifyBlocks);
 Blockly.common.defineBlocks(actionGroupBlocks);
+Blockly.common.defineBlocks(actionJoinBlocks);
+Blockly.common.defineBlocks(actionScriptBlocks);
 Blockly.common.defineBlocks(actionNotifyTagBlocks);
+Blockly.common.defineBlocks(actionMqttBlocks);
 
 const codeDiv = document.getElementById('generatedCode');
 const blocklyDiv = document.getElementById('blocklyDiv');
@@ -184,4 +207,5 @@ setupHaPullPanel({ ws });
 
 window.addEventListener("DOMContentLoaded", () => {
   initConflictAnalyzerUI();
+  initTaskAltUI({ ws });
 });

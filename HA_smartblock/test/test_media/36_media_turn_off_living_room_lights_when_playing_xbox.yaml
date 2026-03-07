@@ -1,0 +1,40 @@
+- alias: Media - Turn off Living Room Lights When Playing Xbox
+  id: media_turn_off_living_room_lights_when_playing_xbox
+  triggers:
+  - trigger: state
+    entity_id: select.living_room_tv_activities
+    to: Play Xbox
+    for:
+      hours: 0
+      minutes: 2
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  - condition: state
+    entity_id: input_boolean.guest_mode
+    state: 'off'
+  - condition: state
+    entity_id: sun.sun
+    state: below_horizon
+  - condition: time
+    after: '21:00:00'
+    before: 05:00:00
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.living_room_lamps
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.living_room_ceiling_east
+  - delay: 00:00:05
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.living_room_ceiling_west

@@ -1,0 +1,18 @@
+- alias: Network - Enable Pi-hole
+  id: network_enable_pihole
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.pihole
+    from: 'off'
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 3
+  conditions:
+  - condition: state
+    entity_id: input_boolean.pihole
+    state: 'on'
+  actions:
+  - action: script.pihole_enable
+    data: {}

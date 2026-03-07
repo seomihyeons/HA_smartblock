@@ -1,0 +1,29 @@
+- alias: Camera - Turn On Front Porch Lights when Motion Detected
+  id: camera_turn_on_front_porch_lights_when_motion_detected
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.front_door_camera_person_detected
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.front_porch_person_detected
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.front_yard_camera_person_detected
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: sun.sun
+    state: below_horizon
+  - condition: state
+    entity_id: input_boolean.disable_doorbell
+    state: 'off'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.front_porch
+    data:
+      brightness_pct: 100

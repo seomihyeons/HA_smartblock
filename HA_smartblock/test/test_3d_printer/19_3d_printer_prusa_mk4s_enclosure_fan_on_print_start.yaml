@@ -1,0 +1,35 @@
+- alias: 3D-Printer - Prusa MK4S Enclosure Fan On Print Start
+  id: 3d_printer_prusa_mk4s_enclosure_fan_on_print_start
+  triggers:
+  - trigger: state
+    entity_id: sensor.prusa_mk4s
+    to: printing
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+  conditions:
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: switch.prusa_mk4s_enclosure_fan
+      state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: sensor.prusa_mk4s_mmu3_material
+      state: ABS
+    - condition: state
+      entity_id: sensor.prusa_mk4s_mmu3_material
+      state: ASA
+  - condition: numeric_state
+    entity_id: sensor.prusa_mk4s_enclosure_temperature
+    above: 25
+  - condition: state
+    entity_id: input_boolean.prusa_mk4s_disable_fans
+    state: 'off'
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id:
+      - switch.prusa_mk4s_enclosure_fan

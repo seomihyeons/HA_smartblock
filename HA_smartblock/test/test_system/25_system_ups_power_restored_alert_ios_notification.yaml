@@ -1,0 +1,22 @@
+- alias: System - UPS Power Restored Alert iOS Notification
+  id: system_ups_power_restored_alert_ios_notification
+  triggers:
+  - trigger: numeric_state
+    entity_id:
+    - sensor.ups_a_input_voltage
+    - sensor.ups_b_input_voltage
+    - sensor.ups_c_input_voltage
+    above: 110
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_notifications
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.disable_startup_notifications
+    state: 'off'
+  actions:
+  - action: notify.USER1_devices
+    data:
+      message: Power Restored
+      data:
+        tag: ups

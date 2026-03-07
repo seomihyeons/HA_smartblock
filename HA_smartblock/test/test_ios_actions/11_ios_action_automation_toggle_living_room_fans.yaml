@@ -1,0 +1,12 @@
+- alias: iOS Action - Toggle Living Room Fans
+  id: ios_action_automation_toggle_living_room_fans
+  triggers:
+  - trigger: event
+    event_type: ios.action_fired
+    event_data:
+      actionName: Toggle Living Room Fans
+  actions:
+  - action: fan.toggle
+    target:
+      entity_id: fan.living_room_fans
+    data: {}

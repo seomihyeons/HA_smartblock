@@ -1,0 +1,15 @@
+- alias: Garage - Door Motor Off
+  id: 'garage_door_motor_off'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.garage_door_motor
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 18
+
+  actions:
+    - action: homeassistant.turn_off
+      entity_id: input_boolean.garage_door_motor

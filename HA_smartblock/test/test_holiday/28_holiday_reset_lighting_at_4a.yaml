@@ -1,0 +1,49 @@
+- alias: Holiday - Reset Lighting at 4a
+  id: 'holiday_reset_lighting_at_4a'
+
+  triggers:
+    - trigger: time
+      at: '04:00:00'
+
+  conditions:
+    - condition: or
+      conditions:
+        - condition: state
+          entity_id: input_select.holiday
+          state: "St. Patrick's Day"
+        - condition: state
+          entity_id: input_select.holiday
+          state: 'Easter'
+        - condition: state
+          entity_id: input_select.holiday
+          state: "Valentine's Day"
+        - condition: state
+          entity_id: input_select.holiday
+          state: 'Thanksgiving'
+        - condition: state
+          entity_id: input_select.holiday
+          state: 'Labor Day'
+        - condition: state
+          entity_id: input_select.holiday
+          state: 'Memorial Day'
+        - condition: state
+          entity_id: input_select.holiday
+          state: 'Independence Day'
+        - condition: state
+          entity_id: input_select.holiday
+          state: 'Veterans Day'
+        - condition: state
+          entity_id: input_select.holiday
+          state: "New Year's Eve"
+        - condition: state
+          entity_id: input_select.holiday
+          state: 'Cardinals Game'
+        - condition: state
+          entity_id: input_select.holiday
+          state: 'Blues Game'
+
+  actions:
+    - action: input_select.select_option
+      data:
+        entity_id: input_select.holiday
+        option: "None"

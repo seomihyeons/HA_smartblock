@@ -1,0 +1,26 @@
+- alias: Fan - Living Room Fans Off Pico Remote
+  id: 'fan_living_room_fans_off_pico_remote'
+
+  triggers:
+    - trigger: event
+      event_type: lutron_caseta_button_event
+      event_data:
+        serial: 49229391
+        button_number: 3
+        action: press
+
+  conditions:
+    - condition: state
+      entity_id: fan.living_room_fans
+      state: 'on'
+
+  actions:
+    - delay:
+        seconds: 1
+    - action: fan.turn_off
+      target:
+        entity_id:
+          - fan.living_room_east
+          - fan.living_room_west
+    - delay:
+        seconds: 1

@@ -1,0 +1,64 @@
+- alias: Location - USER2 Home from Work Turn On Lights
+  id: 'location_USER2_home_from_work_turn_on_lights'
+
+  triggers:
+    - trigger: state
+      entity_id: person.USER2
+      to: 'home'
+
+  conditions:
+    - condition: state
+      entity_id: sun.sun
+      state: 'below_horizon'
+    - condition: state
+      entity_id: input_boolean.disable_home_away
+      state: 'off'
+    - condition: state
+      entity_id: input_boolean.USER2_away
+      state: 'on'
+    - condition: time
+      after: '15:45:00'
+      before: '17:30:00'
+    - condition: time
+      weekday:
+        - mon
+        - tue
+        - wed
+        - thu
+        - fri
+
+  actions:
+    - action: light.turn_on
+      target:
+        entity_id:
+          - light.bathroom_lights
+      data:
+       brightness_pct: 25
+    - action: light.turn_on
+      target:
+        entity_id:
+          - light.USER1s_nightstand
+      data:
+       transition: 90
+       brightness_pct: 50
+    - action: light.turn_on
+      target:
+        entity_id:
+          - light.USER2s_nightstand
+      data:
+       transition: 90
+       brightness_pct: 50
+    - action: light.turn_on
+      target:
+        entity_id:
+          - light.bedroom_lamp
+      data:
+       transition: 90
+       brightness_pct: 50
+    - action: light.turn_on
+      target:
+        entity_id:
+          - light.closet_lamp
+      data:
+       transition: 90
+       brightness_pct: 50

@@ -6,19 +6,17 @@ export const actionNotifyTagBlocks =
   Blockly.common.createBlockDefinitionsFromJsonArray([
   {
     type: 'action_notify_tag',
-    message0: 'tag %1',
+    message0: 'tag %1 details %2',
     args0: [
       { type: 'field_input', name: 'TAG_NAME', text: 'tag name', spellcheck: true },
-    ],
-    message1: '%1',
-    args1: [
-      { type: 'input_statement', name: 'TAG_BLOCKS', check: 'HA_NOTIFY_TAG' },
+      { type: 'field_checkbox', name: 'USE_DETAILS', checked: false },
     ],
     previousStatement: 'HA_NOTIFY',
     nextStatement: 'HA_NOTIFY',
     colour: '#E3CC57',
     tooltip: 'notify의 data.data(payload)를 구성합니다. (tag + entity_id + actions)',
     helpUrl: '',
+    mutator: 'ha_notify_tag_optional_details',
   },
 
   {
@@ -84,6 +82,54 @@ export const actionNotifyTagBlocks =
     nextStatement: 'HA_NOTIFY_TAG',
     colour: '#E3CC57',
     tooltip: 'activationMode (background/foreground)',
+    helpUrl: '',
+  },
+  {
+    type: 'notify_push',
+    message0: 'push %1',
+    args0: [
+      {
+        type: 'field_dropdown',
+        name: 'PUSH_KIND',
+        options: [
+          ['sound', 'sound'],
+          ['badge', 'badge'],
+        ],
+      },
+    ],
+    message1: '%1',
+    args1: [
+      { type: 'input_statement', name: 'PUSH_BLOCKS', check: 'HA_NOTIFY_PUSH' },
+    ],
+    previousStatement: ['HA_NOTIFY', 'HA_NOTIFY_TAG'],
+    nextStatement: ['HA_NOTIFY', 'HA_NOTIFY_TAG'],
+    colour: '#E3CC57',
+    tooltip: 'notify data.data.push 옵션을 구성합니다.',
+    helpUrl: '',
+  },
+  {
+    type: 'notify_push_name',
+    message0: 'name %1',
+    args0: [
+      { type: 'field_input', name: 'NAME', text: 'default', spellcheck: false },
+    ],
+    previousStatement: 'HA_NOTIFY_PUSH',
+    nextStatement: 'HA_NOTIFY_PUSH',
+    colour: '#E3CC57',
+    tooltip: 'push.sound.name',
+    helpUrl: '',
+  },
+  {
+    type: 'notify_push_critical',
+    message0: 'critical %1 volume %2',
+    args0: [
+      { type: 'field_number', name: 'CRITICAL', value: 1, min: 0, max: 1, precision: 1 },
+      { type: 'field_number', name: 'VOLUME', value: 1.0, min: 0, max: 1, precision: 0.1 },
+    ],
+    previousStatement: 'HA_NOTIFY_PUSH',
+    nextStatement: 'HA_NOTIFY_PUSH',
+    colour: '#E3CC57',
+    tooltip: 'push.sound.critical / push.sound.volume',
     helpUrl: '',
   },
 ]);

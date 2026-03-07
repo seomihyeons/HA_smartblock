@@ -1,0 +1,27 @@
+- alias: Bedtime - Switches
+  id: 'bedtime_switches'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.bedtime
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 4
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+
+  actions:
+    - action: switch.turn_off
+      target:
+        entity_id:
+          - switch.USER1s_office_air_purifier
+          - switch.lower_backyard_lighting
+          - switch.backyard_patio_lighting
+          - switch.fireplace
+          - switch.fountain
+          - switch.fountain_lights

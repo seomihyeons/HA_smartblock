@@ -1,0 +1,10 @@
+- alias: LED Clock - USER1's Office Party Time Off
+  id: led_clock_USER1_office_party_time_off
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.office_rainbow
+    to: 'off'
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/party_time

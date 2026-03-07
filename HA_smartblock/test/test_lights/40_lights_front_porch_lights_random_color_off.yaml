@@ -1,0 +1,20 @@
+- alias: Lights - Front Porch Lights Random Color Off
+  id: lights_front_porch_lights_random_color_off
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.front_porch_rainbow
+    to: 'off'
+  conditions:
+  - condition: state
+    entity_id: light.front_porch
+    state: 'on'
+  actions:
+  - action: light.turn_on
+    entity_id: light.front_porch
+  - delay: 00:00:01
+  - action: light.turn_on
+    entity_id: light.front_porch
+    data:
+      transition: 15
+      brightness_pct: 50
+      color_temp: 370

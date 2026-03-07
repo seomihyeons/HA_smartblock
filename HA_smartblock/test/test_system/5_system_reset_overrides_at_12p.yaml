@@ -1,0 +1,15 @@
+- alias: System - Reset Overrides at 12p
+  id: system_reset_overrides_at_12p
+  triggers:
+  - trigger: time
+    at: '12:00:00'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.vacation_mode
+    state: 'off'
+  actions:
+  - action: homeassistant.turn_off
+    target:
+      entity_id:
+      - input_boolean.living_room_guest
+      - input_boolean.USER1_office_guest

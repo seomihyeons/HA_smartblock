@@ -1,0 +1,24 @@
+- alias: Camera - Person Detected in Side Yard
+  id: camera_person_detected_in_side_yard
+  mode: single
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.side_yard_camera_person_detected
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_notifications
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: group.household
+      state: home
+  actions:
+  - action: notify.USER1_devices
+    data:
+      message: Person Detected in Side Yard!
+      data:
+        tag: side_yard_person_camera
+        entity_id: camera.side_yard
+  - delay: 00:05:00

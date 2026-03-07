@@ -1,0 +1,15 @@
+- alias: Media - Fix Bedroom TV Sound Output Power On
+  id: media_fix_bedroom_tv_sound_output_power_on
+  triggers:
+  - trigger: state
+    entity_id: media_player.bedroom_tv
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 15
+  actions:
+  - action: webostv.select_sound_output
+    data:
+      entity_id: media_player.bedroom_tv
+      sound_output: external_arc

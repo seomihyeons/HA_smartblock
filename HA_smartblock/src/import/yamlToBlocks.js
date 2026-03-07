@@ -1,6 +1,6 @@
 // src/import/yamlToBlocks.js
 import * as Blockly from 'blockly';
-import { createTriggerBlock } from './blocks/trigger_mapper';
+import { createTriggerBlock, createTriggerBlocks } from './blocks/trigger_mapper';
 import { createConditionsRoot } from './blocks/condition_mapper';
 import { createActionNode } from './blocks/action_mapper';
 
@@ -41,6 +41,135 @@ function appendChild(parent, child, inputName) {
 }
 
 const canCreate = (t) => !!Blockly.Blocks?.[t];
+
+const GROUPABLE_ACTION_DOMAINS = new Set([
+  'cover',
+  'light',
+  'switch',
+  'fan',
+  'lock',
+  'select',
+  'input_select',
+  'media_player',
+  'homeassistant',
+]);
+
+const isTemplateEntity = (v) =>
+  typeof v === 'string' && /\{\{[^}]*\}\}/.test(v);
+
+const toEntityIdList = (source) => {
+  if (source == null) return null;
+  let raw = null;
+  if (typeof source === 'object' && !Array.isArray(source) && Object.prototype.hasOwnProperty.call(source, 'entity_id')) {
+    raw = source.entity_id;
+  } else {
+    raw = source;
+  }
+  const arr = Array.isArray(raw) ? raw : [raw];
+  const ids = arr
+    .map((v) => (typeof v === 'string' ? v.trim() : ''))
+    .filter((v) => !!v);
+  if (!ids.length) return null;
+  if (ids.some((v) => isTemplateEntity(v))) return null;
+  return ids;
+};
+
+const sortedStringify = (v) => {
+  const normalize = (x) => {
+    if (Array.isArray(x)) return x.map(normalize);
+    if (x && typeof x === 'object') {
+      const out = {};
+      Object.keys(x).sort().forEach((k) => {
+        out[k] = normalize(x[k]);
+      });
+      return out;
+    }
+    return x;
+  };
+  try {
+    return JSON.stringify(normalize(v ?? null));
+  } catch {
+    return '';
+  }
+};
+
+const clonePlain = (v) => {
+  try {
+    return JSON.parse(JSON.stringify(v));
+  } catch {
+    return v;
+  }
+};
+
+function normalizeActionsForGrouping(actions) {
+  if (!Array.isArray(actions) || !actions.length) return [];
+
+  const merged = [];
+
+  const getService = (a) => String(a?.action ?? a?.service ?? '');
+  const getDomain = (a) => getService(a).split('.', 1)[0] || '';
+  const getTopLevelExtras = (a) => {
+    if (!a || typeof a !== 'object') return null;
+    const extras = {};
+    Object.keys(a).forEach((k) => {
+      if (k === 'action' || k === 'service' || k === 'target' || k === 'data' || k === 'id') return;
+      extras[k] = a[k];
+    });
+    return extras;
+  };
+  const getTargetRest = (a) => {
+    const t = (a && typeof a.target === 'object' && !Array.isArray(a.target)) ? a.target : {};
+    const rest = { ...t };
+    delete rest.entity_id;
+    return rest;
+  };
+
+  const canMerge = (prev, cur) => {
+    if (!prev || !cur) return false;
+    if (prev.id != null || cur.id != null) return false;
+
+    const prevService = getService(prev);
+    const curService = getService(cur);
+    if (!prevService || prevService !== curService) return false;
+
+    const domain = getDomain(prev);
+    if (!GROUPABLE_ACTION_DOMAINS.has(domain)) return false;
+
+    const prevIds = toEntityIdList(prev.target) || toEntityIdList(prev.entity_id);
+    const curIds = toEntityIdList(cur.target) || toEntityIdList(cur.entity_id);
+    if (!prevIds || !curIds) return false;
+
+    if (sortedStringify(getTargetRest(prev)) !== sortedStringify(getTargetRest(cur))) return false;
+    if (sortedStringify(prev.data ?? null) !== sortedStringify(cur.data ?? null)) return false;
+    if (sortedStringify(getTopLevelExtras(prev)) !== sortedStringify(getTopLevelExtras(cur))) return false;
+
+    return true;
+  };
+
+  for (const raw of actions) {
+    const cur = clonePlain(raw);
+    const prev = merged[merged.length - 1];
+
+    if (canMerge(prev, cur)) {
+      const prevIds = toEntityIdList(prev.target) || toEntityIdList(prev.entity_id) || [];
+      const curIds = toEntityIdList(cur.target) || toEntityIdList(cur.entity_id) || [];
+      for (const eid of curIds) {
+        if (!prevIds.includes(eid)) prevIds.push(eid);
+      }
+      if (prev.target && typeof prev.target === 'object' && !Array.isArray(prev.target)) {
+        prev.target.entity_id = prevIds;
+      } else {
+        prev.target = { entity_id: prevIds };
+        delete prev.entity_id;
+      }
+      continue;
+    }
+
+    merged.push(cur);
+  }
+
+  return merged;
+}
 
 // 공통: obj.id가 있으면 블록의 ID/Id/id 필드에 채움
 function setIdIfPresent(block, obj) {
@@ -238,18 +367,17 @@ export function renderAutomationToWorkspace(ws, autoJson, opts = {}) {
   if (triggers.length) {
     const created = [];
     let allOk = true;
+    const built = typeof createTriggerBlocks === 'function'
+      ? createTriggerBlocks(triggers, ws)
+      : triggers.map((t) => createTriggerBlock(t, ws)).filter(Boolean);
 
-    triggers.forEach((t) => {
-      const b = createTriggerBlock(t, ws);
-      if (!b) {
-        allOk = false;
-        return;
-      }
-      setIdIfPresent(b, t);
-      created.push(b);
-    });
+    if (!built.length) {
+      allOk = false;
+    } else {
+      built.forEach((b) => created.push(b));
+    }
 
-    if (allOk && created.length === triggers.length) {
+    if (allOk) {
       created.forEach((b, i) => {
         b.initSvg();
         b.render();

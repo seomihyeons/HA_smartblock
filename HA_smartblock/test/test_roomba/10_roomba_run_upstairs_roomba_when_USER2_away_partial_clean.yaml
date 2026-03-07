@@ -1,0 +1,53 @@
+- alias: Roomba - Run Upstairs Roomba when USER2 Away Partial Clean
+  id: roomba_run_upstairs_roomba_when_USER2_away_partial_clean
+  triggers:
+  - trigger: time
+    at: 09:30:00
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_roomba
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.upstairs_roomba_ran
+    state: 'off'
+  - condition: state
+    entity_id: vacuum.upstairs_roomba
+    state: docked
+  - condition: numeric_state
+    entity_id: sensor.upstairs_roomba_battery_level
+    above: 99
+  - condition: state
+    entity_id: input_boolean.guest_mode
+    state: 'off'
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: person.USER2
+      state: home
+  - condition: time
+    weekday:
+    - mon
+    - tue
+    - wed
+    - thu
+    - fri
+  actions:
+  - action: homeassistant.turn_on
+    target:
+      entity_id:
+      - input_boolean.roomba_clean_USER2_office
+  - delay: 00:00:02
+  - action: homeassistant.turn_on
+    target:
+      entity_id:
+      - input_boolean.roomba_clean_guest_bedroom
+  - delay: 00:00:02
+  - action: homeassistant.turn_on
+    target:
+      entity_id:
+      - input_boolean.roomba_clean_upstairs_hallway
+  - delay: 00:00:02
+  - action: python_script.upstairs_roomba

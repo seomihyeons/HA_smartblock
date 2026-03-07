@@ -1,0 +1,38 @@
+- alias: Water Works - Shut Off Water Main When Water Detected
+  id: water_works_shut_off_water_main_when_water_detected
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.basement_drain_water_sensor_liquid_detected
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.kitchen_sink_water_sensor
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.bathroom_sink_water_sensor
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.upstairs_bathrooom_water_sensor
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.utility_sink_water_sensor
+    from: 'off'
+    to: 'on'
+  - trigger: state
+    entity_id: binary_sensor.washing_machine_water_sensor
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_water_automations
+    state: 'off'
+  - condition: state
+    entity_id: valve.water_main
+    state: open
+  actions:
+  - action: valve.close_valve
+    entity_id:
+    - valve.water_main

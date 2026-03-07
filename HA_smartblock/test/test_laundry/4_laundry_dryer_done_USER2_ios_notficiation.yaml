@@ -1,0 +1,27 @@
+- alias: Laundry - Dryer Done USER2 iOS Notification
+  id: laundry_dryer_done_USER2_ios_notficiation
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.dryer_dry_completed
+    from: 'off'
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  conditions:
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: person.USER2
+    state: home
+  - condition: state
+    entity_id: input_boolean.disable_notifications
+    state: 'off'
+  actions:
+  - action: notify.USER2_devices
+    data:
+      message: Dryer Finished
+      data:
+        tag: dryer

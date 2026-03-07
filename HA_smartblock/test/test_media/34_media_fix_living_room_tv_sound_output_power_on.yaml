@@ -1,0 +1,15 @@
+- alias: Media - Fix Living Room TV Sound Output Power On
+  id: media_fix_living_room_tv_sound_output_power_on
+  triggers:
+  - trigger: state
+    entity_id: media_player.living_room_tv
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 15
+  actions:
+  - action: webostv.select_sound_output
+    data:
+      entity_id: media_player.living_room_tv
+      sound_output: external_arc

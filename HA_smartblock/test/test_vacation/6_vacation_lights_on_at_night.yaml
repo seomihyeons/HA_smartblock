@@ -1,0 +1,47 @@
+- alias: Vacation - Lights On at Night
+  id: vacation_lights_on_at_night
+  triggers:
+  - trigger: state
+    entity_id: sun.sun
+    from: above_horizon
+    to: below_horizon
+  conditions:
+  - condition: state
+    entity_id: input_boolean.vacation_mode
+    state: 'on'
+  actions:
+  - delay:
+      minutes: '{{ range(2, 20) | random }}'
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.kitchen_sink
+    data:
+      brightness_pct: 50
+  - delay:
+      minutes: '{{ range(2, 28) | random }}'
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.living_room_lamps
+    data:
+      brightness_pct: 75
+      transition: 120
+  - delay:
+      minutes: '{{ range(2, 59) | random }}'
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.bedroom_ceiling
+    data:
+      brightness_pct: 25
+      transition: 60
+  - delay:
+      minutes: '{{ range(2, 45) | random }}'
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.USER1_office_desk_lamp
+      - light.USER1_office_desk_accent
+    data:
+      brightness_pct: 80

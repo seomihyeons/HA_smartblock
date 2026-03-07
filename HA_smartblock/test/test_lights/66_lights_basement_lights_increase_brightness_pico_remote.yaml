@@ -1,0 +1,30 @@
+- alias: Lights - Basement Lights Increase Brightness Pico Remote
+  id: lights_basement_lights_increase_brightness_pico_remote
+  triggers:
+  - trigger: event
+    event_type: lutron_caseta_button_event
+    event_data:
+      serial: 42010030
+      button_number: 5
+      action: press
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.basement_stairs
+    data:
+      brightness_step_pct: 10
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.basement_lights
+    data:
+      brightness_step_pct: 10
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.work_bench_light
+    data:
+      brightness_step_pct: 10
+  - delay:
+      seconds: 1

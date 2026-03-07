@@ -1,0 +1,23 @@
+- alias: LED Clock - New Years App
+  id: led_clock_new_years_app
+  triggers:
+  - trigger: time
+    at: 09:30:00
+  - trigger: state
+    entity_id: input_select.holiday
+    to: New Year's Eve
+  conditions:
+  - condition: state
+    entity_id: input_select.holiday
+    state: New Year's Eve
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/holiday
+      payload: '{  "icon": "fireworks", "pushIcon": 0, "repeat": 3, "rainbow": true,
+        "text": "Happy New Years!" }'
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/holiday
+      payload: '{  "icon": "fireworks", "pushIcon": 0, "repeat": 3, "rainbow": true,
+        "text": "Happy New Years!" }'

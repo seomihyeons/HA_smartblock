@@ -1,0 +1,164 @@
+- alias: Roomba - Toggle Lights with Room Clean
+  id: roomba_tooggle_lights_with_room_clean
+  mode: parallel
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_living_room
+    - input_boolean.roomba_clean_front_door
+    to: 'on'
+    id: input_boolean.roomba_clean_living_room_lights
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_dining_room
+    - input_boolean.roomba_clean_dining_room_table
+    to: 'on'
+    id: input_boolean.roomba_clean_dining_room_lights
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_kitchen
+    - input_boolean.roomba_clean_back_door
+    to: 'on'
+    id: input_boolean.roomba_clean_kitchen_lights
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_hallway
+    to: 'on'
+    id: input_boolean.roomba_clean_hallway_lights
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_bathroom
+    to: 'on'
+    id: input_boolean.roomba_clean_bathroom_lights
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_bedroom
+    to: 'on'
+    id: input_boolean.roomba_clean_bedroom_lights
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_bedroom_closet
+    to: 'on'
+    id: input_boolean.roomba_clean_bedroom_closet_lights
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_front_door
+    to: 'on'
+    id: input_boolean.roomba_clean_living_room_lights
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_USER1_office
+    to: 'on'
+    id: input_boolean.roomba_clean_USER1_office_lights
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_USER2_office
+    to: 'on'
+    id: input_boolean.roomba_clean_USER2_office_lights
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_guest_bedroom
+    to: 'on'
+    id: input_boolean.roomba_clean_guest_bedroom_lights
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_upstairs_hallway
+    to: 'on'
+    id: input_boolean.roomba_clean_upstairs_hallway_lights
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_utility_area
+    to: 'on'
+    id: input_boolean.roomba_clean_utility_area_lights
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_fitness_room
+    to: 'on'
+    id: input_boolean.roomba_clean_fitness_room_lights
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_craft_room
+    to: 'on'
+    id: input_boolean.roomba_clean_craft_room_lights
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_laundry_room
+    to: 'on'
+    id: input_boolean.roomba_clean_laundry_room_lights
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_workbench
+    to: 'on'
+    id: iinput_boolean.roomba_clean_workbench_lights
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 1
+  actions:
+  - action: homeassistant.turn_on
+    target:
+      entity_id: '{{ trigger.id }}'

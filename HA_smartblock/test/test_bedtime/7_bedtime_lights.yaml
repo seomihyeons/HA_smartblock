@@ -1,0 +1,57 @@
+- alias: Bedtime - Lights
+  id: 'bedtime_lights'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.bedtime
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: light.interior_lights
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.overnight_guest_mode
+      state: 'off'
+
+  actions:
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.interior_lights
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.backyard_deck
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.garage_interior
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.backyard_patio
+    - delay: '00:00:60'
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.interior_lights
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.backyard_deck
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.garage_interior
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.backyard_patio

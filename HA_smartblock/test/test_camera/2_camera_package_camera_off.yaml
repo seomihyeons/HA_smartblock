@@ -1,0 +1,26 @@
+- alias: Camera - Package Camera Off
+  id: camera_package_camera_off
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.front_door_opened
+    from: 'on'
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+  conditions:
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: input_boolean.view_package_camera
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.package_camera_notification
+      state: 'on'
+  actions:
+  - action: homeassistant.turn_off
+    target:
+      entity_id:
+      - input_boolean.view_package_camera
+      - input_boolean.package_camera_notification

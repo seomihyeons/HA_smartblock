@@ -13,35 +13,64 @@ Blockly.Extensions.register('action_group_dynamic_service', function () {
 
   const updateServiceOptions = (domain) => {
     const opts = getGroupServiceOptionsByDomain(domain);
+    const safeOpts = (Array.isArray(opts) && opts.length) ? opts : [['-', '']];
     // Blockly dropdown internal generator
-    serviceField.menuGenerator_ = opts;
+    serviceField.menuGenerator_ = safeOpts;
 
-    const validValues = opts.map(o => o[1]);
+    const validValues = safeOpts.map(o => o[1]);
     if (!validValues.includes(serviceField.getValue())) {
-      if (opts[0]) serviceField.setValue(opts[0][1]);
+      if (safeOpts[0]) serviceField.setValue(safeOpts[0][1]);
     }
   };
 
   const resetChildEntities = () => {
     const input = this.getInput('ENTITIES');
     const firstBlock = input?.connection?.targetBlock();
-    const defaultValue = ''; // placeholder('-','') value
 
     let b = firstBlock;
     while (b) {
       const f = b.getField('ENTITY_ID');
-      if (f) f.setValue(defaultValue);
+      if (f) {
+        const opts = typeof f.getOptions === 'function' ? f.getOptions() : [];
+        const fallback = opts.length ? opts[0][1] : '';
+        f.setValue(fallback);
+      }
+      b = b.getNextBlock();
+    }
+  };
+
+  const syncChildService = () => {
+    const input = this.getInput('ENTITIES');
+    const firstBlock = input?.connection?.targetBlock();
+    const service = this.getFieldValue('SERVICE') || '';
+
+    let b = firstBlock;
+    while (b) {
+      const f = b.getField('ACTION');
+      if (f && service) {
+        const opts = typeof f.getOptions === 'function' ? f.getOptions().map((o) => o[1]) : [];
+        if (!opts.length || opts.includes(service)) {
+          f.setValue(service);
+        }
+      }
       b = b.getNextBlock();
     }
   };
 
   const initialDomain = domainField.getValue() || 'cover';
   updateServiceOptions(initialDomain);
+  syncChildService();
 
   domainField.setValidator((newVal) => {
     const domain = newVal || 'cover';
     updateServiceOptions(domain);
     resetChildEntities();
+    syncChildService();
+    return newVal;
+  });
+
+  serviceField.setValidator((newVal) => {
+    syncChildService();
     return newVal;
   });
 });
@@ -65,6 +94,7 @@ export const actionGroupBlocks =
       colour: '#E3CC57',
       tooltip: '여러 엔티티에 동일한 액션을 한 번에 실행합니다.',
       helpUrl: '',
+      mutator: 'ha_action_optional_data',
       extensions: ['action_group_dynamic_service'],
     },
     {

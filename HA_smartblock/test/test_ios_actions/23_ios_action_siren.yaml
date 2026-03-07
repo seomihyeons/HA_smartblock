@@ -1,0 +1,10 @@
+- alias: iOS Action - Siren
+  id: ios_action_siren
+  triggers:
+  - trigger: event
+    event_type: mobile_app_notification_action
+    event_data:
+      action: siren_off
+  actions:
+  - action: switch.turn_off
+    entity_id: switch.siren

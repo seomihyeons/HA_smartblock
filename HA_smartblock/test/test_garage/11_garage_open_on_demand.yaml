@@ -1,0 +1,19 @@
+- alias: Garage - Open On Demand
+  id: 'garage_open_on_demand'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.garage_door
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: cover.garage_door
+      state: 'closed'
+    - condition: state
+      entity_id: input_boolean.garage_door_motor
+      state: 'off'
+
+  actions:
+    - action: cover.open_cover
+      entity_id: cover.garage_door

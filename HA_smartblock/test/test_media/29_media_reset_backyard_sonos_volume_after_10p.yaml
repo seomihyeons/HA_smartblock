@@ -1,0 +1,17 @@
+- alias: Media - Reset Backyard Sonos Volume after 10p
+  id: media_reset_backyard_sonos_volume_after_10p
+  triggers:
+  - trigger: template
+    value_template: '{{ states.media_player.sonos_backyard_patio.attributes.volume_level
+      | int > 0.3 }}'
+  conditions:
+  - condition: time
+    after: '22:00:00'
+    before: '23:59:00'
+  actions:
+  - action: media_player.volume_set
+    target:
+      entity_id:
+      - media_player.sonos_backyard_patio
+    data:
+      volume_level: 0.3

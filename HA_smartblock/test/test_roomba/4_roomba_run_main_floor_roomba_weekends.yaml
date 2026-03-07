@@ -1,0 +1,50 @@
+- alias: Roomba - Run Main Floor Roomba Weekends
+  id: roomba_run_main_floor_roomba_weekends
+  triggers:
+  - trigger: time
+    at: '11:00:00'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_roomba
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.main_floor_roomba_ran
+    state: 'off'
+  - condition: time
+    weekday:
+    - sat
+    - sun
+  - condition: state
+    entity_id: vacuum.main_floor_roomba
+    state: docked
+  - condition: numeric_state
+    entity_id: sensor.main_floor_roomba_battery
+    above: 99
+  - condition: state
+    entity_id: select.living_room_tv_activities
+    state: power_off
+  - condition: state
+    entity_id: binary_sensor.living_room_motion
+    state: 'off'
+  - condition: state
+    entity_id: binary_sensor.dining_room_motion
+    state: 'off'
+  - condition: state
+    entity_id: binary_sensor.kitchen_motion
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.guest_mode
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.vacation_mode
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: person.USER2
+      state: home
+  actions:
+  - action: vacuum.start
+    target:
+      entity_id:
+      - vacuum.main_floor_roomba

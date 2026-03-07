@@ -1,0 +1,19 @@
+- alias: Roomba - Turn On Craft Room Lights Room Clean
+  id: roomba_turn_on_craft_room_lights_room_clean
+  triggers:
+  - trigger: state
+    entity_id: vacuum.basement_roomba
+    to: cleaning
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 5
+  conditions:
+  - condition: state
+    entity_id: input_boolean.roomba_clean_craft_room_lights
+    state: 'on'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.craft_room_ceiling

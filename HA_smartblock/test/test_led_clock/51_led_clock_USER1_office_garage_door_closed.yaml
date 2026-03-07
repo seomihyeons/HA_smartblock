@@ -1,0 +1,20 @@
+- alias: LED Clock - USER1's Office Garage Door Closed
+  id: led_clock_USER1_office_garage_door_closed
+  triggers:
+  - trigger: state
+    entity_id: cover.garage_door
+    from: open
+    to: closed
+  conditions:
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  - condition: state
+    entity_id: light.USER1s_office_desktop_clock
+    state: 'on'
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/notify
+      payload: '{  "icon": "garage_close", "pushIcon": 0, "duration": 30, "color":
+        [0,255,0], "text": "Garage Closed" }'

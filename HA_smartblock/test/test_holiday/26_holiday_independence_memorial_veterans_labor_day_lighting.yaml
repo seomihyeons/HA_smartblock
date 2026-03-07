@@ -1,0 +1,37 @@
+- alias: Holiday - Independence / Memorial / Veterans / Labor Day Lighting
+  id: 'holiday_independence_memorial_veterans_labor_day_lighting'
+
+  triggers:
+    - trigger: sun
+      event: 'sunset'
+      offset: '-00:15:00'
+
+  conditions:
+    - condition: or
+      conditions:
+        - condition: state
+          entity_id: input_select.holiday
+          state: 'Labor Day'
+        - condition: state
+          entity_id: input_select.holiday
+          state: 'Memorial Day'
+        - condition: state
+          entity_id: input_select.holiday
+          state: 'Independence Day'
+        - condition: state
+          entity_id: input_select.holiday
+          state: 'Veterans Day'
+
+  actions:
+    - action: light.turn_on
+      entity_id: light.front_porch_left
+      data:
+        transition: 900
+        brightness_pct: 100
+        color_name: blue
+    - action: light.turn_on
+      entity_id: light.front_porch_right
+      data:
+        transition: 900
+        brightness_pct: 100
+        color_name: red

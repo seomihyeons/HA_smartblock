@@ -1,0 +1,41 @@
+- alias: Roomba - Disable Room Clean Boolean if Roomba Didn't Run Main Floor
+  id: roomba_disable_room_clean_boolean_if_roomba_didnt_run_main_floor
+  mode: parallel
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_living_room
+    - input_boolean.roomba_clean_dining_room
+    - input_boolean.roomba_clean_kitchen
+    - input_boolean.roomba_clean_hallway
+    - input_boolean.roomba_clean_bathroom
+    - input_boolean.roomba_clean_bedroom
+    - input_boolean.roomba_clean_bedroom_closet
+    - input_boolean.roomba_clean_front_door
+    - input_boolean.roomba_clean_back_door
+    - input_boolean.roomba_clean_dining_room_table
+    - input_boolean.roomba_clean_living_room_lights
+    - input_boolean.roomba_clean_living_room_lights
+    - input_boolean.roomba_clean_dining_room_lights
+    - input_boolean.roomba_clean_kitchen_lights
+    - input_boolean.roomba_clean_hallway_lights
+    - input_boolean.roomba_clean_bathroom_lights
+    - input_boolean.roomba_clean_bedroom_lights
+    - input_boolean.roomba_clean_bedroom_closet_lights
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: vacuum.main_floor_roomba
+    state: docked
+    for:
+      hours: 0
+      minutes: 4
+      seconds: 0
+  actions:
+  - action: homeassistant.turn_off
+    target:
+      entity_id: '{{ trigger.entity_id }}'

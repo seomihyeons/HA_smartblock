@@ -1,0 +1,21 @@
+- alias: Location - Household Away Mode Fans
+  id: 'location_household_away_mode_fans'
+
+  triggers:
+    - trigger: state
+      entity_id: group.household
+      from: 'home'
+      to: 'not_home'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_home_away
+      state: 'off'
+
+  actions:
+    - action: fan.turn_off
+      target:
+        entity_id:
+          - fan.USER1s_office_fan
+          - fan.living_room_east
+          - fan.living_room_west

@@ -1,0 +1,22 @@
+- alias: Energy - Set Summer Rate
+  id: 'energy_set_summer_rate'
+
+  trigger:
+    - trigger: state
+      entity_id: 
+          - sensor.monthly_electric
+
+  conditions:
+    - condition: template
+      value_template: "{{ now().month in [6,7,8,9] }}"
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: select.monthly_electric
+        state: "Summer Rate"
+
+  actions:
+    - action: select.select_option
+      data:
+        entity_id: select.monthly_electric
+        option: "Summer Rate"

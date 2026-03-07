@@ -1,0 +1,27 @@
+- alias: LED Clock - 4th of July App
+  id: led_clock_4th_of_july_app
+  triggers:
+  - trigger: time
+    at: 09:30:00
+  - trigger: state
+    entity_id: input_select.holiday
+    to: Independence Day
+  conditions:
+  - condition: state
+    entity_id: input_select.holiday
+    state: Independence Day
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/holiday
+      payload: "{  \"icon\": \"usa\", \"pushIcon\": 0, \"repeat\": 3, \"text\": [\n\
+        \  {\n    \"t\": \"Happy \",\n    \"c\": \"FF0000\"\n  },\n  {\n    \"t\"\
+        : \"Independence\",\n    \"c\": \"FFFFFF\"\n  }\n  {\n    \"t\": \"Day\",\n\
+        \    \"c\": \"0000FF\"\n  }\n] }"
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/holiday
+      payload: "{  \"icon\": \"usa\", \"pushIcon\": 0, \"repeat\": 3, \"text\": [\n\
+        \  {\n    \"t\": \"Happy \",\n    \"c\": \"FF0000\"\n  },\n  {\n    \"t\"\
+        : \"Independence\",\n    \"c\": \"FFFFFF\"\n  }\n  {\n    \"t\": \"Day\",\n\
+        \    \"c\": \"0000FF\"\n  }\n] }"

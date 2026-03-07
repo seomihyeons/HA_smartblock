@@ -1,0 +1,38 @@
+- alias: Blinds - Close Stairs Blinds When No Motion Detected
+  id: 'blinds_close_stairs_blinds_when_no_motion_detected'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.stairs_motion
+      from: 'on'
+      to: 'off'
+      for:
+        hours: 2
+        minutes: 0
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_blinds
+      state: 'off'
+    - condition: state
+      entity_id: binary_sensor.USER1s_office_motion
+      state: 'off'
+    - condition: state
+      entity_id: binary_sensor.USER2s_office_motion
+      state: 'off'
+    - condition: state
+      entity_id: binary_sensor.upstairs_bathroom_motion
+      state: 'off'
+    - condition: state
+      entity_id: binary_sensor.stairs_motion
+      state: 'off'
+    - condition: state
+      entity_id: cover.stairs_blinds
+      state: 'open'
+
+  actions:
+    - action: cover.close_cover
+      data:
+        entity_id: 
+          - cover.stairs_blinds

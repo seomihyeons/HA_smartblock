@@ -1,0 +1,31 @@
+- alias: Motion - Turn Off USER2 Office Lights when No Motion Detected
+  id: motion_turn_off_USER2_office_lights_when_no_motion_detected
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.USER2s_office_motion
+    from: 'on'
+    to: 'off'
+    for:
+      hours: 1
+      minutes: 0
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_motion
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: vacuum.upstairs_roomba
+      state: cleaning
+    - condition: state
+      entity_id: vacuum.upstairs_roomba
+      state: returning
+  - condition: state
+    entity_id: light.USER2_office_lights
+    state: 'on'
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.USER2_s_office_ceiling

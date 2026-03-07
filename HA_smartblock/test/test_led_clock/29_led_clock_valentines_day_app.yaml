@@ -1,0 +1,23 @@
+- alias: LED Clock - Valentines Day App
+  id: led_clock_valentines_day_app
+  triggers:
+  - trigger: time
+    at: 09:30:00
+  - trigger: state
+    entity_id: input_select.holiday
+    to: Valentine's Day
+  conditions:
+  - condition: state
+    entity_id: input_select.holiday
+    state: Valentine's Day
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/holiday
+      payload: '{  "icon": "heart", "pushIcon": 0, "repeat": 3, "color": [255,192,203],
+        "text": "Happy Valentines Day" }'
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/holiday
+      payload: '{  "icon": "heart", "pushIcon": 0, "repeat": 3, "color": [255,192,203],
+        "text": "Happy Valentines Day" }'

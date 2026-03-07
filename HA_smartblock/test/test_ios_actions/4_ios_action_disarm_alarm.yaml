@@ -1,0 +1,10 @@
+- alias: iOS Action - Disarm Alarm
+  id: ios_action_disarm_alarm
+  triggers:
+  - trigger: event
+    event_type: ios.action_fired
+    event_data:
+      actionName: Disarm Alarm
+  actions:
+  - action: alarm_control_panel.alarm_disarm
+    entity_id: alarm_control_panel.alarm

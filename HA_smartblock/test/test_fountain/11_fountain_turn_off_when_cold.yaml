@@ -1,0 +1,27 @@
+- alias: Fountain - Turn Off When Cold
+  id: 'fountain_turn_off_when_cold'
+
+  triggers:
+    - trigger: numeric_state
+      entity_id: sensor.REDACTED_temperature
+      below: 38
+      for:
+        hours: 0
+        minutes: 30
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: switch.fountain
+      state: 'on'
+
+  actions:
+    - action: switch.turn_off
+      target:
+        entity_id:
+          - switch.fountain
+    - action: notify.USER1_devices
+      data:
+        message: Cold Outside Shutting Off Fountain
+        data:
+          tag: fountain

@@ -1,0 +1,12 @@
+- alias: Climate - On Demand Away
+  id: climate_on_demand_away
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.thermostat_away
+    from: 'off'
+    to: 'on'
+  actions:
+  - action: climate.set_preset_mode
+    data:
+      entity_id: climate.main_floor
+      preset_mode: away_indefinitely

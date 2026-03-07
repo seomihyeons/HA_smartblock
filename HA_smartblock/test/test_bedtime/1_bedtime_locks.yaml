@@ -1,0 +1,24 @@
+- alias: Bedtime - Locks
+  id: 'bedtime_locks'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.bedtime
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 1
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+
+  actions:
+    - action: lock.lock
+      target:
+        entity_id:
+          - lock.front_door
+          - lock.back_door
+          - lock.basement_door

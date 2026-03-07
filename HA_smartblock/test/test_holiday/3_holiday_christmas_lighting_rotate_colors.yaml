@@ -1,0 +1,52 @@
+- alias: Holiday - Christmas Lighting Rotate Colors
+  id: 'holiday_christmas_lighting_rotate_colors'
+
+  triggers:
+    trigger: time_pattern
+    minutes: /1
+
+  conditions:
+    - condition: state
+      entity_id: sun.sun
+      state: 'below_horizon'
+    - condition: state
+      entity_id: input_select.holiday
+      state: 'Christmas'
+    - condition: state
+      entity_id: light.front_porch
+      state: 'on'
+    - condition: time
+      after: '15:30:00'
+      before: '02:00:00'
+
+  actions:
+    - action: light.turn_on
+      entity_id: light.front_porch_left
+      data:
+        transition: 5
+        brightness_pct: 100
+        color_name: '{{ states(''input_select.exterior_christmas_light_color_left'') }}'
+    - action: light.turn_on
+      entity_id: light.front_porch_right
+      data:
+        transition: 5
+        brightness_pct: 100
+        color_name: '{{ states(''input_select.exterior_christmas_light_color_right'') }}'
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.exterior_christmas_light_color_left
+      data:
+        option: >
+          {{ state_attr('input_select.exterior_christmas_light_color_left', 'options')
+              | reject('eq', states('input_select.exterior_christmas_light_color_left'))
+              | reject('eq', states('input_select.exterior_christmas_light_color_right'))
+              | list | random }}
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.exterior_christmas_light_color_right
+      data:
+        option: >
+          {{ state_attr('input_select.exterior_christmas_light_color_right', 'options')
+              | reject('eq', states('input_select.exterior_christmas_light_color_right'))
+              | reject('eq', states('input_select.exterior_christmas_light_color_left'))
+              | list | random }}

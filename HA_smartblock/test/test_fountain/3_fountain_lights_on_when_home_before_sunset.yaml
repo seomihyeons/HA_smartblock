@@ -1,0 +1,28 @@
+- alias: Fountain - Lights On When Home Before Sunset
+  id: 'fountain_lights_on_when_home_before_sunset'
+
+  triggers:
+    - trigger: state
+      entity_id: group.household
+      from: 'not_home'
+      to: 'home'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_fountain
+      state: 'off'
+    - condition: state
+      entity_id: switch.fountain
+      state: 'on'
+    - condition: state
+      entity_id: switch.fountain_lights
+      state: 'off'
+    - condition: sun
+      after: sunset
+      after_offset: "-00:15:00"
+
+  actions:
+    - action: switch.turn_on
+      target:
+        entity_id:
+          - switch.fountain_lights

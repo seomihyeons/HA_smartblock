@@ -1,0 +1,16 @@
+- alias: Bedtime - Reset Switch
+  id: 'bedtime_reset_switch'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.bedtime
+      from: 'off'
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 10
+        seconds: 0
+
+  actions:
+    - action: homeassistant.turn_off
+      entity_id: input_boolean.bedtime

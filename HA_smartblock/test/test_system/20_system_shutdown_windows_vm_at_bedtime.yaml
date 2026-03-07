@@ -1,0 +1,18 @@
+- alias: System Shutdown Windows VM at Bedtime
+  id: system_shutdown_windows_vm_at_bedtime
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.bedtime
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.qemu_windows_100_status
+    state: 'on'
+  actions:
+  - action: button.press
+    target:
+      entity_id: button.qemu_windows_100_shutdown

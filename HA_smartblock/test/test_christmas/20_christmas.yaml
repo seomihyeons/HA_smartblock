@@ -1,0 +1,17 @@
+- alias: Christmas - Tree Bedtime
+  trigger:
+  - platform: state
+    entity_id: input_boolean.bedtime
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 2
+      seconds: 0
+  condition:
+  - condition: state
+    entity_id: switch.christmas_tree
+    state: 'on'
+  action:
+  - service: switch.turn_off
+    entity_id:
+    - switch.christmas_tree

@@ -1,0 +1,29 @@
+- alias: Climate - Reset Thermostat when Fireplace Off
+  id: climate_reset_thermostat_when_fireplace_off
+  triggers:
+  - trigger: state
+    entity_id: switch.fireplace
+    from: 'on'
+    to: 'off'
+    for:
+      hours: 0
+      minutes: 30
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: sensor.season
+    state: winter
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: input_boolean.thermostat_away
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.disable_climate
+    state: 'off'
+  actions:
+  - action: ecobee.resume_program
+    data:
+      entity_id: climate.main_floor
+      resume_all: true

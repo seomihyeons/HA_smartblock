@@ -1,6 +1,6 @@
 // src/blocks/event_binary_sensor_state.js
 import * as Blockly from 'blockly';
-import { dummyEntities } from '../../data/entities';
+import { dummyEntities } from '../../data/entities_index.js';
 import { makeToStateOptionsFor, registerFromToSyncExtension } from '../../utils/block_state_options';
 
 registerFromToSyncExtension();

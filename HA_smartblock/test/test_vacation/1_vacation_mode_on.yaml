@@ -1,0 +1,25 @@
+- alias: Vacation - Mode On
+  id: vacation_mode_on
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.vacation_mode
+    to: 'on'
+  conditions:
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: group.household
+      state: home
+  - condition: state
+    entity_id: input_boolean.guest_mode
+    state: 'off'
+  actions:
+  - action: homeassistant.turn_on
+    target:
+      entity_id:
+      - input_boolean.disable_rainy_day
+      - input_boolean.disable_interior_lights_sunset
+      - input_boolean.disable_media_lights
+      - input_boolean.disable_occupancy
+      - input_boolean.disable_motion
+      - input_boolean.disable_fountain

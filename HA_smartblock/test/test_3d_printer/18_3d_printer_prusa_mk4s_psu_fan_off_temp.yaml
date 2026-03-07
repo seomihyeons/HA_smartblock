@@ -1,0 +1,27 @@
+- alias: 3D-Printer - Prusa MK4S PSU Fan Off Temp
+  id: 3d_printer_prusa_mk4s_psu_fan_off_temp
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.prusa_mk4s_enclosure_temperature
+    below: 28
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  conditions:
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: switch.prusa_mk4s_psu_fan
+      state: 'on'
+  - condition: state
+    entity_id: sensor.prusa_mk4s
+    state: printing
+  - condition: state
+    entity_id: input_boolean.prusa_mk4s_disable_fans
+    state: 'off'
+  actions:
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.prusa_mk4s_psu_fan

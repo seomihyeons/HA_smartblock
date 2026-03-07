@@ -1,0 +1,27 @@
+- alias: LED Clock - USER1's Office Media Remove
+  id: led_clock_USER1_office_media_remove
+  triggers:
+  - trigger: state
+    entity_id: media_player.sonos_USER1s_office
+    from: playing
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 10
+  - trigger: state
+    entity_id: media_player.USER1_s_office_apple_tv
+    from: playing
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 10
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/music_song
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/music_album
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/youtube

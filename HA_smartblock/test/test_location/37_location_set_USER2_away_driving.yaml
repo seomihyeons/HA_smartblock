@@ -1,0 +1,17 @@
+- alias: Location - Set USER2 Away Driving
+  id: 'location_set_USER2_away_driving'
+
+  triggers:
+    - trigger: state
+      entity_id: person.USER2
+      from: 'home'
+      to: 'not_home'
+
+  conditions:
+    - condition: state
+      entity_id: cover.garage_door
+      state: 'open'
+
+  actions:
+    - action: homeassistant.turn_on
+      entity_id: input_boolean.USER2_away_driving

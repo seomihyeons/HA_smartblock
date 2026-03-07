@@ -1,0 +1,46 @@
+- alias: Location - USER2 Left Work Audio Notification
+  id: 'location_USER2_left_work_audio_notification'
+
+  triggers:
+    - trigger: state
+      entity_id: person.USER2
+      from: 'Work'
+      to: 'not_home'
+
+  conditions:
+    - condition: state
+      entity_id: person.USER1
+      state: 'home'
+    - condition: state
+      entity_id: person.USER2
+      state: 'not_home'
+    - condition: state
+      entity_id: input_boolean.USER2_away
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.disable_notifications
+      state: 'off'
+    - condition: state
+      entity_id: input_boolean.USER1_s_office_do_not_disturb
+      state: 'off'
+    - condition: time
+      after: '09:00:00'
+      before: '19:00:00'
+
+  actions:
+    - action: media_player.play_media
+      target:
+        entity_id: 
+          - media_player.sonos_living_room
+          - media_player.sonos_kitchen
+          - media_player.sonos_bathroom
+          - media_player.sonos_bedroom_closet
+          - media_player.sonos_USER1s_office
+          - media_player.sonos_move
+      data:
+        announce: true
+        media_content_id: >
+          media-source://tts/cloud?message="USER2 has left work, and will arrive Home in about, {{states('sensor.USER2_to_home')}} minutes"
+        media_content_type: "music"
+        extra:
+          volume: 45

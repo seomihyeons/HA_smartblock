@@ -1,0 +1,12 @@
+- alias: xHome - Door Unlock Curtain Open
+  id: xhome_door_unlock_curtain_open
+
+  triggers:
+    - trigger: state
+      entity_id: lock.doorlock
+      to: 'unlocked'
+
+  actions:
+    - action: cover.open_cover
+      target:
+        entity_id: cover.curtain

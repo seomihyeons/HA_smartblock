@@ -1,0 +1,20 @@
+- alias: Lights - Basement Lights Off Center Pico Button
+  id: lights_basement_lights_off_center_pico_button
+  triggers:
+  - trigger: event
+    event_type: lutron_caseta_button_event
+    event_data:
+      serial: 42010030
+      button_number: 3
+      action: press
+  conditions:
+  - condition: state
+    entity_id: light.basement_lighting
+    state: 'on'
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.basement_lighting
+  - delay:
+      seconds: 1

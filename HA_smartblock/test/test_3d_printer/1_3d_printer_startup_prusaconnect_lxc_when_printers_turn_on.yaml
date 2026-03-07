@@ -1,0 +1,25 @@
+- alias: Startup PrusaConnect LXC When Printers Turn On
+  id: 3d_printer_startup_prusaconnect_lxc_when_printers_turn_on
+  triggers:
+  - trigger: state
+    entity_id: switch.prusa_mk4s
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+  - trigger: state
+    entity_id: switch.prusa_mk4s_mmu3
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: binary_sensor.lxc_prusaconnect_cam_108_status
+    state: 'off'
+  actions:
+  - action: button.press
+    target:
+      entity_id: button.lxc_prusaconnect_cam_108_start

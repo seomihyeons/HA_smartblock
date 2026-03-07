@@ -1,0 +1,12 @@
+- alias: LED Clock - USER1's Office Party Time
+  id: led_clock_USER1_office_party_time
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.office_rainbow
+    to: 'on'
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/custom/party_time
+      payload: '{  "effect": "Plasma", "repeat": 3, "rainbow": false, "text": "Party
+        Time!", "color": [255,255,255] }'

@@ -1,0 +1,16 @@
+- alias: Garage - Flash Light When Garage Motor On
+  id: 'garage_flash_light_when_garage_motor_on'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.garage_door_motor
+      to: 'on'
+
+  actions:
+    - action: lifx.effect_pulse
+      data:
+        cycles: 5
+        power_on: true
+        brightness_pct: 100
+      target:
+        entity_id: light.garage_interior

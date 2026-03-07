@@ -1,0 +1,27 @@
+- alias: 3D-Printer - Prusa MK4S MMU3 PSU Fan On Print Start
+  id: 3d_printer_prusa_mk4s_mmu3_psu_fan_on_print_start
+  triggers:
+  - trigger: state
+    entity_id: sensor.prusa_mk4s_mmu3
+    to: printing
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+  conditions:
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: switch.prusa_mk4s_mmu3_psu_fan
+      state: 'off'
+  - condition: numeric_state
+    entity_id: sensor.prusa_mk4s_mmu3_enclosure_temperature
+    above: 28
+  - condition: state
+    entity_id: input_boolean.prusa_mk4s_mmu3_disable_fans
+    state: 'off'
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id:
+      - switch.prusa_mk4s_mmu3_psu_fan

@@ -1,0 +1,12 @@
+- alias: iOS Action - Living Room Fans Increase Speed
+  id: ios_action_automation_living_room_fans_increase_speed
+  triggers:
+  - trigger: event
+    event_type: ios.action_fired
+    event_data:
+      actionName: Living Room Fans Increase Speed
+  actions:
+  - action: fan.increase_speed
+    target:
+      entity_id: fan.living_room_fans
+    data: {}

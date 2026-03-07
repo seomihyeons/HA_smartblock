@@ -1,0 +1,47 @@
+- alias: Lights - USER1 Office Random Color Off
+  id: lights_USER1_office_random_color_off
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.office_rainbow
+    to: 'off'
+  conditions:
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: input_boolean.bedtime
+    state: 'off'
+  - condition: state
+    entity_id: light.office_lamp
+    state: 'on'
+  - condition: state
+    entity_id: light.moon_globe
+    state: 'on'
+  actions:
+  - action: light.turn_on
+    entity_id: light.office_lamp
+    data:
+      transition: 5
+      color_temp: 370
+      brightness_pct: 100
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.moon_globe
+    data:
+      brightness_pct: 10
+      color_temp: 238
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.USER1_office_desk_lamp
+    data:
+      brightness_pct: 25
+      color_temp: 370
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.USER1_office_desk_accent
+    data:
+      brightness_pct: 80
+      color_temp: 370

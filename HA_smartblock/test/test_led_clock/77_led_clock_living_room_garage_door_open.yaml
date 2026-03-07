@@ -1,0 +1,20 @@
+- alias: LED Clock - Living Room Garage Door Open
+  id: led_clock_living_room_garage_door_open
+  triggers:
+  - trigger: state
+    entity_id: cover.garage_door
+    from: closed
+    to: open
+  conditions:
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: light.living_room_clock
+    state: 'on'
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/notify
+      payload: '{  "icon": "garage_open", "pushIcon": 0, "duration": 30, "color":
+        [255,0,0], "stack": false, "text": "Garage Open" }'

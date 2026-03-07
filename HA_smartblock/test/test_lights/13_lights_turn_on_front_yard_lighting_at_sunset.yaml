@@ -1,0 +1,11 @@
+- alias: Lights - Turn On Front Yard Lighting at Sunset
+  id: lights_turn_on_front_yard_lighting_at_sunset
+  triggers:
+  - trigger: sun
+    event: sunset
+    offset: -00:15:00
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id:
+      - switch.front_yard_lighting

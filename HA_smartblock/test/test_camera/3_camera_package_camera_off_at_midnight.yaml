@@ -1,0 +1,20 @@
+- alias: Camera - Package Camera Off at Midnight
+  id: camera_package_camera_off_at_midnight
+  triggers:
+  - trigger: time
+    at: '23:59:00'
+  conditions:
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: input_boolean.view_package_camera
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.package_camera_notification
+      state: 'on'
+  actions:
+  - action: homeassistant.turn_off
+    target:
+      entity_id:
+      - input_boolean.view_package_camera
+      - input_boolean.package_camera_notification

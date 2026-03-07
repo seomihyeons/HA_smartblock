@@ -1,0 +1,37 @@
+- alias: Climate - Turn Thermostat Off Spring/Fall
+  id: climate_turn_thermostat_off_spring_fall
+  triggers:
+  - trigger: numeric_state
+    entity_id: sensor.REDACTED_temperature
+    above: 65
+    below: 75
+    for:
+      hours: 0
+      minutes: 30
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: input_boolean.disable_climate
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.thermostat_away
+    state: 'off'
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: sensor.season
+      state: spring
+    - condition: state
+      entity_id: sensor.season
+      state: autumn
+  actions:
+  - action: homeassistant.turn_on
+    entity_id: input_boolean.thermostat_away
+  - action: notify.USER1_devices
+    data:
+      message: Outside temp above 65 or below 78 turning Off HVAC
+      data:
+        tag: climate

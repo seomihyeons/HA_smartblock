@@ -1,0 +1,32 @@
+- alias: Christmas - Tree Home Mode
+  trigger:
+  - platform: state
+    entity_id: group.household
+    from: not_home
+    to: home
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 45
+  condition:
+  - condition: state
+    entity_id: input_boolean.disable_home_away
+    state: 'off'
+  - condition: state
+    entity_id: sun.sun
+    state: below_horizon
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: input_boolean.USER1_away
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.USER2_away
+      state: 'on'
+  - condition: state
+    entity_id: switch.christmas_tree
+    state: 'off'
+  action:
+  - service: switch.turn_on
+    entity_id:
+    - switch.christmas_tree

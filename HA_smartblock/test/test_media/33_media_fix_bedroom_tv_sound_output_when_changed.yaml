@@ -1,0 +1,20 @@
+- alias: Media - Fix Bedroom TV Sound Output When Changed
+  id: media_fix_bedroom_tv_sound_output_when_changed
+  triggers:
+  - trigger: state
+    entity_id: media_player.bedroom_tv
+    attribute: sound_output
+    from: external_arc
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 15
+  conditions:
+  - condition: state
+    entity_id: media_player.bedroom_tv
+    state: 'on'
+  actions:
+  - action: webostv.select_sound_output
+    data:
+      entity_id: media_player.bedroom_tv
+      sound_output: external_arc

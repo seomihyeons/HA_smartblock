@@ -1,0 +1,44 @@
+- alias: Lights - Turn On Bedroom Grow Light When Away
+  id: lights_turn_on_bedroom_grow_light_when_away
+  triggers:
+  - trigger: state
+    entity_id: group.household
+    from: home
+    to: not_home
+    for:
+      hours: 0
+      minutes: 16
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: light.closet_lamp
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.disable_bedroom_grow_light
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: light.closet_lamp
+      attribute: effect
+      state: Plantgrowth
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: sensor.season
+      state: summer
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id: light.closet_lamp
+    data:
+      brightness_pct: 100
+      effect: Plantgrowth
+  - delay:
+      seconds: 30
+  - action: light.turn_on
+    target:
+      entity_id: light.closet_lamp
+    data:
+      brightness_pct: 100
+      effect: Plantgrowth

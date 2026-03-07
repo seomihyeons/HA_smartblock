@@ -1,0 +1,28 @@
+- alias: Camera - Household Away Turn On Privacy Mode
+  id: camera_household_home_turn_on_privacy_mode
+  triggers:
+  - trigger: state
+    entity_id: group.household
+    from: not_home
+    to: home
+    for:
+      hours: 0
+      minutes: 1
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_home_away
+    state: 'off'
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id:
+      - switch.basement_camera_privacy_mode
+      - switch.living_room_camera_privacy_mode
+      - switch.kitchen_camera_privacy_mode
+      - switch.USER1_office_camera_privacy_mode
+  - delay: 00:05:00
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.secondary_switch_basement_camera_poe

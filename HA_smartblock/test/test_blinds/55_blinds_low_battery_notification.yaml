@@ -1,0 +1,34 @@
+- alias: Blinds - Low Battery Notification
+  id: 'blinds_low_battery_notification'
+
+  mode: parallel
+  triggers:
+    - trigger: numeric_state
+      entity_id: 
+          - sensor.USER1s_office_blinds_center
+          - sensor.USER1s_office_blinds_left
+          - sensor.USER1s_office_blinds_right
+          - sensor.bedroom_closet_blinds_center
+          - sensor.bedroom_closet_blinds_left
+          - sensor.bedroom_closet_blinds_right
+          - sensor.USER2s_office_blinds_left
+          - sensor.USER2s_office_blinds_right
+          - sensor.stairs_blinds_left
+          - sensor.stairs_blinds_right
+          - sensor.kitchen_blinds_south
+          - sensor.kitchen_blinds_west
+      below: 30
+      for:
+        hours: 1
+        minutes: 0
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_notifications
+      state: 'off'
+
+  actions:
+    - action: notify.USER1_devices
+      data:
+        message: "{{ trigger.to_state.attributes.friendly_name }} Low Battery"

@@ -1,0 +1,17 @@
+- alias: LED Clock - USER1 Office Do Not Disturb Off
+  id: led_clock_USER1_office_do_not_disturb_off
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.USER1_s_office_do_not_disturb
+    to: 'off'
+  conditions:
+  - condition: state
+    entity_id: light.USER1s_office_desktop_clock
+    state: 'on'
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  actions:
+  - action: button.press
+    target:
+      entity_id: button.USER1s_office_desktop_clock_dismiss_notification

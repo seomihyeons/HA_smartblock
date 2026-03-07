@@ -1,0 +1,24 @@
+- alias: Alarm - Arm Home at Bedtime
+  id: 'alarm_arm_home_at_bedtime'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.bedtime
+      from: 'off'
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: alarm_control_panel.alarm
+      state: 'disarmed'
+
+  actions:
+    - action: alarm_control_panel.alarm_arm_home
+      entity_id: alarm_control_panel.alarm

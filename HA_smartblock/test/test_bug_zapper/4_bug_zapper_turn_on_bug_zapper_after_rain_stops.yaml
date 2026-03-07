@@ -1,0 +1,26 @@
+- alias: Bug Zapper - Turn On Bug Zapper After Rain Stops
+  id: bug_zapper_turn_on_bug_zapper_after_rain_stops
+  triggers:
+  - trigger: state
+    entity_id: weather.REDACTED
+    from: rainy
+  conditions:
+  - condition: state
+    entity_id: switch.bug_zapper
+    state: 'off'
+  - condition: state
+    entity_id: sun.sun
+    state: below_horizon
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: sensor.season
+      state: winter
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id:
+      - switch.bug_zapper

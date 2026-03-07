@@ -1,0 +1,34 @@
+- alias: Blinds - Close USER2's Office Blinds When No Motion Detected Portable AC
+  id: 'blinds_close_USER2_office_blinds_when_no_motion_detected_portable_ac'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.USER2s_office_motion
+      from: 'on'
+      to: 'off'
+      for:
+        hours: 1
+        minutes: 0
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_blinds
+      state: 'off'
+    - condition: state
+      entity_id: cover.USER2_s_office_blinds
+      state: 'open'
+    - condition: state
+      entity_id: input_boolean.USER2_office_portable_ac
+      state: 'on'
+
+  actions:
+    - action: cover.close_cover
+      data:
+        entity_id: 
+          - cover.USER2s_office_blinds_left
+    - action: cover.set_cover_position
+      data:
+        entity_id: 
+          - cover.USER2s_office_blinds_right
+        position: 15

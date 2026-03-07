@@ -1,0 +1,24 @@
+- alias: Bedtime - Fans
+  id: 'bedtime_fans'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.bedtime
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 3
+        seconds: 30
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+
+  actions:
+    - action: fan.turn_off
+      target:
+        entity_id:
+          - fan.USER1s_office_fan
+          - fan.living_room_east
+          - fan.living_room_west

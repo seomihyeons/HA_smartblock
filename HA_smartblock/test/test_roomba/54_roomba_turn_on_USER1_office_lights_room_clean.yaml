@@ -1,0 +1,19 @@
+- alias: Roomba - Turn On USER1's Office Lights Room Clean
+  id: roomba_turn_on_USER1_office_lights_room_clean
+  triggers:
+  - trigger: state
+    entity_id: vacuum.upstairs_roomba
+    to: cleaning
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 5
+  conditions:
+  - condition: state
+    entity_id: input_boolean.roomba_clean_USER1_office_lights
+    state: 'on'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.USER1_office_lights

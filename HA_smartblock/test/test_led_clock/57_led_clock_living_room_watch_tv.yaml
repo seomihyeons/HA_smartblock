@@ -1,0 +1,24 @@
+- alias: LED Clock - Living Room Watch TV
+  id: led_clock_living_room_watch_tv
+  triggers:
+  - trigger: state
+    entity_id: select.living_room_tv_activities
+    to: Watch TV
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/tv_state
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/tv_state
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/notify
+      payload: '{  "icon": "tv", "pushIcon": 0, "duration": 30, "rainbow": true, "stack":
+        false, "text": "TV" }'
+  - delay: 00:00:20
+  - action: mqtt.publish
+    data:
+      topic: living_room_clock/custom/tv_state
+      payload: '{  "icon": "tv", "pushIcon": 0, "repeat": 3, "rainbow": true, "text":
+        "TV" }'

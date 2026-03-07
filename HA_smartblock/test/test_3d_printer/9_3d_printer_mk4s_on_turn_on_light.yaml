@@ -1,0 +1,18 @@
+- alias: 3D-Printer - MK4S On Turn On Light
+  id: 3d_printer_mk4s_on_turn_on_light
+  triggers:
+  - trigger: state
+    entity_id: switch.prusa_mk4s
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: light.prusa_mk4s
+    state: 'off'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.prusa_mk4s
+    data:
+      brightness_pct: 100
+      effect: Daylight

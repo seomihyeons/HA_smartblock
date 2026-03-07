@@ -1,0 +1,41 @@
+- alias: Roomba - Turn On low lights for Upstairs Roomba Away
+  id: roomba_turn_on_lights_for_upstairs_roomba_away
+  triggers:
+  - trigger: state
+    entity_id: vacuum.upstairs_roomba
+    to: cleaning
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 15
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_roomba
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: group.household
+      state: home
+  - condition: state
+    entity_id: input_boolean.roomba_clean_USER1_office_lights
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.roomba_clean_USER2_office_lights
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.roomba_clean_guest_bedroom_lights
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.roomba_clean_upstairs_hallway_lights
+    state: 'off'
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.USER1_office_lights
+      - light.USER2_office_lights
+      - light.guest_bedroom_lights
+      - light.stairs_light
+    data:
+      brightness_pct: 100

@@ -1,0 +1,27 @@
+- alias: Christmas - Turn off Tree when USER2 Leaves
+  trigger:
+  - platform: state
+    entity_id: person.USER2
+    from: home
+    to: not_home
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  condition:
+  - condition: state
+    entity_id: input_boolean.disable_home_away
+    state: 'off'
+  - condition: time
+    after: 05:00
+    before: '15:00'
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  - condition: state
+    entity_id: switch.christmas_tree
+    state: 'on'
+  action:
+  - service: switch.turn_off
+    entity_id:
+    - switch.christmas_tree

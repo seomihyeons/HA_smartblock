@@ -1,0 +1,24 @@
+- alias: Holiday - Enable New Years Eve Lighting
+  id: 'holiday_enable_new_years_eve_lighting'
+
+  triggers:
+    - trigger: state
+      entity_id: calendar.holiday
+      to: 'on'
+      for:
+        hours: 9
+        minutes: 0
+        seconds: 0
+
+  conditions:
+    - condition: or
+      conditions:
+        - condition: state
+          entity_id: sensor.holidays_calendar
+          state: "New Year's Eve"
+
+  actions:
+    - action: input_select.select_option
+      data:
+        entity_id: input_select.holiday
+        option: "New Year's Eve"

@@ -1,0 +1,42 @@
+- alias: Lights - Turn Off Backyard Lighting After Midnight
+  id: lights_turn_off_backyard_lighting_after_midnight
+  triggers:
+  - trigger: state
+    entity_id: light.back_door
+    from: 'off'
+    to: 'on'
+    for:
+      hours: 1
+      minutes: 0
+      seconds: 0
+  conditions:
+  - condition: time
+    after: 00:00:00
+    before: 07:30:00
+  - condition: state
+    entity_id: input_boolean.disable_exterior_off_night
+    state: 'off'
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: input_boolean.guest_mode
+    state: 'off'
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.back_door
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.backyard_deck
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.backyard_patio
+  - action: switch.turn_off
+    target:
+      entity_id:
+      - switch.lower_backyard_lighting
+      - switch.backyard_patio_lighting

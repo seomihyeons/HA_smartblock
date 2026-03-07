@@ -1,0 +1,30 @@
+- alias: Bedtime - Garage Door
+  id: 'bedtime_garage_door'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.bedtime
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 30
+
+  conditions:
+    - condition: state
+      entity_id: cover.garage_door
+      state: 'open'
+    - condition: state
+      entity_id: input_boolean.garage_door_motor
+      state: 'off'
+
+  actions:
+    - action: light.turn_on
+      target:
+        entity_id:
+          - light.garage_interior
+      data:
+       flash: long
+    - delay: '00:00:15'
+    - action: cover.close_cover
+      entity_id: cover.garage_door

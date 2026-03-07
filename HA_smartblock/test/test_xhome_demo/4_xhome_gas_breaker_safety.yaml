@@ -1,0 +1,16 @@
+- alias: xHome - Curtain Closed Secure Lock
+  id: xhome_curtain_closed_secure_lock
+
+  triggers:
+    - trigger: state
+      entity_id: cover.curtain
+      to: 'closed'
+
+  actions:
+    - action: lock.lock
+      target:
+        entity_id: lock.doorlock
+
+    - action: lock.lock
+      target:
+        entity_id: lock.gas_breaker

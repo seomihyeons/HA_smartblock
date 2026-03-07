@@ -1,0 +1,41 @@
+- alias: Water Works - Washing Machine Water Sensor Audio Notification
+  id: water_works_washing_machine_water_sensor_audio_notification
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.washing_machine_water_sensor
+    from: 'off'
+    to: 'on'
+  conditions:
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: input_boolean.disable_water_automations
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.disable_notifications
+    state: 'off'
+  actions:
+  - action: media_player.play_media
+    target:
+      entity_id:
+      - media_player.sonos_living_room
+      - media_player.sonos_dining_room
+      - media_player.sonos_kitchen
+      - media_player.sonos_bathroom
+      - media_player.sonos_bedroom
+      - media_player.sonos_bedroom_closet
+      - media_player.sonos_USER1s_office
+      - media_player.sonos_USER2s_office
+      - media_player.sonos_move
+      - media_player.sonos_fitness_room
+      - media_player.sonos_craft_room
+    data:
+      announce: true
+      media_content_id: 'media-source://tts/cloud?message="Water Detected by Washing
+        Machine! Shutting Off Water Supply"
+
+        '
+      media_content_type: music
+      extra:
+        volume: 50

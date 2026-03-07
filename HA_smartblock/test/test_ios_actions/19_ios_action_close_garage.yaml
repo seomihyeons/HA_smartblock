@@ -1,0 +1,10 @@
+- alias: iOS Action - Close Garage
+  id: ios_action_close_garage
+  triggers:
+  - trigger: event
+    event_type: mobile_app_notification_action
+    event_data:
+      action: close_garage
+  actions:
+  - action: cover.close_cover
+    entity_id: cover.garage_door

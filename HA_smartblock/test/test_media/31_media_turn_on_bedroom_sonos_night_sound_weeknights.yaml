@@ -1,0 +1,24 @@
+- alias: Media - Turn on Bedroom Sonos Night Sound Weeknights
+  id: media_turn_on_bedroom_sonos_night_sound_weeknights
+  triggers:
+  - trigger: time
+    at: '22:00:00'
+  conditions:
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: person.USER2
+    state: home
+  - condition: time
+    weekday:
+    - sun
+    - mon
+    - tue
+    - wed
+    - thu
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id:
+      - switch.sonos_bedroom_night_sound

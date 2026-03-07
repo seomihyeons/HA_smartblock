@@ -1,0 +1,37 @@
+- alias: Lights - USER1 Office Desk Lamp Do Not Disturb Off Daytime Blinds Open
+  id: lights_USER1_office_desk_lamp_do_not_disturb_off_daytime_blinds_open
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.USER1_s_office_do_not_disturb
+    to: 'off'
+  conditions:
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  - condition: state
+    entity_id: sun.sun
+    state: above_horizon
+  - condition: state
+    entity_id: light.USER1_office_desk_lamp
+    state: 'on'
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: cover.USER1_s_office_blinds
+      state: open
+    - condition: state
+      entity_id: cover.USER1_s_office_blinds
+      state: opening
+  actions:
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.USER1_office_desk_lamp
+    data:
+      brightness_pct: 25
+      color_temp: 370
+  - delay: 00:00:05
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.USER1_office_desk_lamp

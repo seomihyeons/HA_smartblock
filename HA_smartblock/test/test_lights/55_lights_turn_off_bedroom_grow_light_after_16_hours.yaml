@@ -1,0 +1,30 @@
+- alias: Lights - Turn Off Bedroom Grow Light After 16 Hours
+  id: lights_turn_off_bedroom_grow_light_after_16_hours
+  triggers:
+  - trigger: sun
+    event: sunrise
+    offset: '+16:00:00'
+  conditions:
+  - condition: state
+    entity_id: light.closet_lamp
+    state: 'on'
+  - condition: state
+    entity_id: group.household
+    state: not_home
+  - condition: state
+    entity_id: input_boolean.disable_bedroom_grow_light
+    state: 'off'
+  - condition: state
+    entity_id: light.closet_lamp
+    attribute: effect
+    state: Plantgrowth
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: sensor.season
+      state: summer
+  actions:
+  - action: light.turn_off
+    target:
+      entity_id:
+      - light.closet_lamp

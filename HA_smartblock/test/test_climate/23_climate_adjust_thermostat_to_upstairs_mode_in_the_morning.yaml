@@ -1,0 +1,46 @@
+- alias: Climate - Adjust Thermostat to Upstairs Mode in the Morning
+  id: climate_adjust_thermostat_to_upstairs_mode_in_the_morning
+  triggers:
+  - trigger: time
+    at: '10:00:00'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.thermostat_away
+    state: 'off'
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: sensor.season
+      state: winter
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: climate.main_floor
+      state: heat
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: climate.main_floor
+      state: 'off'
+  - condition: numeric_state
+    entity_id: sensor.REDACTED_forecasted_temperature_high
+    above: 79
+  - condition: state
+    entity_id: input_boolean.disable_climate
+    state: 'off'
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: or
+    conditions:
+    - condition: state
+      entity_id: input_boolean.USER1_office_portable_ac
+      state: 'off'
+    - condition: state
+      entity_id: input_boolean.USER2_office_portable_ac
+      state: 'off'
+  actions:
+  - action: climate.set_preset_mode
+    data:
+      entity_id: climate.main_floor
+      preset_mode: Upstairs

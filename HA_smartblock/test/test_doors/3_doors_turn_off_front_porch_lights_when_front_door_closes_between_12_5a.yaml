@@ -1,0 +1,34 @@
+- alias: Doors - Turn Off Front Porch Lights when Front Door Closes between 12-5a
+  id: 'doors_turn_off_front_porch_lights_when_front_door_closes_between_12_5a'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.front_door_opened
+      from: 'on'
+      to: 'off'
+      for:
+        hours: 0
+        minutes: 15
+        seconds: 0
+
+  conditions:
+    - condition: time
+      after: '00:00:00'
+      before: '05:00:00'
+    - condition: state
+      entity_id: input_boolean.disable_door_open_lights_on
+      state: 'off'
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: input_select.holiday
+      state: 'None'
+
+  actions:
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.front_porch
+      data:
+        transition: 900

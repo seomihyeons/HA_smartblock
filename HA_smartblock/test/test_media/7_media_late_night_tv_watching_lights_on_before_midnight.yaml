@@ -1,0 +1,88 @@
+- alias: Media - Late Night TV Watching Lights On before Midnight
+  id: media_late_night_tv_watching_lights_on_before_midnight
+  triggers:
+  - trigger: state
+    entity_id: media_player.living_room_apple_tv
+    to: paused
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 30
+  - trigger: state
+    entity_id: media_player.living_room_apple_tv
+    to: idle
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 30
+  conditions:
+  - condition: state
+    entity_id: sun.sun
+    state: below_horizon
+  - condition: state
+    entity_id: input_boolean.livingroom_rainbow
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.disable_media_lights
+    state: 'off'
+  - condition: time
+    after: '21:30:00'
+  - condition: state
+    entity_id: input_boolean.watching_plex
+    state: 'off'
+  - condition: state
+    entity_id: select.living_room_tv_activities
+    state: Watch TV
+  - condition: state
+    entity_id: input_boolean.guest_mode
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.living_room_guest
+    state: 'off'
+  actions:
+  - action: light.turn_on
+    entity_id: light.living_room_lamps
+    data:
+      transition: 5
+      color_temp: 370
+      brightness_pct: 100
+  - action: light.turn_on
+    entity_id: light.media_center_lighting
+    data:
+      transition: 5
+      brightness_pct: 100
+  - action: light.turn_on
+    entity_id: light.hallway_light
+    data:
+      brightness_pct: 2
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.dining_room_table
+    data:
+      brightness_pct: 2
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.kitchen_sink
+    data:
+      brightness_pct: 2
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.kitchen_cabinets
+    data:
+      brightness_pct: 2
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.bathroom_vanity
+    data:
+      brightness_pct: 30
+  - action: light.turn_on
+    target:
+      entity_id:
+      - light.globe
+    data:
+      transition: 5
+      brightness_pct: 65

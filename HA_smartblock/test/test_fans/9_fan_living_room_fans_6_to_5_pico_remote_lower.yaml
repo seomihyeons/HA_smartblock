@@ -1,0 +1,29 @@
+- alias: Fan - Living Room Fans 6 to 5 Pico Remote Lower
+  id: 'fan_living_room_fans_6_to_5_pico_remote_lower'
+
+  triggers:
+    - trigger: event
+      event_type: lutron_caseta_button_event
+      event_data:
+        serial: 49229391
+        button_number: 6
+        action: press
+
+  conditions:
+    - condition: state
+      entity_id: fan.living_room_fans
+      state: 'on'
+    - condition: template
+      value_template: "{{is_state_attr('fan.living_room_fans', 'percentage', 100)}}"
+
+  actions:
+    - delay:
+        seconds: 1
+    - action: fan.set_percentage
+      data:
+        entity_id:
+          - fan.living_room_east
+          - fan.living_room_west
+        percentage: 83
+    - delay:
+        seconds: 1

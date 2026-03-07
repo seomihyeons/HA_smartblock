@@ -1,0 +1,29 @@
+- alias: Climate - Turn On Guest Settings before Midnight
+  id: climate_turn_on_guest_settings_before_midnight
+  triggers:
+  - trigger: time
+    at: '23:31:00'
+  conditions:
+  - condition: state
+    entity_id: input_boolean.thermostat_away
+    state: 'off'
+  - condition: state
+    entity_id: input_boolean.disable_climate
+    state: 'off'
+  - condition: state
+    entity_id: group.household
+    state: home
+  - condition: state
+    entity_id: input_boolean.guest_mode
+    state: 'on'
+  - condition: state
+    entity_id: input_boolean.overnight_guest_mode
+    state: 'on'
+  - condition: state
+    entity_id: input_boolean.guest_bedroom_portable_ac
+    state: 'off'
+  actions:
+  - action: climate.set_preset_mode
+    data:
+      entity_id: climate.main_floor
+      preset_mode: Guest

@@ -1,0 +1,31 @@
+- alias: Roomba - Disable Room Clean Boolean if Roomba Didn't Run Upstairs
+  id: roomba_disable_room_clean_boolean_if_roomba_didnt_run_upstairs
+  mode: parallel
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_boolean.roomba_clean_USER1_office
+    - input_boolean.roomba_clean_USER2_office
+    - input_boolean.roomba_clean_guest_bedroom
+    - input_boolean.roomba_clean_upstairs_hallway
+    - input_boolean.roomba_clean_USER1_office_lights
+    - input_boolean.roomba_clean_USER2_office_lights
+    - input_boolean.roomba_clean_guest_bedroom_lights
+    - input_boolean.roomba_clean_upstairs_hallway_lights
+    to: 'on'
+    for:
+      hours: 0
+      minutes: 5
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: vacuum.upstairs_roomba
+    state: docked
+    for:
+      hours: 0
+      minutes: 4
+      seconds: 0
+  actions:
+  - action: homeassistant.turn_off
+    target:
+      entity_id: '{{ trigger.entity_id }}'

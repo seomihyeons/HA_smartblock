@@ -1,0 +1,38 @@
+- alias: Bug Zapper - Turn On Bug Zapper when Returning Home
+  id: bug_zapper_turn_bug_zapper_when_returning_home
+  triggers:
+  - trigger: state
+    entity_id: group.household
+    from: not_home
+    to: home
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 30
+  conditions:
+  - condition: state
+    entity_id: switch.bug_zapper
+    state: 'off'
+  - condition: state
+    entity_id: sun.sun
+    state: below_horizon
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: weather.REDACTED
+      state: rainy
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: weather.REDACTED
+      state: lightning-rainy
+  - condition: not
+    conditions:
+    - condition: state
+      entity_id: sensor.season
+      state: winter
+  actions:
+  - action: switch.turn_on
+    target:
+      entity_id:
+      - switch.bug_zapper

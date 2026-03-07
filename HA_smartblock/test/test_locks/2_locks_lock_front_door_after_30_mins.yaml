@@ -1,0 +1,24 @@
+- alias: Locks - Lock Front Door After 30 Mins
+  id: locks_lock_front_door_after_30_mins
+  triggers:
+  - trigger: state
+    entity_id: lock.front_door
+    from: locked
+    to: unlocked
+    for:
+      hours: 0
+      minutes: 30
+      seconds: 0
+  conditions:
+  - condition: state
+    entity_id: input_boolean.disable_lock_unlock_doors
+    state: 'off'
+  - condition: state
+    entity_id: binary_sensor.front_door_opened
+    state: 'off'
+  - condition: state
+    entity_id: lock.front_door
+    state: unlocked
+  actions:
+  - action: lock.lock
+    entity_id: lock.front_door

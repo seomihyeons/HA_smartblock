@@ -1,0 +1,60 @@
+- alias: LED Clock - USER1's Office Echo Timer Done
+  id: led_clock_USER1_office_echo_timer_done
+  mode: parallel
+  triggers:
+  - trigger: state
+    entity_id: binary_sensor.USER1_s_office_echo_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.basement_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.bathroom_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.bedroom_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.craft_room_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.dining_room_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.fitness_room_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.guest_bedroom_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.kitchen_timer
+    from: 'on'
+    to: 'off'
+  - trigger: state
+    entity_id: binary_sensor.USER2_s_office_timer
+    from: 'on'
+    to: 'off'
+  conditions:
+  - condition: state
+    entity_id: person.USER1
+    state: home
+  - condition: state
+    entity_id: light.USER1s_office_desktop_clock
+    state: 'on'
+  - condition: state
+    entity_id: input_boolean.disable_echo
+    state: 'off'
+  actions:
+  - action: mqtt.publish
+    data:
+      topic: USER1_office_clock/notify
+      payload: '{  "icon": "timer", "pushIcon": 0, "duration": 60, "rainbow": true,
+        "text": "Echo Timer Finished" }'

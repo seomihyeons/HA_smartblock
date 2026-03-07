@@ -1,0 +1,27 @@
+- alias: Garage - Close On Demand
+  id: 'garage_close_on_demand'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.garage_door
+      to: 'off'
+
+  conditions:
+    - condition: state
+      entity_id: cover.garage_door
+      state: 'open'
+    - condition: state
+      entity_id: input_boolean.garage_door_motor
+      state: 'off'
+
+  actions:
+    - action: lifx.effect_pulse
+      data:
+        cycles: 5
+        power_on: true
+        brightness_pct: 100
+      target:
+        entity_id: light.garage_interior
+    - delay: '00:00:05'
+    - action: cover.close_cover
+      entity_id: cover.garage_door

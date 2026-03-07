@@ -1,0 +1,28 @@
+- alias: Bedtime - Thermostat
+  id: 'bedtime_thermostat'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.bedtime
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 4
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.overnight_guest_mode
+      state: 'off'
+    - condition: state
+      entity_id: input_boolean.thermostat_away
+      state: 'off'
+    - condition: time
+      after: '17:00:00'
+      before: '23:00:00'
+
+  actions:
+    - action: climate.set_preset_mode
+      data:
+        entity_id: climate.main_floor
+        preset_mode: 'sleep'

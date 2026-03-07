@@ -1,0 +1,16 @@
+- alias: Blinds - Kitchen Blinds Close Pico Remote
+  id: 'blinds_kitchen_blinds_close_pico_remote'
+
+  triggers:
+    - trigger: event
+      event_type: lutron_caseta_button_event
+      event_data:
+        serial: 91735138
+        button_number: 4
+        action: press
+
+  actions:
+    - action: cover.close_cover
+      data:
+        entity_id: 
+          - cover.kitchen_blinds
