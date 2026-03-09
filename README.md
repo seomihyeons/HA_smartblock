@@ -40,11 +40,23 @@ npm install
 npm run start
 ~~~
 
-## Environment Variables (Optional)
-- HA_BASE_URL  
+## Environment Variables (HA Integration)
+To use Home Assistant integration features (automation list, pull/push, conflict analyzer), create a local `.env` file in `HA_smartblock/`.
+
+Example:
+~~~bash
+HA_BASE_URL=http://<HA_IP>:8123
+HA_TOKEN=<YOUR_LONG_LIVED_TOKEN>
+~~~
+
+Notes:
+- `.env` is ignored by git, so each user must create it locally.
+- Do not expose the dev server publicly while using `HA_TOKEN`.
+- If you only need the visual editor without HA integration, `.env` is optional.
+
+Optional variables:
 - HA_IP  
 - HA_PORT  
-- HA_TOKEN  
 - ANALYZER_HOST  
 - ANALYZER_PORT  
 - DEV_SERVER_HOST  
