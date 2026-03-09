@@ -163,6 +163,90 @@ code {
   gap: 8px;
 }
 
+/* Modal-only hidden helper */
+#debugModal .hidden {
+  display: none !important;
+}
+
+/* Debug meta (status/summary/error) */
+#debugModal .debug-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px 0 16px;
+}
+
+#debugModal .debug-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+#debugModal .debug-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #d1d5db;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: debugSpin 0.9s linear infinite;
+}
+
+@keyframes debugSpin {
+  to { transform: rotate(360deg); }
+}
+
+#debugModal .state-idle {
+  color: #374151;
+  background: #e5e7eb;
+  border-color: #d1d5db;
+}
+
+#debugModal .state-running {
+  color: #1d4ed8;
+  background: #dbeafe;
+  border-color: #93c5fd;
+}
+
+#debugModal .state-done {
+  color: #166534;
+  background: #dcfce7;
+  border-color: #86efac;
+}
+
+#debugModal .state-error {
+  color: #991b1b;
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
+#debugModal .debug-summary,
+#debugModal .debug-error {
+  margin: 8px 16px 0 16px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  border: 1px solid transparent;
+  white-space: pre-wrap;
+}
+
+#debugModal .debug-summary {
+  color: #111827;
+  background: #eef2f7;
+  border-color: #e5e7eb;
+}
+
+#debugModal .debug-error {
+  color: #7f1d1d;
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+
 /* ✅ Force “basic button look” (Run/Copy/Close) */
 #debugModal .modal-actions button {
   appearance: auto;
