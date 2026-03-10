@@ -190,15 +190,6 @@ function showImportDebugJson(obj) {
   }
 }
 
-import { pullAutomationIndexWithEditability } from './homeassistant/pull_automation';
-
-(async () => {
-  const r = await pullAutomationIndexWithEditability({ concurrency: 3 });
-
-  console.log('ALL=', r.all);
-  console.log('editable count=', r.all.filter(x => x.editable).length);
-})();
-
 import { setupHaPullPanel } from './homeassistant/ha_pull_panel';
 
 setupHaPullPanel({ ws });

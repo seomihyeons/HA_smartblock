@@ -81,13 +81,8 @@ export function initConflictAnalyzerUI() {
 
     const setSummary = (text) => {
         if (!summaryEl) return;
-        if (!text) {
-            summaryEl.classList.add("hidden");
-            summaryEl.textContent = "";
-            return;
-        }
         summaryEl.classList.remove("hidden");
-        summaryEl.textContent = text;
+        summaryEl.textContent = text || "Automations: -\nInconsistency issues: -\nElapsed: -";
     };
 
     const setError = (text) => {
@@ -106,17 +101,18 @@ export function initConflictAnalyzerUI() {
         spinnerEl.classList.toggle("hidden", !on);
     };
 
-    const buildSummary = (report) => {
-        if (!report) return "";
-        const s = report.summary || {};
-        const issues = Array.isArray(report.inconsistency) ? report.inconsistency : [];
-        const incCount = s.inconsistency_issues ?? issues.length ?? 0;
+    const buildSummary = (report, elapsedMs) => {
+        const s = report?.summary || {};
+        const issues = Array.isArray(report?.inconsistency) ? report.inconsistency : [];
+        const incCount = s.inconsistency_issues ?? issues.length ?? "-";
+        const elapsed = elapsedMs != null ? `${elapsedMs} ms` : "-";
         return [
-            `Automations: ${s.automations ?? 0}`,
-            `Events: ${s.events ?? 0}`,
-            `Actions: ${s.actions ?? 0}`,
-            `Rule edges: ${s.edges ?? 0}`,
+            `Automations: ${s.automations ?? "-"}`,
+            `Events: ${s.events ?? "-"}`,
+            `Actions: ${s.actions ?? "-"}`,
+            `Rule edges: ${s.edges ?? "-"}`,
             `Inconsistency issues: ${incCount}`,
+            `Elapsed: ${elapsed}`,
         ].join("\n");
     };
 
@@ -133,12 +129,11 @@ export function initConflictAnalyzerUI() {
 
     const run = async () => {
         setText(out, "");
-        setSummary("");
+        setSummary("Automations: -\nEvents: -\nActions: -\nRule edges: -\nInconsistency issues: -\nElapsed: running...");
         setError("");
         setStatus("running", "Running...");
         toggleSpinner(true);
         btnRun.disabled = true;
-        btnCopy.disabled = true;
         appendLine(out, "[UI] Building YAML from HA automations...");
         appendLine(out, "[Server] POST /analyze ... (this may take a while)");
 
@@ -149,17 +144,17 @@ export function initConflictAnalyzerUI() {
             appendLine(out, "===== RESULT =====");
             appendLine(out, formatReport(report));
             const ms = Math.round(performance.now() - startedAt);
-            setSummary(`${buildSummary(report)}\nElapsed: ${ms} ms`);
+            setSummary(buildSummary(report, ms));
             setStatus("done", "Done");
-            btnCopy.disabled = false;
         } catch (e) {
             appendLine(out, "");
             appendLine(out, "===== ERROR =====");
             const msg = classifyError(e);
             appendLine(out, String(e?.message || e));
             setError(msg);
+            const ms = Math.round(performance.now() - startedAt);
+            setSummary(buildSummary(null, ms));
             setStatus("error", "Error");
-            btnCopy.disabled = false;
         } finally {
             toggleSpinner(false);
             btnRun.disabled = false;
@@ -173,8 +168,8 @@ export function initConflictAnalyzerUI() {
     btnRun.addEventListener("click", run);
 
     setStatus("idle", "Idle");
-    setSummary("");
+    setSummary("Automations: -\nEvents: -\nActions: -\nRule edges: -\nInconsistency issues: -\nElapsed: -");
     setError("");
     toggleSpinner(false);
-    btnCopy.disabled = true;
+    btnCopy.disabled = false;
 }
