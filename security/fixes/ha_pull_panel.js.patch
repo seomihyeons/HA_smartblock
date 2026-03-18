@@ -1,0 +1,15 @@
+--- a/src/homeassistant/ha_pull_panel.js
++++ b/src/homeassistant/ha_pull_panel.js
+@@ -237,7 +237,11 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
+         }
+ 
+         function renderList() {
+-            listBox.innerHTML = '';
++            // SECURITY FIX: Use textContent instead of innerHTML
++            // to prevent XSS attacks from malicious automation names
++            listBox.textContent = '';
++            // Alternative safe method:
++            // while (listBox.firstChild) listBox.removeChild(listBox.firstChild);
+ 
+             if (!cache.length) {
+                 const empty = el('div', { innerText: '(no automations)' });

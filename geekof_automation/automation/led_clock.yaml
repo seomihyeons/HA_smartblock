@@ -1,0 +1,3332 @@
+#################################################################
+## LED Clock Automations
+#################################################################
+
+  ##########################################################
+  ## Universal Device Control
+  ##########################################################
+
+        ##########################################################
+        ## Bedtime 
+        ##########################################################
+
+- alias: LED Clock - Bedtime
+  id: 'led_clock_bedtime'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.bedtime
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 6
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+
+  actions:
+    - action: light.turn_off
+      entity_id:
+        - light.USER1s_office_desktop_clock
+        - light.living_room_clock
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/music_song
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/music_album
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/music_song
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/music_album
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/youtube
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/youtube
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/party_time
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/party_time
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/tv_state
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/temp
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/temp
+
+        ##########################################################
+        ## Household Away Mode LED Clock
+        ##########################################################
+
+- alias: LED Clock - Household Away Mode
+  id: 'led_clock_household_away_mode'
+
+  triggers:
+    - trigger: state
+      entity_id: group.household
+      from: 'home'
+      to: 'not_home'
+      for:
+        hours: 0
+        minutes: 6
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_home_away
+      state: 'off'
+
+  actions:
+    - action: light.turn_off
+      entity_id:
+        - light.USER1s_office_desktop_clock
+        - light.living_room_clock
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/music_song
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/music_album
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/music_song
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/music_album
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/youtube
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/youtube
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/party_time
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/party_time
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/tv_state
+
+  ##########################################################
+  ## Universal Apps
+  ##########################################################
+
+      ##########################################################
+      ## Weather App
+      ##########################################################
+
+- alias: LED Clock - Weather App
+  id: 'led_clock_weather_app'
+
+  triggers:
+    - trigger: time_pattern
+      minutes: '/30'
+    - trigger: state
+      entity_id: weather.REDACTED
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/weather
+        payload: >-
+          { 
+          "icon": "weather_{{ states("sensor.weather_condition_lcd_clock_icon") |regex_replace(find='-', replace='_', ignorecase=False) }}",
+          "pushIcon": 0,
+          "text": "{{ states("sensor.weather_condition_human_readable") }}"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/weather
+        payload: >-
+          { 
+          "icon": "weather_{{ states("sensor.weather_condition_lcd_clock_icon") |regex_replace(find='-', replace='_', ignorecase=False) }}",
+          "pushIcon": 0,
+          "text": "{{ states("sensor.weather_condition_human_readable") }}"
+          }
+
+      ##########################################################
+      ## Temperature App
+      ##########################################################
+
+- alias: LED Clock - Temperature App
+  id: 'led_clock_temperature_app'
+
+  triggers:
+    - trigger: time_pattern
+      minutes: '/30'
+    - trigger: state
+      entity_id: sensor.REDACTED_temperature
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/temperature
+        payload: >-
+          { 
+          "icon": "{{ states("sensor.outdoor_temp_range") }}",
+          "pushIcon": 0,
+          "text": "{{ states("sensor.REDACTED_temperature") }}°F"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/temperature
+        payload: >-
+          { 
+          "icon": "{{ states("sensor.outdoor_temp_range") }}",
+          "pushIcon": 0,
+          "text": "{{ states("sensor.REDACTED_temperature") }}°F"
+          }
+
+      ##########################################################
+      ## Humidity App
+      ##########################################################
+
+- alias: LED Clock - Humidity App
+  id: 'led_clock_humidity_app'
+
+  triggers:
+    - trigger: time_pattern
+      minutes: '/30'
+    - trigger: state
+      entity_id: sensor.REDACTED_humidity
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/humidity
+        payload: >-
+          { 
+          "icon": "humid_2",
+          "pushIcon": 0,
+          "text": "{{ states("sensor.REDACTED_humidity") }}%"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/humidity
+        payload: >-
+          { 
+          "icon": "humid_2",
+          "pushIcon": 0,
+          "text": "{{ states("sensor.REDACTED_humidity") }}%"
+          }
+
+      ##########################################################
+      ## MK4S MMU3 Print Progress App
+      ##########################################################
+
+- alias: LED Clock - MK4S MMU3 Print Progress App
+  id: 'led_clock_mk4s_mmu3_print_progress_app'
+
+  triggers:
+    - trigger: state
+      entity_id: sensor.prusa_mk4s_mmu3_progress
+  
+  conditions:
+    - condition: state
+      entity_id: sensor.prusa_mk4s_mmu3
+      state: 'printing'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk4s_mmu3_progress
+        payload: >-
+          { 
+          "icon": "3d_print",
+          "pushIcon": 0,
+          "color": [255,98,0],
+          "repeat": 3,
+          "text": "MMU: {{ states("sensor.prusa_mk4s_mmu3_progress") |round }}%"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk4s_mmu3_progress
+        payload: >-
+          { 
+          "icon": "3d_print",
+          "pushIcon": 0,
+          "color": [255,98,0],
+          "repeat": 3,
+          "text": "MMU: {{ states("sensor.prusa_mk4s_mmu3_progress") |round }}%"
+          }
+
+      ##########################################################
+      ## MK4S MMU3 3D Print Time Remaining App
+      ##########################################################
+
+- alias: LED Clock - MK4S MMU3 Print Time Remaining App
+  id: 'led_clock_mk4s_mmu3_print_time_remaining_app'
+
+  triggers:
+    - trigger: state
+      entity_id: sensor.prusa_mk4s_mmu3_progress
+  
+  conditions:
+    - condition: state
+      entity_id: sensor.prusa_mk4s_mmu3
+      state: 'printing'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk4s_mmu3_time_remaining
+        payload: >-
+          { 
+          "icon": "clock",
+          "pushIcon": 2,
+          "color": [255,98,0],
+          "repeat": 3,
+          "text": "MMU: {{ relative_time(now() - timedelta( seconds = as_timestamp(states('sensor.prusa_mk4s_mmu3_print_finish')) - as_timestamp(now()))) }}"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk4s_mmu3_time_remaining
+        payload: >-
+          { 
+          "icon": "clock",
+          "pushIcon": 2,
+          "color": [255,98,0],
+          "repeat": 3,
+          "text": "MMU: {{ relative_time(now() - timedelta( seconds = as_timestamp(states('sensor.prusa_mk4s_mmu3_print_finish')) - as_timestamp(now()))) }}"
+          }
+
+      ##########################################################
+      ## MK4S MMU3 3D Print Clear When Idle
+      ##########################################################
+
+- alias: LED Clock - MK4S MMU3 3D Print Clear When Idle
+  id: 'led_clock_mk4s_mmu3_3d_print_clear_when_idle'
+
+  triggers:
+    - trigger: state
+      entity_id: sensor.prusa_mk4s_mmu3
+      to: 'idle'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk4s_mmu3_progress
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk4s_mmu3_time_remaining
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk4s_mmu3_progress
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk4s_mmu3_time_remaining
+
+      ##########################################################
+      ## MK4S MMU3 3D Print Complete App
+      ##########################################################
+
+- alias: LED Clock - MK4S MMU3 3D Print Complete App
+  id: 'led_clock_mk4s_mmu3_3d_print_complete_app'
+
+  triggers:
+    - trigger: state
+      entity_id: sensor.prusa_mk4s_mmu3
+      from: 'printing'
+      to: 'finished'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk4s_mmu3_progress
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk4s_mmu3_time_remaining
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/notify
+        payload: >-
+          { 
+          "icon": "3d_print_complete",
+          "pushIcon": 0,
+          "rainbow": true,
+          "duration": 60,
+          "text": "MMU: Finished"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk4s_mmu3_progress
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk4s_mmu3_time_remaining
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "3d_print_complete",
+          "pushIcon": 0,
+          "rainbow": true,
+          "duration": 60,
+          "text": "MMU: Finished"
+          }
+
+      ##########################################################
+      ## MK4S Print Progress App
+      ##########################################################
+
+- alias: LED Clock - mk4s_ Print Progress App
+  id: 'led_clock_mk4s_print_progress_app'
+
+  triggers:
+    - trigger: state
+      entity_id: sensor.prusa_mk4s_progress
+  
+  conditions:
+    - condition: state
+      entity_id: sensor.prusa_mk4s
+      state: 'printing'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk4s_progress
+        payload: >-
+          { 
+          "icon": "3d_print",
+          "pushIcon": 0,
+          "color": [255,98,0],
+          "repeat": 3,
+          "text": "MK4: {{ states("sensor.prusa_mk4s_progress") |round }}%"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk4s_progress
+        payload: >-
+          { 
+          "icon": "3d_print",
+          "pushIcon": 0,
+          "color": [255,98,0],
+          "repeat": 3,
+          "text": "MK4: {{ states("sensor.prusa_mk4s_progress") |round }}%"
+          }
+
+      ##########################################################
+      ## MK4S 3D Print Time Remaining App
+      ##########################################################
+
+- alias: LED Clock - MK4S Print Time Remaining App
+  id: 'led_clock_mk4s_print_time_remaining_app'
+
+  triggers:
+    - trigger: state
+      entity_id: sensor.prusa_mk4s_progress
+  
+  conditions:
+    - condition: state
+      entity_id: sensor.prusa_mk4s
+      state: 'printing'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk4s_time_remaining
+        payload: >-
+          { 
+          "icon": "clock",
+          "pushIcon": 2,
+          "color": [255,98,0],
+          "repeat": 3,
+          "text": "MK4: {{ relative_time(now() - timedelta( seconds = as_timestamp(states('sensor.prusa_mk4s_print_finish')) - as_timestamp(now()))) }}"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk4s_time_remaining
+        payload: >-
+          { 
+          "icon": "clock",
+          "pushIcon": 2,
+          "color": [255,98,0],
+          "repeat": 3,
+          "text": "MK4: {{ relative_time(now() - timedelta( seconds = as_timestamp(states('sensor.prusa_mk4s_print_finish')) - as_timestamp(now()))) }}"
+          }
+
+      ##########################################################
+      ## MK4S 3D Print Clear When Idle
+      ##########################################################
+
+- alias: LED Clock - MK4S 3D Print Clear When Idle
+  id: 'led_clock_mk4s_3d_print_clear_when_idle'
+
+  triggers:
+    - trigger: state
+      entity_id: sensor.prusa_mk4s
+      to: 'idle'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk4s_progress
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk4s_time_remaining
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk4s_progress
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk4s_time_remaining
+
+      ##########################################################
+      ## MK4S 3D Print Complete App
+      ##########################################################
+
+- alias: LED Clock - MK4S 3D Print Complete App
+  id: 'led_clock_mk4s_3d_print_complete_app'
+
+  triggers:
+    - trigger: state
+      entity_id: sensor.prusa_mk4s
+      from: 'printing'
+      to: 'finished'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk4s_progress
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk4s_time_remaining
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/notify
+        payload: >-
+          { 
+          "icon": "3d_print_complete",
+          "pushIcon": 0,
+          "rainbow": true,
+          "duration": 60,
+          "text": "MK4: Finished"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk4s_progress
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk4s_time_remaining
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "3d_print_complete",
+          "pushIcon": 0,
+          "rainbow": true,
+          "duration": 60,
+          "text": "MK4: Finished"
+          }
+
+      ##########################################################
+      ## MK3.5 Print Progress App
+      ##########################################################
+
+- alias: LED Clock - MK3.5 Print Progress App
+  id: 'led_clock_mk3_5_print_progress_app'
+
+  triggers:
+    - trigger: state
+      entity_id: sensor.prusa_mk3_5_progress
+  
+  conditions:
+    - condition: state
+      entity_id: sensor.prusa_mk3_5
+      state: 'printing'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk3_5_progress
+        payload: >-
+          { 
+          "icon": "3d_print",
+          "pushIcon": 0,
+          "color": [255,98,0],
+          "repeat": 3,
+          "text": "MK3: {{ states("sensor.prusa_mk3_5_progress") |round }}%"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk3_5_progress
+        payload: >-
+          { 
+          "icon": "3d_print",
+          "pushIcon": 0,
+          "color": [255,98,0],
+          "repeat": 3,
+          "text": "MK3: {{ states("sensor.prusa_mk3_5_progress") |round }}%"
+          }
+
+      ##########################################################
+      ## MK3.5 3D Print Time Remaining App
+      ##########################################################
+
+- alias: LED Clock - MK3.5 Print Time Remaining App
+  id: 'led_clock_mk3_5_print_time_remaining_app'
+
+  triggers:
+    - trigger: state
+      entity_id: sensor.prusa_mk3_5_progress
+  
+  conditions:
+    - condition: state
+      entity_id: sensor.prusa_mk3_5
+      state: 'printing'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk3_5_time_remaining
+        payload: >-
+          { 
+          "icon": "clock",
+          "pushIcon": 2,
+          "color": [255,98,0],
+          "repeat": 3,
+          "text": "MK3: {{ relative_time(now() - timedelta( seconds = as_timestamp(states('sensor.prusa_mk3_5_print_finish')) - as_timestamp(now()))) }}"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk3_5_time_remaining
+        payload: >-
+          { 
+          "icon": "clock",
+          "pushIcon": 2,
+          "color": [255,98,0],
+          "repeat": 3,
+          "text": "MK3: {{ relative_time(now() - timedelta( seconds = as_timestamp(states('sensor.prusa_mk3_5_print_finish')) - as_timestamp(now()))) }}"
+          }
+
+      ##########################################################
+      ## MK3.5 3D Print Clear When Idle
+      ##########################################################
+
+- alias: LED Clock - MK3.5 3D Print Clear When Idle
+  id: 'led_clock_mk3_5_3d_print_clear_when_idle'
+
+  triggers:
+    - trigger: state
+      entity_id: sensor.prusa_mk3_5
+      to: 'idle'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk3_5_progress
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk3_5_time_remaining
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk3_5_progress
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk3_5_time_remaining
+
+      ##########################################################
+      ## MK3.5 3D Print Complete App
+      ##########################################################
+
+- alias: LED Clock - MK3.5 3D Print Complete App
+  id: 'led_clock_mk3_5_3d_print_complete_app'
+
+  triggers:
+    - trigger: state
+      entity_id: sensor.prusa_mk3_5
+      from: 'printing'
+      to: 'finished'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk3_5_progress
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/mk3_5_time_remaining
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/notify
+        payload: >-
+          { 
+          "icon": "3d_print_complete",
+          "pushIcon": 0,
+          "rainbow": true,
+          "duration": 60,
+          "text": "MK3: Finished"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk3_5_progress
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/mk3_5_time_remaining
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "3d_print_complete",
+          "pushIcon": 0,
+          "rainbow": true,
+          "duration": 60,
+          "text": "MK3: Finished"
+          }
+
+      ##########################################################
+      ## Washing Machine Status App
+      ##########################################################
+
+- alias: LED Clock - Washing Machine Status App
+  id: 'led_clock_washing_machine_status_app'
+
+  triggers:
+    - trigger: state
+      entity_id: sensor.washing_machine_time_remaining
+
+  conditions:
+    - condition: state
+      entity_id: sensor.washer
+      state: 'on'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/washer
+        payload: >-
+          { 
+          "icon": "washer",
+          "pushIcon": 2,
+          "repeat": 3,
+          "color": [0,255,255],
+          "text": "Washer: {{ states("sensor.washing_machine_time_remaining") }}"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/washer
+        payload: >-
+          { 
+          "icon": "washer",
+          "pushIcon": 2,
+          "repeat": 3,
+          "color": [0,255,255],
+          "text": "Washer: {{ states("sensor.washing_machine_time_remaining") }}"
+          }
+
+      ##########################################################
+      ## Washing Machine Done App
+      ##########################################################
+
+- alias: LED Clock - Washing Machine Done App
+  id: 'led_clock_washing_machine_done_app'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.washer_wash_completed
+      from: 'off'
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 1
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/washer
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/notify
+        payload: >-
+          { 
+          "icon": "washer",
+          "pushIcon": 0,
+          "duration": 60,
+          "color": [0,255,255],
+          "text": "Washer Finished"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/washer
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "washer",
+          "pushIcon": 0,
+          "duration": 60,
+          "color": [0,255,255],
+          "text": "Washer Finished"
+          }
+
+      ##########################################################
+      ## Dryer Status App
+      ##########################################################
+
+- alias: LED Clock - Dryer Status App
+  id: 'led_clock_dryer_status_app'
+
+  triggers:
+    - trigger: state
+      entity_id: sensor.dryer_time_remaining
+
+  conditions:
+    - condition: state
+      entity_id: sensor.dryer
+      state: 'on'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/dryer
+        payload: >-
+          { 
+          "icon": "dryer",
+          "pushIcon": 2,
+          "repeat": 3,
+          "color": [255,0,0],
+          "text": "Dryer: {{ states("sensor.dryer_time_remaining") }}"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/dryer
+        payload: >-
+          { 
+          "icon": "dryer",
+          "pushIcon": 2,
+          "repeat": 3,
+          "color": [255,0,0],
+          "text": "Dryer: {{ states("sensor.dryer_time_remaining") }}"
+          }
+
+      ##########################################################
+      ## Dryer Done App
+      ##########################################################
+
+- alias: LED Clock - Dryer Done App
+  id: 'led_clock_dryer_done_app'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.dryer_dry_completed
+      from: 'off'
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 1
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/dryer
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/notify
+        payload: >-
+          { 
+          "icon": "dryer",
+          "pushIcon": 0,
+          "duration": 60,
+          "color": [255,0,0],
+          "text": "Dryer Finished"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/dryer
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "dryer",
+          "pushIcon": 0,
+          "duration": 60,
+          "color": [255,0,0],
+          "text": "Dryer Finished"
+          }
+
+      ##########################################################
+      ## Package App
+      ##########################################################
+
+- alias: LED Clock - Package App
+  id: 'led_clock_package_app'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.package_camera_notification
+      to: 'on'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/package
+        payload: >-
+          { 
+          "icon": "delivery",
+          "pushIcon": 0,
+          "repeat": 3,
+          "color": [0,125,125],
+          "text": "Package Detected"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/package
+        payload: >-
+          { 
+          "icon": "delivery",
+          "pushIcon": 0,
+          "repeat": 3,
+          "color": [0,125,125],
+          "text": "Package Detected"
+          }
+
+      ##########################################################
+      ## Package App Clear
+      ##########################################################
+
+- alias: LED Clock - Package App Clear
+  id: 'led_clock_package_app_clear'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.package_camera_notification
+      to: 'off'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/package
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/package
+
+  ##########################################################
+  ## Universal Holiday Apps
+  ##########################################################
+
+      ##########################################################
+      ## Holiday Reset App
+      ##########################################################
+
+- alias: LED Clock - Holiday Reset App
+  id: 'led_clock_holiday_reset_app'
+
+  triggers:
+   - trigger: time
+     at: '05:00:00'
+
+  conditions:
+    - condition: state
+      entity_id: input_select.holiday
+      state: 'None'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/holiday
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/holiday
+
+      ##########################################################
+      ## Christmas App
+      ##########################################################
+
+- alias: LED Clock - Christmas App
+  id: 'led_clock_christmas_app'
+
+  triggers:
+   - trigger: time
+     at: '09:30:00'
+   - trigger: state
+     entity_id: input_select.holiday
+     to: 'Christmas'
+
+  conditions:
+    - condition: state
+      entity_id: input_select.holiday
+      state: 'Christmas'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/holiday
+        payload: >-
+          { 
+          "icon": "christmas_tree",
+          "pushIcon": 0,
+          "repeat": 3,
+          "text": [
+            {
+              "t": "Merry ",
+              "c": "FF0000"
+            },
+            {
+              "t": "Christmas",
+              "c": "00FF00"
+            }
+          ]
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/holiday
+        payload: >-
+          { 
+          "icon": "christmas_tree",
+          "pushIcon": 0,
+          "repeat": 3,
+          "text": [
+            {
+              "t": "Merry ",
+              "c": "FF0000"
+            },
+            {
+              "t": "Christmas",
+              "c": "00FF00"
+            }
+          ]
+          }
+
+      ##########################################################
+      ## Halloween App
+      ##########################################################
+
+- alias: LED Clock - Halloween App
+  id: 'led_clock_halloween_app'
+
+  triggers:
+   - trigger: time
+     at: '09:30:00'
+   - trigger: state
+     entity_id: input_select.holiday
+     to: 'Halloween'
+
+  conditions:
+    - condition: state
+      entity_id: input_select.holiday
+      state: 'Halloween'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/holiday
+        payload: >-
+          { 
+          "icon": "pumpkin",
+          "pushIcon": 0,
+          "repeat": 3,
+          "text": [
+            {
+              "t": "Happy ",
+              "c": "FFA500"
+            },
+            {
+              "t": "Halloween",
+              "c": "A020F0"
+            }
+          ]
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/holiday
+        payload: >-
+          { 
+          "icon": "pumpkin",
+          "pushIcon": 0,
+          "repeat": 3,
+          "text": [
+            {
+              "t": "Happy ",
+              "c": "FFA500"
+            },
+            {
+              "t": "Halloween",
+              "c": "A020F0"
+            }
+          ]
+          }
+
+      ##########################################################
+      ## Thanksgiving App
+      ##########################################################
+
+- alias: LED Clock - Thanksgiving App
+  id: 'led_clock_thanksgiving_app'
+
+  triggers:
+   - trigger: time
+     at: '09:30:00'
+   - trigger: state
+     entity_id: input_select.holiday
+     to: 'Thanksgiving'
+
+  conditions:
+    - condition: state
+      entity_id: input_select.holiday
+      state: 'Thanksgiving'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/holiday
+        payload: >-
+          { 
+          "icon": "thanksgiving",
+          "pushIcon": 0,
+          "repeat": 3,
+          "text": [
+            {
+              "t": "Happy ",
+              "c": "FFD700"
+            },
+            {
+              "t": "Thanksgiving",
+              "c": "8B4513"
+            }
+          ]
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/holiday
+        payload: >-
+          { 
+          "icon": "thanksgiving",
+          "pushIcon": 0,
+          "repeat": 3,
+          "text": [
+            {
+              "t": "Happy ",
+              "c": "FFD700"
+            },
+            {
+              "t": "Thanksgiving",
+              "c": "8B4513"
+            }
+          ]
+          }
+
+      ##########################################################
+      ## 4th of July App
+      ##########################################################
+
+- alias: LED Clock - 4th of July App
+  id: 'led_clock_4th_of_july_app'
+
+  triggers:
+   - trigger: time
+     at: '09:30:00'
+   - trigger: state
+     entity_id: input_select.holiday
+     to: "Independence Day"
+
+  conditions:
+    - condition: state
+      entity_id: input_select.holiday
+      state: "Independence Day"
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/holiday
+        payload: >-
+          { 
+          "icon": "usa",
+          "pushIcon": 0,
+          "repeat": 3,
+          "text": [
+            {
+              "t": "Happy ",
+              "c": "FF0000"
+            },
+            {
+              "t": "Independence",
+              "c": "FFFFFF"
+            }
+            {
+              "t": "Day",
+              "c": "0000FF"
+            }
+          ]
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/holiday
+        payload: >-
+          { 
+          "icon": "usa",
+          "pushIcon": 0,
+          "repeat": 3,
+          "text": [
+            {
+              "t": "Happy ",
+              "c": "FF0000"
+            },
+            {
+              "t": "Independence",
+              "c": "FFFFFF"
+            }
+            {
+              "t": "Day",
+              "c": "0000FF"
+            }
+          ]
+          }
+
+      ##########################################################
+      ## Valentines Day App
+      ##########################################################
+
+- alias: LED Clock - Valentines Day App
+  id: 'led_clock_valentines_day_app'
+
+  triggers:
+   - trigger: time
+     at: '09:30:00'
+   - trigger: state
+     entity_id: input_select.holiday
+     to: "Valentine's Day"
+
+  conditions:
+    - condition: state
+      entity_id: input_select.holiday
+      state: "Valentine's Day"
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/holiday
+        payload: >-
+          { 
+          "icon": "heart",
+          "pushIcon": 0,
+          "repeat": 3,
+          "color": [255,192,203],
+          "text": "Happy Valentines Day"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/holiday
+        payload: >-
+          { 
+          "icon": "heart",
+          "pushIcon": 0,
+          "repeat": 3,
+          "color": [255,192,203],
+          "text": "Happy Valentines Day"
+          }
+
+      ##########################################################
+      ## Easter App
+      ##########################################################
+
+- alias: LED Clock - Easter App
+  id: 'led_clock_easter_day_app'
+
+  triggers:
+   - trigger: time
+     at: '09:30:00'
+   - trigger: state
+     entity_id: input_select.holiday
+     to: "Easter"
+
+  conditions:
+    - condition: state
+      entity_id: input_select.holiday
+      state: "Easter"
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/holiday
+        payload: >-
+          { 
+          "icon": "easter",
+          "pushIcon": 0,
+          "repeat": 3,
+          "color": [173,216,230],
+          "text": "Happy Easter"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/holiday
+        payload: >-
+          { 
+          "icon": "easter",
+          "pushIcon": 0,
+          "repeat": 3,
+          "color": [173,216,230],
+          "text": "Happy Easter"
+          }
+
+      ##########################################################
+      ## New Years App
+      ##########################################################
+
+- alias: LED Clock - New Years App
+  id: 'led_clock_new_years_app'
+
+  triggers:
+   - trigger: time
+     at: '09:30:00'
+   - trigger: state
+     entity_id: input_select.holiday
+     to: "New Year's Eve"
+
+  conditions:
+    - condition: state
+      entity_id: input_select.holiday
+      state: "New Year's Eve"
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/holiday
+        payload: >-
+          { 
+          "icon": "fireworks",
+          "pushIcon": 0,
+          "repeat": 3,
+          "rainbow": true,
+          "text": "Happy New Years!"
+          }
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/holiday
+        payload: >-
+          { 
+          "icon": "fireworks",
+          "pushIcon": 0,
+          "repeat": 3,
+          "rainbow": true,
+          "text": "Happy New Years!"
+          }
+
+  ##########################################################
+  ## USER1's Office Device Control
+  ##########################################################
+
+      ##########################################################
+      ## Turn On USER1 Office LED Clock when Motion Detected
+      ##########################################################
+
+- alias: LED Clock - Turn On USER1's Office when Motion Detected
+  id: 'led_clock_turn_on_USER1_office_when_motion_detected'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.USER1s_office_motion
+      from: 'off'
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_motion
+      state: 'off'
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: light.USER1s_office_desktop_clock
+      state: 'off'
+    - condition: state
+      entity_id: person.USER1
+      state: 'home'
+    - condition: state
+      entity_id: input_boolean.USER1_office_guest
+      state: 'off'
+
+  actions:
+    - action: light.turn_on
+      entity_id:
+        - light.USER1s_office_desktop_clock
+
+      ##########################################################
+      ## Turn Off USER1 Office LED Clock when No Motion Detected
+      ##########################################################
+
+- alias: LED Clock - Turn Off USER1's Office when No Motion Detected
+  id: 'led_clock_turn_off_USER1_office_when_no_motion_detected'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.USER1s_office_motion
+      from: 'on'
+      to: 'off'
+      for:
+        hours: 0
+        minutes: 20
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_motion
+      state: 'off'
+    - condition: state
+      entity_id: light.USER1s_office_desktop_clock
+      state: 'on'
+
+  actions:
+    - action: light.turn_off
+      entity_id:
+        - light.USER1s_office_desktop_clock
+
+  ##########################################################
+  ## USER1's Office Apps
+  ##########################################################
+
+      ##########################################################
+      ## Music Title Apple TV USER1's Office Clock
+      ##########################################################
+
+- alias: LED Clock - USER1's Office Apple TV Music Title
+  id: 'led_clock_USER1_office_music_title_apple_tv'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.USER1_s_office_apple_tv
+      attribute: media_title
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 1
+
+  conditions:
+    - condition: state
+      entity_id: media_player.USER1_s_office_apple_tv
+      state: 'playing'
+    - condition: state
+      entity_id: media_player.USER1_s_office_apple_tv
+      attribute: media_content_type
+      state: 'music'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: select.USER1_s_office_tv_activities
+        state: 'power_off'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/music_song
+        payload: >-
+          { 
+          "icon": "music",
+          "pushIcon": 0,
+          "repeat": 3,
+          "rainbow": true,
+          "text": "Song: {{ state_attr('media_player.USER1_s_office_apple_tv', 'media_title') }}"
+          }
+
+      ##########################################################
+      ## Music Title Sonos USER1's Office Clock
+      ##########################################################
+
+- alias: LED Clock - USER1's Office Music Title Sonos
+  id: 'led_clock_USER1_office_music_title_sonos'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.sonos_USER1s_office
+      attribute: media_title
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 1
+
+  conditions:
+    - condition: state
+      entity_id: media_player.sonos_USER1s_office
+      state: 'playing'
+    - condition: state
+      entity_id: media_player.sonos_USER1s_office
+      attribute: media_content_type
+      state: 'music'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/music_song
+        payload: >-
+          { 
+          "icon": "music",
+          "pushIcon": 0,
+          "repeat": 3,
+          "rainbow": true,
+          "text": "Song: {{ state_attr('media_player.sonos_USER1s_office', 'media_title') }}"
+          }
+
+      ##########################################################
+      ## Album Title Apple TV USER1's Office Clock
+      ##########################################################
+
+- alias: LED Clock - USER1's Office Album Title Apple TV
+  id: 'led_clock_USER1_office_album_title_apple_tv'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.USER1_s_office_apple_tv
+      attribute: media_title
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 1
+
+  conditions:
+    - condition: state
+      entity_id: media_player.USER1_s_office_apple_tv
+      state: 'playing'
+    - condition: state
+      entity_id: media_player.USER1_s_office_apple_tv
+      attribute: media_content_type
+      state: 'music'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: select.USER1_s_office_tv_activities
+        state: 'power_off'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/music_album
+        payload: >-
+          { 
+          "icon": "album",
+          "pushIcon": 2,
+          "repeat": 3,
+          "rainbow": true,
+          "text": "Artist: {{ state_attr('media_player.USER1_s_office_apple_tv', 'media_artist') }} - Album: {{ state_attr('media_player.USER1_s_office_apple_tv', 'media_album_name') }}"
+          }
+
+      ##########################################################
+      ## Album Title Sonos USER1's Office Clock
+      ##########################################################
+
+- alias: LED Clock - USER1's Office Album Title Sonos
+  id: 'led_clock_USER1_office_album_title_sonos'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.sonos_USER1s_office
+      attribute: media_title
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 1
+
+  conditions:
+    - condition: state
+      entity_id: media_player.sonos_USER1s_office
+      state: 'playing'
+    - condition: state
+      entity_id: media_player.sonos_USER1s_office
+      attribute: media_content_type
+      state: 'music'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/music_album
+        payload: >-
+          { 
+          "icon": "album",
+          "pushIcon": 2,
+          "repeat": 3,
+          "rainbow": true,
+          "text": "Artist: {{ state_attr('media_player.sonos_USER1s_office', 'media_artist') }} - Album: {{ state_attr('media_player.sonos_USER1s_office', 'media_album_name') }}"
+          }
+
+      ##########################################################
+      ## YouTube Title USER1's Office Clock
+      ##########################################################
+
+- alias: LED Clock - USER1's Office YouTube Title
+  id: 'led_clock_USER1_office_youtube_title'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.USER1_s_office_apple_tv
+      attribute: media_title
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 1
+
+  conditions:
+    - condition: state
+      entity_id: media_player.USER1_s_office_apple_tv
+      state: 'playing'
+    - condition: state
+      entity_id: select.USER1_s_office_tv_activities
+      state: "Watch TV"
+    - condition: or
+      conditions:
+      - condition: state
+        entity_id: media_player.USER1_s_office_apple_tv
+        attribute: app_id
+        state: "com.google.ios.youtube"
+      - condition: state
+        entity_id: media_player.USER1_s_office_apple_tv
+        attribute: app_name
+        state: "YouTube"
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/youtube
+        payload: >-
+          { 
+          "icon": "youtube",
+          "pushIcon": 2,
+          "repeat": 6,
+          "rainbow": true,
+          "text": "{{ state_attr('media_player.USER1_s_office_apple_tv', 'media_artist') }} : {{ state_attr('media_player.USER1_s_office_apple_tv', 'media_title') }}"
+          }
+
+      ##########################################################
+      ## Media Remove USER1's Office Clock
+      ##########################################################
+
+- alias: LED Clock - USER1's Office Media Remove
+  id: 'led_clock_USER1_office_media_remove'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.sonos_USER1s_office
+      from: 'playing'
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 10
+    - trigger: state
+      entity_id: media_player.USER1_s_office_apple_tv
+      from: 'playing'
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 10
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/music_song
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/music_album
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/youtube
+
+      ##########################################################
+      ## Party Time USER1's Office Clock
+      ##########################################################
+
+- alias: LED Clock - USER1's Office Party Time
+  id: 'led_clock_USER1_office_party_time'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.office_rainbow
+      to: 'on'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/party_time
+        payload: >-
+          { 
+          "effect": "Plasma",
+          "repeat": 3,
+          "rainbow": false,
+          "text": "Party Time!",
+          "color": [255,255,255]
+          }
+
+      ##########################################################
+      ## Party Time Off USER1's Office Clock
+      ##########################################################
+
+- alias: LED Clock - USER1's Office Party Time Off
+  id: 'led_clock_USER1_office_party_time_off'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.office_rainbow
+      to: 'off'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/custom/party_time
+
+  ##########################################################
+  ## USER1's Office Notifications
+  ##########################################################
+
+      ##########################################################
+      ## Do Not Disturb On USER1's Office LED Clock
+      ##########################################################
+
+- alias: LED Clock - USER1 Office Do Not Disturb On
+  id: 'led_clock_USER1_office_do_not_disturb_on'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.USER1_s_office_do_not_disturb
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: light.USER1s_office_desktop_clock
+      state: 'on'
+    - condition: state
+      entity_id: person.USER1
+      state: 'home'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/notify
+        payload: >-
+          { 
+          "icon": "exclamation",
+          "pushIcon": 0,
+          "background": [255,0,0],
+          "color": [255,255,255],
+          "stack": false,
+          "hold": true,
+          "text": "Do Not Disturb"
+          }
+
+      ##########################################################
+      ## Do Not Disturb Off USER1's Office LED Clock
+      ##########################################################
+
+- alias: LED Clock - USER1 Office Do Not Disturb Off
+  id: 'led_clock_USER1_office_do_not_disturb_off'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.USER1_s_office_do_not_disturb
+      to: 'off'
+
+  conditions:
+    - condition: state
+      entity_id: light.USER1s_office_desktop_clock
+      state: 'on'
+    - condition: state
+      entity_id: person.USER1
+      state: 'home'
+
+  actions:
+    - action: button.press
+      target:
+        entity_id: button.USER1s_office_desktop_clock_dismiss_notification
+
+      ##########################################################
+      ## Media Title USER1's Office Clock
+      ##########################################################
+
+- alias: LED Clock - USER1's Office Media Title
+  id: 'led_clock_USER1_office_media_title'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.USER1_s_office_apple_tv
+      attribute: media_title
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 1
+
+  conditions:
+    - condition: state
+      entity_id: person.USER1
+      state: 'home'
+    - condition: state
+      entity_id: light.USER1s_office_desktop_clock
+      state: 'on'
+    - condition: state
+      entity_id: media_player.USER1_s_office_apple_tv
+      state: 'playing'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.USER1_s_office_apple_tv
+        attribute: media_content_type
+        state: 'music'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.USER1_s_office_apple_tv
+        attribute: app_id
+        state: "com.google.ios.youtube"
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/notify
+        payload: >-
+          { 
+          "icon": "movie",
+          "pushIcon": 2,
+          "duration": 60,
+          "rainbow": true,
+          "stack": false,
+          "text": "{{ state_attr('media_player.USER1_s_office_apple_tv', 'media_title') }}"
+          }
+
+      ##########################################################
+      ## Doorbell USER1's Office LED Clock
+      ##########################################################
+
+- alias: LED Clock - Doorbell USER1's Office
+  id: 'led_clock_doorbell_USER1_office'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.front_door_doorbell
+      from: 'off'
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: light.USER1s_office_desktop_clock
+      state: 'on'
+    - condition: state
+      entity_id: person.USER1
+      state: 'home'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/notify
+        payload: >-
+          { 
+          "icon": "doorbell",
+          "pushIcon": 0,
+          "duration": 60,
+          "text": "Doorbell"
+          }
+
+        #################################################################
+        ## USER2 Left Work USER1's Office LED Clock
+        #################################################################
+
+- alias: LED Clock - USER1's Office USER2 Left
+  id: 'led_clock_USER1_office_USER2_left_work'
+
+  triggers:
+    - trigger: state
+      entity_id: person.USER2
+      from: 'Work'
+      to: 'not_home'
+
+  conditions:
+    - condition: state
+      entity_id: person.USER1
+      state: 'home'
+    - condition: state
+      entity_id: light.USER1s_office_desktop_clock
+      state: 'on'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/notify
+        payload: >-
+          { 
+          "icon": "cars",
+          "pushIcon": 0,
+          "duration": 60,
+          "text": "USER2 ETA: {{states('sensor.USER2_to_home')}} mins"
+          }
+
+      ##########################################################
+      ## USER2 is Home USER1's Office LED Clock
+      ##########################################################
+
+- alias: LED Clock - USER1's Office USER2 is Home
+  id: 'led_clock_USER1_office_USER2_is_home'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.doors
+      from: 'off'
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: person.USER1
+      state: 'home'
+    - condition: state
+      entity_id: person.USER2
+      state: 'home'
+    - condition: state
+      entity_id: input_boolean.USER1_greeting
+      state: 'off'
+    - condition: state
+      entity_id: input_boolean.USER2_greeting
+      state: 'on'
+    - condition: state
+      entity_id: light.USER1s_office_desktop_clock
+      state: 'on'
+
+  actions:
+    - delay: '00:00:30'
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/notify
+        payload: >-
+          { 
+          "icon": "house",
+          "pushIcon": 0,
+          "duration": 60,
+          "rainbow": true,
+          "text": "USER2 Home"
+          }
+
+      ##########################################################
+      ## Echo Timer Done USER1's Office LED Clock
+      ##########################################################
+
+- alias: LED Clock - USER1's Office Echo Timer Done
+  id: 'led_clock_USER1_office_echo_timer_done'
+
+  mode: parallel
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.USER1_s_office_echo_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.basement_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.bathroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.bedroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.craft_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.dining_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.fitness_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.guest_bedroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.kitchen_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.USER2_s_office_timer
+      from: 'on'
+      to: 'off'
+
+  conditions:
+    - condition: state
+      entity_id: person.USER1
+      state: 'home'
+    - condition: state
+      entity_id: light.USER1s_office_desktop_clock
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.disable_echo
+      state: 'off'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/notify
+        payload: >-
+          { 
+          "icon": "timer",
+          "pushIcon": 0,
+          "duration": 60,
+          "rainbow": true,
+          "text": "Echo Timer Finished"
+          }
+
+      ##########################################################
+      ## Door Open USER1's LED Clock
+      ##########################################################
+
+- alias: LED Clock - USER1's Office Door Open
+  id: 'led_clock_USER1_office_door_open'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.front_door_opened
+      from: 'off'
+      to: 'on'
+    - trigger: state
+      entity_id: binary_sensor.back_door_opened
+      from: 'off'
+      to: 'on'
+    - trigger: state
+      entity_id: binary_sensor.basement_door_opened
+      from: 'off'
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: person.USER1
+      state: 'home'
+    - condition: state
+      entity_id: light.USER1s_office_desktop_clock
+      state: 'on'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/notify
+        payload: >-
+          { 
+          "icon": "door",
+          "pushIcon": 0,
+          "duration": 30,
+          "color": [255,0,0],
+          "text": "{{ trigger.to_state.attributes.friendly_name }} Opened"
+          }
+
+      ##########################################################
+      ## Garage Door Open USER1's LED Clock
+      ##########################################################
+
+- alias: LED Clock - USER1's Office Garage Door Open
+  id: 'led_clock_USER1_office_garage_door_open'
+
+  triggers:
+    - trigger: state
+      entity_id: cover.garage_door
+      from: 'closed'
+      to: 'open'
+
+  conditions:
+    - condition: state
+      entity_id: person.USER1
+      state: 'home'
+    - condition: state
+      entity_id: light.USER1s_office_desktop_clock
+      state: 'on'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/notify
+        payload: >-
+          { 
+          "icon": "garage_open",
+          "pushIcon": 0,
+          "duration": 30,
+          "color": [255,0,0],
+          "text": "Garage Open"
+          }
+
+      ##########################################################
+      ## Garage Door Closed USER1's LED Clock
+      ##########################################################
+
+- alias: LED Clock - USER1's Office Garage Door Closed
+  id: 'led_clock_USER1_office_garage_door_closed'
+
+  triggers:
+    - trigger: state
+      entity_id: cover.garage_door
+      from: 'open'
+      to: 'closed'
+
+  conditions:
+    - condition: state
+      entity_id: person.USER1
+      state: 'home'
+    - condition: state
+      entity_id: light.USER1s_office_desktop_clock
+      state: 'on'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: USER1_office_clock/notify
+        payload: >-
+          { 
+          "icon": "garage_close",
+          "pushIcon": 0,
+          "duration": 30,
+          "color": [0,255,0],
+          "text": "Garage Closed"
+          }
+
+  ##########################################################
+  ## Living Room Device Control
+  ##########################################################
+
+      ##########################################################
+      ## Turn On Living Room Clock when Motion Detected
+      ##########################################################
+
+- alias: LED Clock - Turn On Living Room when Motion Detected
+  id: 'led_clock_turn_on_living_room_when_motion_detected'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.living_room_motion
+      from: 'off'
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_motion
+      state: 'off'
+    - condition: state
+      entity_id: input_boolean.living_room_guest
+      state: 'off'
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: light.living_room_clock
+      state: 'off'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: vacuum.main_floor_roomba
+        state: 'cleaning'
+      - condition: state
+        entity_id: vacuum.main_floor_roomba
+        state: 'returning'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.living_room_apple_tv
+        state: 'playing'
+
+  actions:
+    - action: light.turn_on
+      entity_id:
+        - light.living_room_clock
+
+      ##########################################################
+      ## Turn Off Living Room LED Clock when No Motion Detected
+      ##########################################################
+
+- alias: LED Clock - Turn Off Living Room when No Motion Detected
+  id: 'led_clock_turn_off_living_room_when_no_motion_detected'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.living_room_motion
+      from: 'on'
+      to: 'off'
+      for:
+        hours: 1
+        minutes: 0
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_motion
+      state: 'off'
+    - condition: state
+      entity_id: light.living_room_clock
+      state: 'on'
+
+  actions:
+    - action: light.turn_off
+      entity_id:
+        - light.living_room_clock
+
+      ##########################################################
+      ## Turn Off Living Room LED Clock when Watching TV
+      ##########################################################
+
+- alias: LED Clock - urn Off Living Room LED Clock when Watching TV
+  id: 'led_clock_turn_off_living_room_when_watching_tv'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.living_room_apple_tv
+      to: 'playing'
+      for:
+        hours: 0
+        minutes: 1
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_media_lights
+      state: 'off'
+    - condition: state
+      entity_id: light.living_room_clock
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.livingroom_rainbow
+      state: 'off'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.living_room_apple_tv
+        attribute: media_content_type
+        state: 'music'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.living_room_apple_tv
+        attribute: app_id
+        state: "com.google.ios.youtube"
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.living_room_apple_tv
+        attribute: app_name
+        state: "YouTube"
+
+  actions:
+    - action: light.turn_off
+      entity_id:
+        - light.living_room_clock
+
+      ##########################################################
+      ## Turn On Living Room Clock when Done Watching TV
+      ##########################################################
+
+- alias: LED Clock - urn Off Living Room Clock when Done Watching TV
+  id: 'led_clock_turn_off_living_room_when_done_watching_tv'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.living_room_apple_tv
+      to: 'paused'
+      for:
+        hours: 0
+        minutes: 1
+        seconds: 0
+    - trigger: state
+      entity_id: media_player.living_room_apple_tv
+      to: 'idle'
+      for:
+        hours: 0
+        minutes: 1
+        seconds: 0
+    - trigger: state
+      entity_id: media_player.living_room_apple_tv
+      from: 'playing'
+      for:
+        hours: 0
+        minutes: 1
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_media_lights
+      state: 'off'
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: light.living_room_clock
+      state: 'off'
+
+  actions:
+    - action: light.turn_on
+      entity_id:
+        - light.living_room_clock
+
+  ##########################################################
+  ## Living Room Apps
+  ##########################################################
+
+      ##########################################################
+      ## TV Off Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room TV Off
+  id: 'led_clock_living_room_tv_off'
+
+  triggers:
+    - trigger: state
+      entity_id: select.living_room_tv_activities
+      to: 'power_off'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/tv_state
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "tv_off",
+          "pushIcon": 0,
+          "duration": 30,
+          "color": [255,0,0],
+          "stack": false,
+          "text": "TV Off"
+          }
+
+      ##########################################################
+      ## Watch TV Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Watch TV
+  id: 'led_clock_living_room_watch_tv'
+
+  triggers:
+    - trigger: state
+      entity_id: select.living_room_tv_activities
+      to: 'Watch TV'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/tv_state
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/tv_state
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "tv",
+          "pushIcon": 0,
+          "duration": 30,
+          "rainbow": true,
+          "stack": false,
+          "text": "TV"
+          }
+    - delay: '00:00:20'
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/tv_state
+        payload: >-
+          { 
+          "icon": "tv",
+          "pushIcon": 0,
+          "repeat": 3,
+          "rainbow": true,
+          "text": "TV"
+          }
+
+      ##########################################################
+      ## Nintendo Switch Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Nintendo Switch
+  id: 'led_clock_living_room_nintendo_switch'
+
+  triggers:
+    - trigger: state
+      entity_id: select.living_room_tv_activities
+      to: "Play Nintendo Switch"
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/tv_state
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "mario",
+          "pushIcon": 0,
+          "duration": 30,
+          "stack": false,
+          "text": [
+            {
+              "t": "Nintendo ",
+              "c": "FF0000"
+            },
+            {
+              "t": "Switch",
+              "c": "FFFFFF"
+            }
+          ]
+          }
+    - delay: '00:00:20'
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/tv_state
+        payload: >-
+          { 
+          "icon": "mario",
+          "pushIcon": 0,
+          "repeat": 3,
+          "text": [
+            {
+              "t": "Nintendo ",
+              "c": "FF0000"
+            },
+            {
+              "t": "Switch",
+              "c": "FFFFFF"
+            }
+          ]
+          }
+
+      ##########################################################
+      ## Xbox Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Xbox
+  id: 'led_clock_living_room_xbox'
+
+  triggers:
+    - trigger: state
+      entity_id: select.living_room_tv_activities
+      to: 'Play Xbox'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/tv_state
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "xbox",
+          "pushIcon": 0,
+          "duration": 30,
+          "color": [0,255,0],
+          "stack": false,
+          "text": "Xbox"
+          }
+    - delay: '00:00:20'
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/tv_state
+        payload: >-
+          { 
+          "icon": "xbox",
+          "pushIcon": 0,
+          "repeat": 3,
+          "color": [0,255,0],
+          "text": "Xbox"
+          }
+
+      ##########################################################
+      ## Music Title Apple TV Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Music Title Apple TV
+  id: 'led_clock_living_room_music_title_apple_tv'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.living_room_apple_tv
+      attribute: media_title
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 1
+
+  conditions:
+    - condition: state
+      entity_id: light.living_room_clock
+      state: 'on'
+    - condition: state
+      entity_id: media_player.living_room_apple_tv
+      state: 'playing'
+    - condition: state
+      entity_id: media_player.living_room_apple_tv
+      attribute: media_content_type
+      state: 'music'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: select.living_room_tv_activities
+        state: 'power_off'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.living_room_apple_tv
+        attribute: app_id
+        state: "com.google.ios.youtube"
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.living_room_apple_tv
+        attribute: app_name
+        state: "YouTube"
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/music_song
+        payload: >-
+          { 
+          "icon": "music",
+          "pushIcon": 0,
+          "repeat": 3,
+          "rainbow": true,
+          "text": "Song: {{ state_attr('media_player.living_room_apple_tv', 'media_title') }}"
+          }
+
+      ##########################################################
+      ## Music Title Sonos Living Room Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Music Title Sonos Living Room
+  id: 'led_clock_living_room_music_title_sonos_living_room'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.sonos_living_room
+      attribute: media_title
+
+
+  conditions:
+    - condition: state
+      entity_id: media_player.sonos_living_room
+      state: 'playing'
+    - condition: state
+      entity_id: media_player.sonos_living_room
+      attribute: media_content_type
+      state: 'music'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/music_song
+        payload: >-
+          { 
+          "icon": "music",
+          "pushIcon": 0,
+          "repeat": 3,
+          "rainbow": true,
+          "text": "Song: {{ state_attr('media_player.sonos_living_room', 'media_title') }}"
+          }
+
+      ##########################################################
+      ## Music Title Sonos Surround Sound Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Music Title Sonos Surround Sound
+  id: 'led_clock_living_room_music_title_sonos_surround_sound'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.sonos_surround_sound
+      attribute: media_title
+
+
+  conditions:
+    - condition: state
+      entity_id: media_player.sonos_surround_sound
+      state: 'playing'
+    - condition: state
+      entity_id: media_player.sonos_surround_sound
+      attribute: media_content_type
+      state: 'music'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.sonos_surround_sound
+        attribute: source_list
+        state: "TV"
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.sonos_surround_sound
+        attribute: source
+        state: "TV"
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.sonos_surround_sound
+        attribute: media_title
+        state: "TV"
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/music_song
+        payload: >-
+          { 
+          "icon": "music",
+          "pushIcon": 0,
+          "repeat": 3,
+          "rainbow": true,
+          "text": "Song: {{ state_attr('media_player.sonos_surround_sound', 'media_title') }}"
+          }
+
+      ##########################################################
+      ## Album Title Apple TV Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Album Title Apple TV
+  id: 'led_clock_living_room_album_title_apple_tv'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.living_room_apple_tv
+      attribute: media_title
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 1
+
+  conditions:
+    - condition: state
+      entity_id: media_player.living_room_apple_tv
+      state: 'playing'
+    - condition: state
+      entity_id: media_player.living_room_apple_tv
+      attribute: media_content_type
+      state: 'music'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: select.living_room_tv_activities
+        state: 'power_off'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/music_album
+        payload: >-
+          { 
+          "icon": "album",
+          "pushIcon": 2,
+          "repeat": 3,
+          "rainbow": true,
+          "text": "Artist: {{ state_attr('media_player.living_room_apple_tv', 'media_artist') }} - Album: {{ state_attr('media_player.living_room_apple_tv', 'media_album_name') }}"
+          }
+
+      ##########################################################
+      ## Album Title Sonos Living Room Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Album Title Sonos Living Room
+  id: 'led_clock_living_room_album_title_sonos_living_room'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.sonos_living_room
+      attribute: media_title
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 1
+
+  conditions:
+    - condition: state
+      entity_id: media_player.sonos_living_room
+      state: 'playing'
+    - condition: state
+      entity_id: media_player.sonos_living_room
+      attribute: media_content_type
+      state: 'music'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/music_album
+        payload: >-
+          { 
+          "icon": "album",
+          "pushIcon": 2,
+          "repeat": 3,
+          "rainbow": true,
+          "text": "Artist: {{ state_attr('media_player.sonos_living_room', 'media_artist') }} - Album: {{ state_attr('media_player.sonos_living_room', 'media_album_name') }}"
+          }
+
+      ##########################################################
+      ## Album Title Sonos Surround Sound Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Album Title Sonos Surround Sound
+  id: 'led_clock_living_room_album_title_sonos_surround_sound'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.sonos_surround_sound
+      attribute: media_title
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 1
+
+  conditions:
+    - condition: state
+      entity_id: media_player.sonos_surround_sound
+      state: 'playing'
+    - condition: state
+      entity_id: media_player.sonos_surround_sound
+      attribute: media_content_type
+      state: 'music'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.sonos_surround_sound
+        attribute: source_list
+        state: "TV"
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.sonos_surround_sound
+        attribute: source
+        state: "TV"
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.sonos_surround_sound
+        attribute: media_title
+        state: "TV"
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/music_album
+        payload: >-
+          { 
+          "icon": "album",
+          "pushIcon": 2,
+          "repeat": 3,
+          "rainbow": true,
+          "text": "Artist: {{ state_attr('media_player.sonos_surround_sound', 'media_artist') }} - Album: {{ state_attr('media_player.sonos_surround_sound', 'media_album_name') }}"
+          }
+
+      ##########################################################
+      ## YouTube Title Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room YouTube Title
+  id: 'led_clock_living_room_youtube_title'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.living_room_apple_tv
+      attribute: media_title
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 1
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: media_player.living_room_apple_tv
+      state: 'playing'
+    - condition: state
+      entity_id: select.living_room_tv_activities
+      state: "Watch TV"
+    - condition: or
+      conditions:
+      - condition: state
+        entity_id: media_player.living_room_apple_tv
+        attribute: app_id
+        state: "com.google.ios.youtube"
+      - condition: state
+        entity_id: media_player.living_room_apple_tv
+        attribute: app_name
+        state: "YouTube"
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/youtube
+        payload: >-
+          { 
+          "icon": "youtube",
+          "pushIcon": 2,
+          "repeat": 6,
+          "rainbow": true,
+          "text": "{{ state_attr('media_player.living_room_apple_tv', 'media_artist') }} : {{ state_attr('media_player.living_room_apple_tv', 'media_title') }}"
+          }
+
+      ##########################################################
+      ## Media Remove Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Media Remove
+  id: 'led_clock_living_room_media_remove'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.sonos_living_room
+      from: 'playing'
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 10
+    - trigger: state
+      entity_id: media_player.sonos_surround_sound
+      from: 'playing'
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 10
+    - trigger: state
+      entity_id: media_player.living_room_apple_tv
+      from: 'playing'
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 10
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/music_song
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/music_album
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/youtube
+
+      ##########################################################
+      ## Party Time Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Party Time
+  id: 'led_clock_living_room_party_time'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.livingroom_rainbow
+      to: 'on'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/party_time
+        payload: >-
+          { 
+          "effect": "Plasma",
+          "repeat": 3,
+          "rainbow": false,
+          "text": "Party Time!",
+          "color": [255,255,255]
+          }
+
+      ##########################################################
+      ## Party Time Off Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Party Time Off
+  id: 'led_clock_living_room_party_time_off'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.livingroom_rainbow
+      to: 'off'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/custom/party_time
+
+  ##########################################################
+  ## Living Room Notifications
+  ##########################################################
+
+      ##########################################################
+      ## Media Title Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Media Title
+  id: 'led_clock_living_room_media_title'
+
+  triggers:
+    - trigger: state
+      entity_id: media_player.living_room_apple_tv
+      attribute: media_title
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 1
+
+  conditions:
+    - condition: state
+      entity_id: light.living_room_clock
+      state: 'on'
+    - condition: state
+      entity_id: media_player.living_room_apple_tv
+      state: 'playing'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.living_room_apple_tv
+        attribute: media_content_type
+        state: 'music'
+    - condition: not
+      conditions:
+      - condition: state
+        entity_id: media_player.living_room_apple_tv
+        attribute: app_id
+        state: "com.google.ios.youtube"
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "movie",
+          "pushIcon": 2,
+          "duration": 60,
+          "rainbow": false,
+          "stack": false,
+          "text": "{{ state_attr('media_player.living_room_apple_tv', 'media_title') }}"
+          }
+
+      ##########################################################
+      ## Doorbell Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Doorbell Living Room
+  id: 'led_clock_doorbell_living_room'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.front_door_doorbell
+      from: 'off'
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: light.living_room_clock
+      state: 'on'
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "doorbell",
+          "pushIcon": 0,
+          "duration": 60,
+          "stack": false,
+          "text": "Doorbell"
+          }
+
+        #################################################################
+        ## USER2 Left Work Living Room Clock
+        #################################################################
+
+- alias: LED Clock - Living Room USER2 Left
+  id: 'led_clock_living_room_USER2_left_work'
+
+  triggers:
+    - trigger: state
+      entity_id: person.USER2
+      from: 'Work'
+      to: 'not_home'
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: light.living_room_clock
+      state: 'on'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "cars",
+          "pushIcon": 0,
+          "duration": 60,
+          "text": "USER2 ETA: {{states('sensor.USER2_to_home')}} mins"
+          }
+
+      ##########################################################
+      ## USER2 is Home Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room USER2 is Home
+  id: 'led_clock_living_room_USER2_is_home'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.doors
+      from: 'off'
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: person.USER2
+      state: 'home'
+    - condition: state
+      entity_id: input_boolean.USER1_greeting
+      state: 'off'
+    - condition: state
+      entity_id: input_boolean.USER2_greeting
+      state: 'on'
+    - condition: state
+      entity_id: light.living_room_clock
+      state: 'on'
+
+  actions:
+    - delay: '00:00:30'
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "house",
+          "pushIcon": 0,
+          "duration": 60,
+          "rainbow": true,
+          "text": "USER2 Home"
+          }
+
+      ##########################################################
+      ## USER1 is Home Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room USER1 is Home
+  id: 'led_clock_living_room_USER1_is_home'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.doors
+      from: 'off'
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: person.USER1
+      state: 'home'
+    - condition: state
+      entity_id: input_boolean.USER1_greeting
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.USER2_greeting
+      state: 'off'
+    - condition: state
+      entity_id: light.living_room_clock
+      state: 'on'
+
+  actions:
+    - delay: '00:00:30'
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "house",
+          "pushIcon": 0,
+          "duration": 60,
+          "rainbow": true,
+          "text": "USER1 Home"
+          }
+
+      ##########################################################
+      ## Echo Timer Done Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Echo Timer Done
+  id: 'led_clock_living_room_echo_timer_done'
+
+  mode: parallel
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.USER1_s_office_echo_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.basement_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.bathroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.bedroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.craft_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.dining_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.fitness_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.guest_bedroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.kitchen_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.USER2_s_office_timer
+      from: 'on'
+      to: 'off'
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: light.living_room_clock
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.disable_echo
+      state: 'off'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "timer",
+          "pushIcon": 0,
+          "duration": 60,
+          "rainbow": true,
+          "text": "Echo Timer Finished"
+          }
+
+      ##########################################################
+      ## Door Open Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Door Open
+  id: 'led_clock_living_room_door_open'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.front_door_opened
+      from: 'off'
+      to: 'on'
+    - trigger: state
+      entity_id: binary_sensor.back_door_opened
+      from: 'off'
+      to: 'on'
+    - trigger: state
+      entity_id: binary_sensor.basement_door_opened
+      from: 'off'
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: light.living_room_clock
+      state: 'on'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "door",
+          "pushIcon": 0,
+          "duration": 30,
+          "color": [255,0,0],
+          "stack": false,
+          "text": "{{ trigger.to_state.attributes.friendly_name }} Opened"
+          }
+
+      ##########################################################
+      ## Garage Door Open Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Garage Door Open
+  id: 'led_clock_living_room_garage_door_open'
+
+  triggers:
+    - trigger: state
+      entity_id: cover.garage_door
+      from: 'closed'
+      to: 'open'
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: light.living_room_clock
+      state: 'on'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "garage_open",
+          "pushIcon": 0,
+          "duration": 30,
+          "color": [255,0,0],
+          "stack": false,
+          "text": "Garage Open"
+          }
+
+      ##########################################################
+      ## Garage Door Closed Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Garage Door Closed
+  id: 'led_clock_living_room_garage_door_closed'
+
+  triggers:
+    - trigger: state
+      entity_id: cover.garage_door
+      from: 'open'
+      to: 'closed'
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: light.living_room_clock
+      state: 'on'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "garage_close",
+          "pushIcon": 0,
+          "duration": 30,
+          "color": [0,255,0],
+          "stack": false,
+          "text": "Garage Closed"
+          }
+
+      ##########################################################
+      ## Fireplace On Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Fireplace On
+  id: 'led_clock_living_room_fireplace_on'
+
+  triggers:
+    - trigger: state
+      entity_id: switch.fireplace
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: light.living_room_clock
+      state: 'on'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "fire_2",
+          "pushIcon": 0,
+          "duration": 30,
+          "color": [255,98,0],
+          "stack": false,
+          "text": "Fireplace On"
+          }
+
+      ##########################################################
+      ## Fireplace Off Living Room Clock
+      ##########################################################
+
+- alias: LED Clock - Living Room Fireplace Off
+  id: 'led_clock_living_room_fireplace_off'
+
+  triggers:
+    - trigger: state
+      entity_id: switch.fireplace
+      to: 'off'
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: state
+      entity_id: light.living_room_clock
+      state: 'on'
+
+  actions:
+    - action: mqtt.publish
+      data:
+        topic: living_room_clock/notify
+        payload: >-
+          { 
+          "icon": "fire_2",
+          "pushIcon": 0,
+          "duration": 30,
+          "color": [255,98,0],
+          "stack": false,
+          "text": "Fireplace Off"
+          }

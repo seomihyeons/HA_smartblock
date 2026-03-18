@@ -1,0 +1,1216 @@
+#################################################################
+## System
+#################################################################
+
+        ##########################################################
+        ## Home Showing Mode On
+        ##########################################################
+
+- alias: System - Home Showing Mode On
+  id: 'system_home_showing_mode_on'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.home_showing_mode
+      from: 'off'
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 30
+
+  actions:
+    - action: script.home_showing_mode_on
+      data: {}
+
+        ##########################################################
+        ## Home Showing Mode Off
+        ##########################################################
+
+- alias: System - Home Showing Mode Off
+  id: 'system_home_showing_mode_off'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.home_showing_mode
+      from: 'on'
+      to: 'off'
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 30
+
+  actions:
+    - action: script.home_showing_mode_off
+      data: {}
+
+        ##########################################################
+        ## Backup Home Assistant Nightly
+        ##########################################################
+
+- alias: System - Backup Home Assistant Nightly
+  id: 'system_backup_home_assistant_nightly'
+
+  triggers:
+   - trigger: time
+     at: '04:00:00'
+
+  actions:
+    - action: backup.create
+
+        ##########################################################
+        ## Reset Overrides at 7a
+        ##########################################################
+
+- alias: System - Reset Overrides at 7a
+  id: 'system_reset_overrides_at_7a'
+
+  triggers:
+   - trigger: time
+     at: '07:00:00'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.vacation_mode
+      state: 'off'
+
+  actions:
+    - action: homeassistant.turn_off
+      target:
+        entity_id:
+          - input_boolean.disable_climate
+          - input_boolean.disable_notifications
+          - input_boolean.disable_doorbell
+          - input_boolean.disable_door_open_lights_on
+          - input_boolean.disable_exterior_on_sunset
+          - input_boolean.disable_exterior_off_night
+          - input_boolean.disable_auto_garage
+          - input_boolean.disable_home_away
+          - input_boolean.disable_interior_lights_sunset
+          - input_boolean.disable_lock_unlock_doors
+          - input_boolean.disable_media_lights
+          - input_boolean.disable_motion
+          - input_boolean.disable_occupancy
+          - input_boolean.disable_rainy_day
+          - input_boolean.disable_water_automations
+          - input_boolean.downstairs_roomba_pause
+          - input_boolean.disable_startup_notifications
+          - input_boolean.disable_blinds
+          - input_boolean.disable_roomba
+          - input_boolean.disable_light_dimmer
+          - input_boolean.disable_echo
+    - action: homeassistant.turn_on
+      target:
+        entity_id:
+          - input_boolean.pihole
+
+        ##########################################################
+        ## Reset Overrides at 12p
+        ##########################################################
+
+- alias: System - Reset Overrides at 12p
+  id: 'system_reset_overrides_at_12p'
+
+  triggers:
+   - trigger: time
+     at: '12:00:00'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.vacation_mode
+      state: 'off'
+
+  actions:
+    - action: homeassistant.turn_off
+      target:
+        entity_id:
+          - input_boolean.living_room_guest
+          - input_boolean.USER1_office_guest
+
+        ##########################################################
+        ## Disable Erroneous Startup Notifications
+        ##########################################################
+
+- alias: System - Disable Erroneous Startup Notifications
+  id: 'system_disable_erroneous_startup_notifications'
+
+  triggers:
+    - trigger: homeassistant
+      event: start
+
+  actions:
+    - action: homeassistant.turn_on
+      target:
+        entity_id:
+          - input_boolean.disable_startup_notifications
+    - delay: 00:02:00
+    - action: homeassistant.turn_off
+      target:
+        entity_id:
+          - input_boolean.disable_startup_notifications
+
+        ##########################################################
+        ## Reload Echo Integration on Startup
+        ##########################################################
+
+- alias: System - Reload Echo Integration on Startup
+  id: 'system_reload_echo_integration_on_startup'
+
+  triggers:
+    - trigger: homeassistant
+      event: start
+
+  actions:
+    - action: homeassistant.turn_on
+      target:
+        entity_id:
+          - input_boolean.disable_echo
+    - delay: 00:00:30
+    - action: homeassistant.reload_config_entry
+      target: {}
+      data:
+        entry_id: 2c39bd41b37b18b2c96b03d10fb00866
+    - delay: 00:00:30
+    - action: homeassistant.turn_off
+      target:
+        entity_id:
+          - input_boolean.disable_echo
+
+        #################################################################
+        ## Clear Erroneous Failed Login Notifications
+        #################################################################
+
+- alias: System - Clear Erroneous Failed Login Notifications
+  id: 'system_clear_erroneous_failed_login_notifications'
+
+  triggers:
+    - trigger: state
+      entity_id: persistent_notification.http_login
+      to: 'notifying'
+
+  actions:
+    - delay: "00:00:01"
+    - action: persistent_notification.dismiss
+      data:
+        notification_id: http-login
+
+        #################################################################
+        ## Reconnect USER2's Nightstand if Offline
+        #################################################################
+
+- alias: System - Reconnect USER2's Nightstand if Offline
+  id: 'system_reconnect_USER2_nightstand_if_offline'
+
+  triggers:
+    - trigger: state
+      entity_id: light.USER2s_nightstand
+      to: 'unavailable'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+    - trigger: state
+      entity_id: light.USER2s_nightstand
+      to: 'unknown'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+
+  actions:
+    - action: unifi.reconnect_client
+      data:
+        device_id: a493838be740ec667e8fc26fc3e57ee9
+
+        #################################################################
+        ## Reconnect USER1's Nightstand if Offline
+        #################################################################
+
+- alias: System - Reconnect USER1's Nightstand if Offline
+  id: 'system_reconnect_USER1_nightstand_if_offline'
+
+  triggers:
+    - trigger: state
+      entity_id: light.USER1s_nightstand
+      to: 'unavailable'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+    - trigger: state
+      entity_id: light.USER1s_nightstand
+      to: 'unknown'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+
+  actions:
+    - action: unifi.reconnect_client
+      data:
+        device_id: 054511dc5c2c02b186621a55149cb370
+
+        #################################################################
+        ## Ping Locks if they become Unavailable
+        #################################################################
+
+- alias: System - Ping Locks if they become Unavailable
+  id: 'system_ping_locks_if_they_become_unavailable'
+
+  triggers:
+    - trigger: state
+      entity_id: lock.front_door
+      to: 'unavailable'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+    - trigger: state
+      entity_id: lock.back_door
+      to: 'unavailable'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+    - trigger: state
+      entity_id: lock.basement_door
+      to: 'unavailable'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+    - trigger: state
+      entity_id: lock.front_door
+      to: 'unavailable'
+      for:
+        hours: 0
+        minutes: 10
+        seconds: 0
+    - trigger: state
+      entity_id: lock.back_door
+      to: 'unavailable'
+      for:
+        hours: 0
+        minutes: 10
+        seconds: 0
+    - trigger: state
+      entity_id: lock.basement_door
+      to: 'unavailable'
+      for:
+        hours: 0
+        minutes: 10
+        seconds: 0
+    - trigger: state
+      entity_id: lock.front_door
+      to: 'unknown'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+    - trigger: state
+      entity_id: lock.back_door
+      to: 'unknown'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+    - trigger: state
+      entity_id: lock.basement_door
+      to: 'unknown'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+    - trigger: state
+      entity_id: lock.front_door
+      to: 'unknown'
+      for:
+        hours: 0
+        minutes: 10
+        seconds: 0
+    - trigger: state
+      entity_id: lock.back_door
+      to: 'unknown'
+      for:
+        hours: 0
+        minutes: 10
+        seconds: 0
+    - trigger: state
+      entity_id: lock.basement_door
+      to: 'unknown'
+      for:
+        hours: 0
+        minutes: 10
+        seconds: 0
+
+  actions:
+    - action: zwave_js.ping
+      target:
+        entity_id: 
+          - lock.front_door
+          - lock.back_door
+          - lock.basement_door
+
+        #################################################################
+        ## Power Cycle Garage Door Relay if Offline
+        #################################################################
+
+- alias: System - Power Cycle Garage Door Relay if Offline
+  id: 'system_power_cycle_garage_door_realy_if_offline'
+
+  triggers:
+    - trigger: state
+      entity_id: cover.garage_door
+      to: 'unavailable'
+      for:
+        hours: 0
+        minutes: 10
+        seconds: 0
+    - trigger: state
+      entity_id: cover.garage_door
+      to: 'unknown'
+      for:
+        hours: 0
+        minutes: 10
+        seconds: 0
+    - trigger: state
+      entity_id: cover.garage_door
+      to: 'unavailable'
+      for:
+        hours: 0
+        minutes: 30
+        seconds: 0
+    - trigger: state
+      entity_id: cover.garage_door
+      to: 'unknown'
+      for:
+        hours: 0
+        minutes: 30
+        seconds: 0
+
+  actions:
+    - action: notify.USER1_devices
+      data:
+        message: "Power Cycling Garage Door Relay"
+        data:
+          tag: garage
+    - action: switch.turn_off
+      target:
+        entity_id: 
+          - switch.garage_door_relay
+    - delay: '00:00:30'
+    - action: switch.turn_on
+      target:
+        entity_id: 
+          - switch.garage_door_relay
+
+        #################################################################
+        ## Turn On Guest Mode if Overnight Guest Mode Turned On
+        #################################################################
+
+- alias: System - Turn On Guest Mode if Overnight Guest Mode Turned On
+  id: 'system_turn_on_guest_mode_if_overnight_guest_mode_turned_on'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.overnight_guest_mode
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 30
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.guest_mode
+      state: 'off'
+
+  actions:
+    - action: homeassistant.turn_on
+      target:
+        entity_id: 
+          - input_boolean.guest_mode
+
+        #################################################################
+        ## Turn Off Guest Mode if Overnight Guest Mode Turned Off
+        #################################################################
+
+- alias: System - Turn Off Guest Mode if Overnight Guest Mode Turned Off
+  id: 'system_turn_off_guest_mode_if_overnight_guest_mode_turned_off'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.overnight_guest_mode
+      to: 'off'
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 30
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.guest_mode
+      state: 'on'
+
+  actions:
+    - action: homeassistant.turn_off
+      target:
+        entity_id: 
+          - input_boolean.guest_mode
+
+        ##########################################################
+        ## Reset Guest Mode at 7a
+        ##########################################################
+
+- alias: System - Reset Guest Mode at 7a
+  id: 'system_reset_guest_mode_at_7a'
+
+  triggers:
+   - trigger: time
+     at: '07:00:00'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.overnight_guest_mode
+      state: 'off'
+
+  actions:
+    - action: homeassistant.turn_off
+      target:
+        entity_id:
+          - input_boolean.guest_mode
+
+        #################################################################
+        ## Turn On USER1 Office Do not Disturb when MacBook AV Input On
+        #################################################################
+
+- alias: System - Turn On USER1 Office Do not Disturb when MacBook AV Input On
+  id: 'system_turn_on_USER1_office_do_not_disturb_when_macbook_av_input_on'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.USER1_s_macbook_pro_camera_in_use
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 1
+        seconds: 0
+    - trigger: state
+      entity_id: binary_sensor.USER1_s_macbook_pro_audio_input_in_use
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 1
+        seconds: 0
+#    - trigger: state
+#      entity_id: binary_sensor.USER1_s_macbook_pro_focus
+#      to: 'on'
+#      for:
+#        hours: 0
+#        minutes: 1
+#        seconds: 0
+    - trigger: state
+      entity_id: sensor.USER1_s_macbook_pro_active_audio_input
+      from: 'Inactive'
+      for:
+        hours: 0
+        minutes: 1
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: person.USER1
+      state: 'home'
+    - condition: state
+      entity_id: binary_sensor.USER1_s_macbook_pro_active
+      state: 'on'
+    - condition: state
+      entity_id: input_boolean.USER1_s_office_do_not_disturb
+      state: 'off'
+
+  actions:
+    - action: homeassistant.turn_on
+      entity_id: input_boolean.USER1_s_office_do_not_disturb
+
+        #################################################################
+        ## Turn Off USER1 Office Do not Disturb when MacBook AV Input Off
+        #################################################################
+
+- alias: System - Turn Off USER1 Office Do not Disturb when MacBook AV Input Off
+  id: 'system_turn_off_USER1_office_do_not_disturb_when_macbook_av_input_off'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.USER1_s_macbook_pro_camera_in_use
+      to: 'off'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+    - trigger: state
+      entity_id: binary_sensor.USER1_s_macbook_pro_audio_input_in_use
+      to: 'off'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+    - trigger: state
+      entity_id: binary_sensor.USER1_s_macbook_pro_focus
+      to: 'off'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+    - trigger: state
+      entity_id: sensor.USER1_s_macbook_pro_active_audio_input
+      to: 'Inactive'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: person.USER1
+      state: 'home'
+    - condition: state
+      entity_id: input_boolean.USER1_s_office_do_not_disturb
+      state: 'on'
+    - condition: state
+      entity_id: binary_sensor.USER1_s_macbook_pro_camera_in_use
+      state: 'off'
+    - condition: state
+      entity_id: binary_sensor.USER1_s_macbook_pro_audio_input_in_use
+      state: 'off'
+#    - condition: state
+#      entity_id: binary_sensor.USER1_s_macbook_pro_focus
+#      state: 'off'
+
+  actions:
+    - action: homeassistant.turn_off
+      entity_id: input_boolean.USER1_s_office_do_not_disturb
+
+        ##########################################################
+        ## Echo Timer Flash Living Room Lights On
+        ##########################################################
+
+- alias: System - Echo Timer Flash Living Room Lights On
+  id: 'system_echo_timer_flash_living_room_lights_on'
+
+  mode: parallel
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.USER1_s_office_echo_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.basement_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.bathroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.bedroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.craft_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.dining_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.fitness_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.guest_bedroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.kitchen_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.USER2_s_office_timer
+      from: 'on'
+      to: 'off'
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: or
+      conditions:
+      - condition: state
+        entity_id: light.globe
+        state: 'on'
+      - condition: state
+        entity_id: light.media_center_lighting
+        state: 'on'
+    - condition: state
+      entity_id: input_boolean.disable_echo
+      state: 'off'
+
+  actions:
+    - action: light.turn_on
+      data:
+        flash: long
+        color_name: green
+        brightness_pct: 100
+      target:
+        entity_id: 
+          - light.globe
+    - action: light.turn_on
+      data:
+        flash: long
+        color_name: green
+        brightness_pct: 100
+      target:
+        entity_id: 
+          - light.media_center_lighting
+    - delay: '00:03:00'
+    - action: light.turn_on
+      target:
+        entity_id: 
+          - light.media_center_lighting
+      data:
+       transition: 5
+       brightness_pct: 100
+    - action: light.turn_on
+      target:
+        entity_id:
+          - light.globe
+      data:
+       transition: 5
+       brightness_pct: 65
+       color_temp: 366
+
+        ##########################################################
+        ## Echo Timer Flash Living Room Lights Off
+        ##########################################################
+
+- alias: System - Echo Timer Flash Living Room Lights Off
+  id: 'system_echo_timer_flash_living_room_lights_off'
+
+  mode: parallel
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.USER1_s_office_echo_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.basement_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.bathroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.bedroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.craft_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.dining_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.fitness_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.guest_bedroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.kitchen_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.USER2_s_office_timer
+      from: 'on'
+      to: 'off'
+
+  conditions:
+    - condition: state
+      entity_id: group.household
+      state: 'home'
+    - condition: or
+      conditions:
+      - condition: state
+        entity_id: light.globe
+        state: 'off'
+      - condition: state
+        entity_id: light.media_center_lighting
+        state: 'off'
+
+  actions:
+    - action: light.turn_on
+      data:
+        flash: long
+        color_name: green
+        brightness_pct: 100
+      target:
+        entity_id: 
+          - light.globe
+    - action: light.turn_on
+      data:
+        flash: long
+        color_name: green
+        brightness_pct: 100
+      target:
+        entity_id: 
+          - light.media_center_lighting
+    - delay: '00:03:00'
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.globe 
+    - action: light.turn_off
+      target:
+        entity_id:
+          - light.media_center_lighting
+
+#################################################################
+## Servers
+#################################################################
+
+        ##########################################################
+        ## Shutdown Windows VM at Bedtime
+        ##########################################################
+
+- alias: System Shutdown Windows VM at Bedtime
+  id: 'system_shutdown_windows_vm_at_bedtime'
+
+  triggers:
+    - trigger: state
+      entity_id: input_boolean.bedtime
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.qemu_windows_100_status
+      state: 'on'
+
+  actions:
+    - action: button.press
+      target:
+        entity_id: button.qemu_windows_100_shutdown
+
+        ##########################################################
+        ## Shutdown Windows VM when Household Away
+        ##########################################################
+
+- alias: System - Shutdown Windows VM when Household Away
+  id: 'system_shutdown_windows_vm_when_household_away'
+
+  triggers:
+    - trigger: state
+      entity_id: group.household
+      from: 'home'
+      to: 'not_home'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: binary_sensor.qemu_windows_100_status
+      state: 'on'
+
+  actions:
+    - action: button.press
+      target:
+        entity_id: button.qemu_windows_100_shutdown
+
+#################################################################
+## Notifications
+#################################################################
+
+        #################################################################
+        ## NAS-02 Warning iOS Notification
+        #################################################################
+
+- alias: System - NAS-02 Warning iOS Notification
+  id: 'system_nas_02_warning_ios_notification'
+
+  triggers:
+    - trigger: state
+      entity_id: sensor.nas_02_status
+      to: 'warning'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_notifications
+      state: 'off'
+
+  actions:
+    - action: notify.USER1_devices
+      data:
+        message: NAS-02 RAID Failing
+        data:
+          tag: nas-02
+
+        ##########################################################
+        ## NVR
+        ##########################################################
+
+- alias: System - NVR Drive Failure
+  id: 'system_nvr_drive_failure'
+
+  triggers:
+    - trigger: state
+      entity_id: 
+        - binary_sensor.zephyr_place_REDACTED_hdd_1
+        - binary_sensor.zephyr_place_REDACTED_hdd_2
+        - binary_sensor.zephyr_place_REDACTED_hdd_3
+        - binary_sensor.zephyr_place_REDACTED_hdd_4
+      to: 'on'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_notifications
+      state: 'off'
+
+  actions:
+    - action: notify.USER1_devices
+      data:
+        message: "{{ trigger.to_state.attributes.friendly_name }} Failing"
+
+        ##########################################################
+        ## UPS Power Loss Alert iOS Notification
+        ##########################################################
+
+- alias: System - UPS Power Loss Alert iOS Notification
+  id: 'system_ups_power_loss_alert_ios_notification'
+
+  triggers:
+    - trigger: numeric_state
+      entity_id: 
+          - sensor.ups_a_input_voltage
+          - sensor.ups_b_input_voltage
+          - sensor.ups_c_input_voltage
+      below: 80
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_notifications
+      state: 'off'
+
+  actions:
+    - action: notify.USER1_devices
+      data:
+        message: Power Outage Detected
+        data:
+          tag: ups
+
+        ##########################################################
+        ## UPS Power Restored Alert iOS Notification
+        ##########################################################
+
+- alias: System - UPS Power Restored Alert iOS Notification
+  id: 'system_ups_power_restored_alert_ios_notification'
+
+  triggers:
+    - trigger: numeric_state
+      entity_id: 
+          - sensor.ups_a_input_voltage
+          - sensor.ups_b_input_voltage
+          - sensor.ups_c_input_voltage
+      above: 110
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_notifications
+      state: 'off'
+    - condition: state
+      entity_id: input_boolean.disable_startup_notifications
+      state: 'off'
+
+  actions:
+    - action: notify.USER1_devices
+      data:
+        message: Power Restored
+        data:
+          tag: ups
+
+        ##########################################################
+        ## UPS Low Battery Alert iOS Notification
+        ##########################################################
+
+- alias: System - UPS Low Battery Alert iOS Notification
+  id: 'system_ups_low_battery_alert_ios_notification'
+
+  triggers:
+    - trigger: numeric_state
+      entity_id: 
+          - sensor.ups_a_battery
+          - sensor.ups_b_battery
+          - sensor.ups_c_input_voltage
+      below: 15
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_notifications
+      state: 'off'
+
+  actions:
+    - action: notify.USER1_devices
+      data:
+        message: "{{ trigger.to_state.attributes.friendly_name }} Low"
+        data:
+          tag: ups
+
+        ##########################################################
+        ## UPS Disconnected iOS Notification
+        ##########################################################
+
+- alias: System - UPS Disconnected iOS Notification
+  id: 'system_ups_disconnected_ios_notification'
+
+  triggers:
+    - trigger: state
+      entity_id: 
+        - sensor.ups_a_status
+        - sensor.ups_b_status
+        - sensor.ups_c_status
+      to: 'unavailable'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_notifications
+      state: 'off'
+
+  actions:
+    - action: notify.USER1_devices
+      data:
+        message: "{{ trigger.to_state.attributes.friendly_name }} has Disconnected"
+        data:
+          tag: ups
+
+        #################################################################
+        ## Home Assistant Started iOS Notification
+        #################################################################
+
+- alias: System - Home Assistant Start iOS Notification
+  id: 'system_home_assistant_start_ios_notification'
+
+  triggers:
+    - trigger: homeassistant
+      event: start
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_notifications
+      state: 'off'
+
+  actions:
+    - action: notify.USER1_devices
+      data:
+        message: Home Assistant Started
+        data:
+          tag: homeassistant
+
+        #################################################################
+        ## Home Assistant Update iOS Notification
+        #################################################################
+
+- alias: System - Home Assistant Update iOS Notification
+  id: 'system_home_assistant_update_ios_notification'
+
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.docker_hub_update_available
+      to: 'on'
+      for:
+        hours: 0
+        minutes: 5
+        seconds: 0
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_notifications
+      state: 'off'
+
+  actions:
+    - action: notify.USER1_devices
+      data:
+        message: Update Available for Home Assistant
+        data:
+          tag: homeassistant
+
+        ##########################################################
+        ## Guest Mode is Still On
+        ##########################################################
+
+- alias: System - Guest Mode is Still On
+  id: 'system_guest_mode_is_still_on'
+
+  triggers:
+   - trigger: time
+     at: '09:00:00'
+
+  conditions:
+    - condition: or
+      conditions:
+      - condition: state
+        entity_id: input_boolean.overnight_guest_mode
+        state: 'on'
+      - condition: state
+        entity_id: input_boolean.guest_mode
+        state: 'on'
+
+  actions:
+    - action: notify.USER1_devices
+      data:
+        message: 'Guest Mode is Still On'
+
+        ##########################################################
+        ## Echo Timer Notification USER1
+        ##########################################################
+
+- alias: System - Echo Timer Notification USER1
+  id: 'system_echo_timer_notification_USER1'
+
+  mode: parallel
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.USER1_s_office_echo_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.basement_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.bathroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.bedroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.craft_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.dining_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.fitness_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.guest_bedroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.kitchen_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.USER2_s_office_timer
+      from: 'on'
+      to: 'off'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_notifications
+      state: 'off'
+    - condition: state
+      entity_id: person.USER1
+      state: 'home'
+    - condition: state
+      entity_id: input_boolean.disable_echo
+      state: 'off'
+
+  actions:
+    - action: notify.USER1_devices
+      data:
+        message: "{{ trigger.to_state.attributes.friendly_name }} Finished"
+        data:
+          tag: echo
+
+        ##########################################################
+        ## Echo Timer Notification USER2
+        ##########################################################
+
+- alias: System - Echo Timer Notification USER2
+  id: 'system_echo_timer_notification_USER2'
+
+  mode: parallel
+  triggers:
+    - trigger: state
+      entity_id: binary_sensor.USER1_s_office_echo_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.basement_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.bathroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.bedroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.craft_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.dining_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.fitness_room_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.guest_bedroom_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.kitchen_timer
+      from: 'on'
+      to: 'off'
+    - trigger: state
+      entity_id: binary_sensor.USER2_s_office_timer
+      from: 'on'
+      to: 'off'
+
+  conditions:
+    - condition: state
+      entity_id: input_boolean.disable_notifications
+      state: 'off'
+    - condition: state
+      entity_id: person.USER2
+      state: 'home'
+    - condition: state
+      entity_id: input_boolean.disable_echo
+      state: 'off'
+
+  actions:
+    - action: notify.USER2_devices
+      data:
+        message: "{{ trigger.to_state.attributes.friendly_name }} Finished"
+        data:
+          tag: echo
