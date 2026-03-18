@@ -1,93 +1,161 @@
-# HA Smart Block  
-**Visual Round-Trip Programming Environment for Home Assistant**  
+# SmartBlock HA
+**Visual Editor for Home Assistant Automations**
 
-## Home Assistant
-[Home Assistant](https://www.home-assistant.io/) is one of the leading open-source IoT platforms.  
-It enables users to automate smart devices through YAML-based automation scripts that combine **triggers**, **conditions**, and **actions**.
+SmartBlock HA is a Blockly-based visual editor for Home Assistant automations.  
+It supports round-trip editing between YAML and visual blocks so users can:
 
-However, YAML syntax requires users to handle indentation, nested logic, and strict formatting —  
-which can make automation difficult for non-developers.
+- create automations visually
+- import existing Home Assistant automation YAML
+- inspect normalized import data
+- export valid automation YAML
+- push and pull automations from Home Assistant
 
-## HA Smart Block
-**HA Smart Block** extends the idea of *Smart Block (for SmartThings)* to the **Home Assistant** environment.  
-It allows users to **create and edit automations visually** without writing YAML code manually.
+![SmartBlock HA](./ha_smartblock.png)
 
-When users build their automations with blocks,  
-the system automatically generates valid Home Assistant YAML code,  
-and conversely, users can import existing YAML files to view and modify them as visual blocks.
+## Overview
+Home Assistant automations are typically written in YAML with **triggers**, **conditions**, and **actions**.  
+SmartBlock HA provides a visual editing workflow on top of that model:
 
-Thus, **HA Smart Block provides a true Round-Trip editing environment**:  
-YAML ⇄ Visual Blocks ⇄ YAML.
+`YAML -> Visual Blocks -> YAML`
 
-![HA Block](https://github.com/seomihyeons/HA_smartblock/blob/main/ha_smartblock.png)
+The editor is designed for practical round-trip use:
+
+- supported YAML is converted into structured Blockly blocks
+- unsupported or partial syntax is preserved through raw fallback handling
+- imported automations can be edited and exported again
 
 ## Key Features
-- Visual editor for triggers, conditions, and actions  
-- Round-trip editing: YAML ↔ Blocks ↔ YAML  
-- Import normalization with raw fallback for unsupported syntax  
-- Home Assistant pull/push for live automations  
-- Conflict Analyzer integration for Event–Action consistency  
-- Task Alt batch verification with baseline regression checks  
+- Visual editor for Home Assistant triggers, conditions, and actions
+- Round-trip editing between YAML and Blockly blocks
+- Import normalization with fallback preservation for unsupported syntax
+- Home Assistant automation pull and push support
+- Conflict Analyzer (E-A) integration
+- Automation Regression Test workflow for batch verification
+- Alias-based automatic `id` generation when pushing automations without an `id`
 
-## How to Access the Program
-To run the **HA Smart Block** program locally, first download or clone this repository from GitHub.  
-After extracting or cloning the files, open a terminal (PowerShell or VS Code terminal) and navigate to the project root: `/blockly`.
+## Project Structure
+The application now runs directly from the repository root.
 
-Then install dependencies and launch the program:
-~~~bash
+```text
+src/                  frontend UI, Blockly setup, import/export logic
+server/               analyzer bridge server
+test/                 Task Alt / regression datasets and utilities
+webpack.config.js     local dev server and proxy setup
+package.json          app dependencies and scripts
+```
+
+## Local Setup
+Clone the repository, move to the project root, and install dependencies:
+
+```bash
 npm install
-npm run start
-~~~
+```
 
-## Environment Variables (HA Integration)
-To use Home Assistant integration features (automation list, pull/push, conflict analyzer), create a local `.env` file in the project root.
+Start the local development server:
+
+```bash
+npm run start
+```
+
+Build a production bundle:
+
+```bash
+npm run build
+```
+
+## Environment Variables
+To use Home Assistant integration features, create a local `.env` file in the project root.
 
 Example:
-~~~env
+
+```env
 HA_BASE_URL=http://<HA_IP>:8123
 HA_TOKEN=<YOUR_LONG_LIVED_TOKEN>
-~~~
-
-Notes:
-- `.env` is ignored by git, so each user must create it locally.
-- Do not expose the dev server publicly while using `HA_TOKEN`.
-- If you only need the visual editor without HA integration, `.env` is optional.
-- If Home Assistant is not connected, the visual editor works but pull/push/analyzer are unavailable.
+```
 
 Optional variables:
-- HA_IP  
-- HA_PORT  
-- ANALYZER_HOST  
-- ANALYZER_PORT  
-- DEV_SERVER_HOST  
-- HA_SSL_VERIFY  
+
+- `HA_IP`
+- `HA_PORT`
+- `ANALYZER_HOST`
+- `ANALYZER_PORT`
+- `DEV_SERVER_HOST`
+- `HA_SSL_VERIFY`
+
+Notes:
+
+- `.env` is ignored by git and must be created locally
+- if `.env` is missing, the visual editor still works, but HA pull/push and analyzer features are unavailable
+- do not expose the local dev server publicly while using `HA_TOKEN`
 
 ## Home Assistant Integration
-Live pull/push requires HA credentials:
-- Set `HA_BASE_URL` or `HA_IP` / `HA_PORT`
-- Set `HA_TOKEN`
+SmartBlock HA can interact with a running Home Assistant instance.
 
-## Conflict Analyzer
-- UI entry: 🛠 button → Run (sends request only)  
-- The analyzer server must be running only if you use Conflict Analyzer:
-~~~bash
+Supported workflows:
+
+- load automations from Home Assistant
+- import an automation into the Blockly workspace
+- export the current workspace as YAML
+- save the current automation back to Home Assistant
+
+If an automation `id` is missing, SmartBlock HA generates one automatically using:
+
+```text
+sb_<alias_slug>_<short_suffix>
+```
+
+The generated `id` is written back into the workspace so later saves update the same automation.
+
+## Conflict Analyzer (E-A)
+UI entry: `🛠`
+
+The analyzer reports summary information such as:
+
+- automations analyzed
+- events
+- actions
+- rule edges
+- inconsistency issues
+- conflict types
+- conflicting entities
+- elapsed time
+
+If no conflicts are detected, the UI reports:
+
+```text
+No inconsistency detected.
+System logic is consistent.
+```
+
+To use the analyzer backend directly:
+
+```bash
 node server/analyze_server.js
-~~~
-- Python analyzer: `src/homeassistant/conflict_analyzer/ha_eca_conflict_analyzer.py`  
-- Requires Python 3 and PyYAML  
-- [Analyzer Repository](https://github.com/kwanghoon/haanalyzer)
+```
 
-## Task Alt Verification
-- UI entry: ⛏ inside the app  
-- Datasets: `test/test_*`  
-- Baseline stored via local dev server API  
-- Regression report highlights status, count, and RAW changes  
-- Note: datasets are large and intended for verification use
+Requirements:
+
+- Python 3
+- PyYAML
+- analyzer script at `src/homeassistant/conflict_analyzer/ha_eca_conflict_analyzer.py`
+- external analyzer reference: <https://github.com/kwanghoon/haanalyzer>
+
+## Automation Regression Test
+UI entry: `⛏`
+
+This workflow is used for dataset-based verification of YAML import/export behavior.
+
+- import YAML files in batch
+- preview original and regenerated results
+- open a selected preview in the editor
+- record a baseline and run regression checks
+
+Datasets are stored under `test/`.
 
 ## Security Notes
-- Dev server and analyzer are local-only by default.  
-- Do not expose the dev server publicly when using HA_TOKEN.  
-- If LAN access is required, set `DEV_SERVER_HOST=0.0.0.0` and add your own access guard.
+- the dev server and analyzer are intended for local use
+- do not expose the dev server publicly when using `HA_TOKEN`
+- if LAN access is required, set `DEV_SERVER_HOST=0.0.0.0` and add your own access controls
 
 ## Demo Video
-[Watch the Demo Video](https://youtu.be/jua_SjaCClo?si=6nmnx814JoCcibmV)
+<https://youtu.be/jua_SjaCClo?si=6nmnx814JoCcibmV>
