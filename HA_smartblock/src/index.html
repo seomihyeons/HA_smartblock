@@ -47,13 +47,13 @@
       </div>
 
       <div class="debug-meta">
-        <div id="debugStatus" class="debug-status state-idle">Idle</div>
+        <div id="debugStatus" class="debug-status state-idle">Ready</div>
         <div id="debugSpinner" class="debug-spinner hidden" aria-hidden="true"></div>
       </div>
-      <div id="debugSummary" class="debug-summary">Automations: -&#10;Inconsistency issues: -&#10;Elapsed: -</div>
+      <div id="debugSummary" class="debug-summary">Automations analyzed: -&#10;Events: -&#10;Actions: -&#10;Rule edges: -&#10;Inconsistency issues: -&#10;Conflict types: -&#10;Conflicting entities: -&#10;Elapsed: -</div>
       <div id="debugError" class="debug-error hidden"></div>
 
-      <pre id="debugOutput" class="modal-output">(no output)</pre>
+      <div id="debugOutput" class="modal-output"></div>
     </div>
   </div>
 
@@ -62,10 +62,10 @@
 
     <div class="modal-panel">
       <div class="modal-header">
-        <div class="modal-title" id="taskAltModalTitle">Task Alt Batch Verify</div>
+        <div class="modal-title" id="taskAltModalTitle">Automation Regression Test</div>
         <div class="modal-actions">
-          <button id="taskAltImport" type="button">Import YAMLs</button>
-          <button id="taskAltRun" type="button">Run</button>
+          <button id="taskAltImport" type="button">Import YAML Files</button>
+          <button id="taskAltRun" type="button">Start Test</button>
           <button id="taskAltCopy" type="button">Copy</button>
           <button id="taskAltModalClose" type="button" aria-label="Close">×</button>
         </div>

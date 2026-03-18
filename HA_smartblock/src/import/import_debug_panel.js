@@ -10,6 +10,7 @@ export function ensureImportDebugPanel({ hostId = 'generatedCode' } = {}) {
     panel.style.marginBottom = '8px';
 
     const sum = document.createElement('summary');
+    sum.className = 'import-debug-label';
     sum.textContent = 'Imported JSON (normalized)';
 
     const pre = document.createElement('pre');

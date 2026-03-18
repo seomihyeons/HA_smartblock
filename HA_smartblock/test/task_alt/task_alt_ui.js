@@ -1,3 +1,4 @@
+import * as Blockly from 'blockly';
 import {
   runTaskAltBatch,
   buildBaselineFromResults,
@@ -119,6 +120,8 @@ export function initTaskAltUI({ ws }) {
   let previewMode = 'ORIGINAL'; // ORIGINAL | REGENERATED
   let regressionInfo = null;
   let importChoiceMode = false;
+  let modalSessionState = null;
+  let committedPreview = null;
 
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
@@ -185,22 +188,85 @@ export function initTaskAltUI({ ws }) {
     folderInput.value = '';
   });
 
-  const applyPreview = (res, idx) => {
-    if (!res) return;
-    const isOriginal = previewMode === 'ORIGINAL';
-    const jsonToRender = isOriginal ? res.originalJson : res.regeneratedJson;
-    const yamlToShow = isOriginal ? (res.originalText || '') : (res.regeneratedYaml || '');
-    if (!jsonToRender) return;
+  const readEditorState = () => {
+    const codeEl = $('generatedCode');
+    const debugPanel = $('importDebugPanel');
+    const debugPre = $('importDebugPre');
+    return {
+      workspace: Blockly.serialization.workspaces.save(ws),
+      yamlText: codeEl ? codeEl.innerText : '',
+      hadDebugPanel: Boolean(debugPanel),
+      debugPanelOpen: Boolean(debugPanel?.open),
+      debugPanelText: debugPre ? debugPre.textContent : '',
+    };
+  };
+
+  const restoreEditorState = (state) => {
+    if (!state) return;
     try {
+      ws.clear();
+      Blockly.serialization.workspaces.load(state.workspace, ws);
+    } catch {
+      // no-op
+    }
+
+    const codeEl = $('generatedCode');
+    if (codeEl) codeEl.innerText = state.yamlText || '';
+
+    let debugPanel = $('importDebugPanel');
+    if (!state.hadDebugPanel) {
+      debugPanel?.remove();
+      return;
+    }
+
+    if (!debugPanel) {
+      showImportDebugJson({});
+      debugPanel = $('importDebugPanel');
+    }
+
+    const debugPre = $('importDebugPre');
+    if (debugPre) debugPre.textContent = state.debugPanelText || '';
+    if (debugPanel) debugPanel.open = Boolean(state.debugPanelOpen);
+  };
+
+  const getPreviewPayload = (res, mode = previewMode) => {
+    if (!res) return null;
+    const isOriginal = mode === 'ORIGINAL';
+    return {
+      jsonToRender: isOriginal ? res.originalJson : res.regeneratedJson,
+      yamlToShow: isOriginal ? (res.originalText || '') : (res.regeneratedYaml || ''),
+    };
+  };
+
+  const renderPreviewToEditor = (res, mode = previewMode) => {
+    const payload = getPreviewPayload(res, mode);
+    if (!payload?.jsonToRender) return false;
+    try {
+      const { jsonToRender, yamlToShow } = payload;
       renderAutomationToWorkspace(ws, jsonToRender, { clearBefore: true });
       const codeEl = $('generatedCode');
       if (codeEl) codeEl.innerText = yamlToShow;
       showImportDebugJson(jsonToRender);
-      selectedIndex = idx;
-      renderResults();
+      return true;
     } catch (e) {
       out.textContent = `ERROR\n${String(e?.message || e)}`;
+      return false;
     }
+  };
+
+  const applyPreview = (res, idx, mode = previewMode) => {
+    if (!res) return;
+    if (!renderPreviewToEditor(res, mode)) return;
+    selectedIndex = idx;
+    renderResults();
+  };
+
+  const commitPreviewToEditor = (res, idx, mode = previewMode) => {
+    if (!res) return;
+    if (!renderPreviewToEditor(res, mode)) return;
+    selectedIndex = idx;
+    committedPreview = { idx, mode };
+    renderResults();
   };
 
   const statusClass = (s) => {
@@ -670,6 +736,19 @@ export function initTaskAltUI({ ws }) {
             }
 
             row.appendChild(detail);
+
+            const idx = results.findIndex((x) => String(x?.name || '') === change.name);
+            if (idx >= 0 && results[idx]) {
+              const actions = document.createElement('div');
+              actions.className = 'taskalt-inline-actions';
+              const openBtn = document.createElement('button');
+              openBtn.type = 'button';
+              openBtn.className = `taskalt-open-btn${committedPreview?.idx === idx ? ' active' : ''}`;
+              openBtn.textContent = committedPreview?.idx === idx ? 'Opened in Editor' : 'Open in Editor';
+              openBtn.addEventListener('click', () => commitPreviewToEditor(results[idx], idx));
+              actions.appendChild(openBtn);
+              row.appendChild(actions);
+            }
             list.appendChild(row);
           });
 
@@ -745,7 +824,7 @@ export function initTaskAltUI({ ws }) {
 
     filtered.forEach(({ r, i }) => {
       const item = document.createElement('div');
-      item.className = `taskalt-item${selectedIndex === i ? ' selected' : ''}`;
+      item.className = `taskalt-item taskalt-result-item${selectedIndex === i ? ' selected' : ''}`;
 
       const head = document.createElement('div');
       head.className = 'taskalt-head';
@@ -756,12 +835,23 @@ export function initTaskAltUI({ ws }) {
       nameBtn.textContent = r.name;
       nameBtn.addEventListener('click', () => applyPreview(r, i));
 
+      const actions = document.createElement('div');
+      actions.className = 'taskalt-item-actions';
+
       const badge = document.createElement('span');
       badge.className = `taskalt-status ${statusClass(r.status)}`;
       badge.textContent = r.status;
 
+      const openBtn = document.createElement('button');
+      openBtn.type = 'button';
+      openBtn.className = `taskalt-open-btn${committedPreview?.idx === i ? ' active' : ''}`;
+      openBtn.textContent = committedPreview?.idx === i ? 'Opened in Editor' : 'Open in Editor';
+      openBtn.addEventListener('click', () => commitPreviewToEditor(r, i));
+
       head.appendChild(nameBtn);
-      head.appendChild(badge);
+      actions.appendChild(badge);
+      actions.appendChild(openBtn);
+      head.appendChild(actions);
 
       const body = document.createElement('div');
       body.className = 'taskalt-lines';
@@ -780,11 +870,22 @@ export function initTaskAltUI({ ws }) {
 
   const open = () => {
     hideImportChoiceMode();
+    modalSessionState = readEditorState();
+    committedPreview = null;
     modal.classList.remove('hidden');
     setModalOpenState('taskAltModal', true);
   };
   const close = () => {
     hideImportChoiceMode();
+    if (committedPreview && results[committedPreview.idx]) {
+      renderPreviewToEditor(results[committedPreview.idx], committedPreview.mode);
+      selectedIndex = committedPreview.idx;
+      previewMode = committedPreview.mode;
+    } else {
+      restoreEditorState(modalSessionState);
+    }
+    modalSessionState = null;
+    committedPreview = null;
     modal.classList.add('hidden');
     setModalOpenState('taskAltModal', false);
   };

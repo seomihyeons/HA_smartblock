@@ -96,7 +96,24 @@ Blockly.common.defineBlocks(actionMqttBlocks);
 
 const codeDiv = document.getElementById('generatedCode');
 const blocklyDiv = document.getElementById('blocklyDiv');
-const ws = Blockly.inject(blocklyDiv, { toolbox, theme: customTheme, });
+const ws = Blockly.inject(blocklyDiv, {
+  toolbox,
+  theme: customTheme,
+  move: {
+    scrollbars: true,
+    drag: true,
+    wheel: true,
+  },
+  zoom: {
+    controls: false,
+    wheel: true,
+    pinch: true,
+    startScale: 1,
+    minScale: 0.4,
+    maxScale: 2.5,
+    scaleSpeed: 1.15,
+  },
+});
 
 window.Blockly = Blockly;
 window.ws = ws;

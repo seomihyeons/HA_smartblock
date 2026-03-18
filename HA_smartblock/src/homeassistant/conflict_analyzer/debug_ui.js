@@ -3,52 +3,89 @@ import { setModalOpenState } from "../../utils/floating_modal_state";
 
 function $(id) { return document.getElementById(id); }
 function setText(el, text) { if (el) el.textContent = text; }
-function appendLine(el, line) {
-    if (!el) return;
-    const cur = el.textContent || "";
-    el.textContent = cur + (cur.endsWith("\n") || cur.length === 0 ? "" : "\n") + line;
+
+function createNode(tag, className, text = "") {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text) node.textContent = text;
+    return node;
 }
 
-function formatReport(report) {
-    if (!report) return "No report.";
+function renderIssueCards(host, report) {
+    if (!host) return;
+    host.innerHTML = "";
 
-    const s = report.summary || {};
-    const issues = Array.isArray(report.inconsistency) ? report.inconsistency : [];
-
-    let txt = "";
-    txt += "✔ Analysis Complete\n\n";
-    txt += `Automations analyzed: ${s.automations ?? 0}\n`;
-    txt += `Events: ${s.events ?? 0}\n`;
-    txt += `Actions: ${s.actions ?? 0}\n`;
-    txt += `Rule edges: ${s.edges ?? 0}\n\n`;
-
-    const incCount = s.inconsistency_issues ?? issues.length ?? 0;
-
+    const issues = Array.isArray(report?.inconsistency) ? report.inconsistency : [];
+    const incCount = report?.summary?.inconsistency_issues ?? issues.length ?? 0;
     if (!issues.length && incCount === 0) {
-        txt += "No inconsistency detected.\n";
-        txt += "System logic is consistent.";
-        return txt;
+        return;
     }
 
-    txt += `⚠ Detected ${incCount} inconsistency issue(s)\n\n`;
+    const summary = createNode("div", "debug-issue-summary", `Detected ${incCount} inconsistency issue(s)`);
+    host.appendChild(summary);
 
     if (!issues.length) {
-        txt += "(No detailed issue list provided by analyzer.)";
-        return txt;
+        host.appendChild(createNode("div", "debug-issue-empty", "No detailed issue list provided by analyzer."));
+        return;
     }
 
-    issues.forEach((iss, i) => {
-        const issueType = iss.issue || "Issue";
-        txt += `--- Issue ${i + 1} (${issueType}) ---\n`;
-        if (iss.event) txt += `Trigger: ${iss.event}\n`;
-        if (iss.action1) txt += `Action 1: ${iss.action1}\n`;
-        if (iss.action2) txt += `Action 2: ${iss.action2}\n`;
-        if (iss.entity != null) txt += `Entity: ${iss.entity}\n`;
-        txt += "\n";
-    });
+    const list = createNode("div", "debug-issue-list");
+    issues.forEach((iss, index) => {
+        const card = createNode("section", "debug-issue-card");
 
-    txt += "Explanation: Two rules triggered by the same event produce conflicting actions.";
-    return txt;
+        const head = createNode("div", "debug-issue-head");
+        head.appendChild(createNode("div", "debug-issue-title", `Issue ${index + 1}`));
+        head.appendChild(createNode("span", "debug-issue-badge", String(iss?.issue || "Issue")));
+        card.appendChild(head);
+
+        const body = createNode("div", "debug-issue-body");
+        const rows = [
+            ["Trigger", iss?.event],
+            ["Action 1", iss?.action1],
+            ["Action 2", iss?.action2],
+            ["Entity", iss?.entity],
+        ];
+
+        rows.forEach(([label, value]) => {
+            if (value == null || String(value).trim() === "") return;
+            const row = createNode("div", "debug-issue-row");
+            row.appendChild(createNode("div", "debug-issue-key", label));
+            row.appendChild(createNode("code", "debug-issue-value", String(value)));
+            body.appendChild(row);
+        });
+
+        card.appendChild(body);
+        list.appendChild(card);
+    });
+    host.appendChild(list);
+
+    host.appendChild(
+        createNode(
+            "div",
+            "debug-issue-note",
+            "Two rules triggered by the same event produce conflicting actions."
+        )
+    );
+}
+
+function summarizeConflictTypes(issues) {
+    const counts = {};
+    for (const issue of Array.from(issues || [])) {
+        const key = String(issue?.issue || "unknown");
+        counts[key] = Number(counts[key] || 0) + 1;
+    }
+    const names = Object.keys(counts).sort((a, b) => a.localeCompare(b));
+    if (!names.length) return "-";
+    return names.map((name) => `${name}=${counts[name]}`).join(", ");
+}
+
+function countConflictingEntities(issues) {
+    const entities = new Set();
+    for (const issue of Array.from(issues || [])) {
+        const entity = String(issue?.entity || "").trim();
+        if (entity) entities.add(entity);
+    }
+    return entities.size;
 }
 
 export function initConflictAnalyzerUI() {
@@ -89,7 +126,7 @@ export function initConflictAnalyzerUI() {
     const setSummary = (text) => {
         if (!summaryEl) return;
         summaryEl.classList.remove("hidden");
-        summaryEl.textContent = text || "Automations: -\nInconsistency issues: -\nElapsed: -";
+        summaryEl.textContent = text || "Automations analyzed: -\nEvents: -\nActions: -\nRule edges: -\nInconsistency issues: -\nConflict types: -\nConflicting entities: -\nElapsed: -";
     };
 
     const setError = (text) => {
@@ -113,14 +150,26 @@ export function initConflictAnalyzerUI() {
         const issues = Array.isArray(report?.inconsistency) ? report.inconsistency : [];
         const incCount = s.inconsistency_issues ?? issues.length ?? "-";
         const elapsed = elapsedMs != null ? `${elapsedMs} ms` : "-";
-        return [
-            `Automations: ${s.automations ?? "-"}`,
+        const conflictTypes = summarizeConflictTypes(issues);
+        const conflictingEntities = countConflictingEntities(issues);
+        const lines = [
+            `Automations analyzed: ${s.automations ?? "-"}`,
             `Events: ${s.events ?? "-"}`,
             `Actions: ${s.actions ?? "-"}`,
             `Rule edges: ${s.edges ?? "-"}`,
             `Inconsistency issues: ${incCount}`,
+            `Conflict types: ${conflictTypes}`,
+            `Conflicting entities: ${incCount === "-" ? "-" : conflictingEntities}`,
             `Elapsed: ${elapsed}`,
-        ].join("\n");
+        ];
+
+        if (incCount === 0) {
+            lines.push("");
+            lines.push("No inconsistency detected.");
+            lines.push("System logic is consistent.");
+        }
+
+        return lines.join("\n");
     };
 
     const classifyError = (err) => {
@@ -136,28 +185,22 @@ export function initConflictAnalyzerUI() {
 
     const run = async () => {
         setText(out, "");
-        setSummary("Automations: -\nEvents: -\nActions: -\nRule edges: -\nInconsistency issues: -\nElapsed: running...");
+        setSummary("Automations analyzed: -\nEvents: -\nActions: -\nRule edges: -\nInconsistency issues: -\nConflict types: -\nConflicting entities: -\nElapsed: running...");
         setError("");
-        setStatus("running", "Running...");
+        setStatus("running", "Analyzing...");
         toggleSpinner(true);
         btnRun.disabled = true;
-        appendLine(out, "[UI] Building YAML from HA automations...");
-        appendLine(out, "[Server] POST /analyze ... (this may take a while)");
 
         const startedAt = performance.now();
         try {
             const report = await runConflictAnalyzer({ onlyEnabled: true, concurrency: 3 });
-            appendLine(out, "");
-            appendLine(out, "===== RESULT =====");
-            appendLine(out, formatReport(report));
             const ms = Math.round(performance.now() - startedAt);
             setSummary(buildSummary(report, ms));
-            setStatus("done", "Done");
+            renderIssueCards(out, report);
+            setStatus("done", "Analysis Complete");
         } catch (e) {
-            appendLine(out, "");
-            appendLine(out, "===== ERROR =====");
             const msg = classifyError(e);
-            appendLine(out, String(e?.message || e));
+            setText(out, String(e?.message || e));
             setError(msg);
             const ms = Math.round(performance.now() - startedAt);
             setSummary(buildSummary(null, ms));
@@ -174,8 +217,8 @@ export function initConflictAnalyzerUI() {
     btnCopy.addEventListener("click", copy);
     btnRun.addEventListener("click", run);
 
-    setStatus("idle", "Idle");
-    setSummary("Automations: -\nEvents: -\nActions: -\nRule edges: -\nInconsistency issues: -\nElapsed: -");
+    setStatus("idle", "Ready");
+    setSummary("Automations analyzed: -\nEvents: -\nActions: -\nRule edges: -\nInconsistency issues: -\nConflict types: -\nConflicting entities: -\nElapsed: -");
     setError("");
     toggleSpinner(false);
     btnCopy.disabled = false;

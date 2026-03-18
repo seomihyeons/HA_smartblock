@@ -76,7 +76,7 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
         panel.style.overflow = 'hidden';
         panel.style.boxSizing = 'border-box';
 
-        const title = el('div', { innerText: 'HA Automations (Pull)' });
+        const title = el('div', { innerText: 'Home Assistant Automations' });
         title.style.fontWeight = '700';
         title.style.marginBottom = '8px';
 
@@ -86,7 +86,7 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
         row.style.alignItems = 'center';
         row.style.marginBottom = '8px';
 
-        const btnLoad = el('button', { id: 'haLoadListBtn', innerText: 'Load list' });
+        const btnLoad = el('button', { id: 'haLoadListBtn', innerText: 'Load' });
         const btnRefresh = el('button', { id: 'haRefreshBtn', innerText: 'Refresh', disabled: true });
         btnRefresh.style.opacity = '0.6';
 

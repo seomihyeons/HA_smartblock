@@ -65,10 +65,22 @@ function parseYamlToSingleAutomation(yamlText) {
     throw new Error('YAML 파싱 결과가 object/list가 아닙니다.');
 }
 
-function genId(prefix = 'sb_') {
-    const t = Date.now().toString(36);
-    const r = Math.random().toString(36).slice(2, 8);
-    return `${prefix}${t}${r}`;
+function slugifyIdPart(value, fallback = 'automation') {
+    const base = String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/['"]/g, '')
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .replace(/_+/g, '_');
+    const clipped = base.slice(0, 48).replace(/^_+|_+$/g, '');
+    return clipped || fallback;
+}
+
+function genIdFromAlias(alias, prefix = 'sb') {
+    const slug = slugifyIdPart(alias, 'automation');
+    const suffix = Math.random().toString(36).slice(2, 6);
+    return `${prefix}_${slug}_${suffix}`;
 }
 
 export async function pushYamlToHomeAssistant(yamlText, { id } = {}) {
@@ -77,8 +89,8 @@ export async function pushYamlToHomeAssistant(yamlText, { id } = {}) {
     const raw = parseYamlToSingleAutomation(yamlText);
     const payload = normalizeAutomationPayload(raw);
 
-    payload.id = payload.id || id || genId();
     payload.alias = payload.alias || 'SmartBlock Automation';
+    payload.id = payload.id || id || genIdFromAlias(payload.alias);
 
     const url = `/ha/api/config/automation/config/${encodeURIComponent(payload.id)}`;
 
@@ -99,5 +111,10 @@ export async function pushYamlToHomeAssistant(yamlText, { id } = {}) {
         throw new Error(`푸시 실패: ${res.status} ${res.statusText}\n${typeof body === 'string' ? body : JSON.stringify(body)}`);
     }
 
-    return { id: payload.id, alias: payload.alias, response: body };
+    return {
+        id: payload.id,
+        alias: payload.alias,
+        response: body,
+        idWasGenerated: !raw?.id && !id,
+    };
 }
