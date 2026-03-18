@@ -13,12 +13,13 @@ code {
   width: 100%;
   max-width: 100vw;
   height: 100vh;
+  overflow: hidden;
 }
 
 #blocklyDiv {
   flex-basis: 100%;
   height: 100%;
-  min-width: 600px;
+  min-width: 0;
 }
 
 #outputPane {
@@ -31,6 +32,7 @@ code {
 }
 
 #generatedCode {
+  margin-top: 0;
   height: 50%;
   background-color: rgb(247, 240, 228);
 }
@@ -42,19 +44,57 @@ code {
 /* index.css */
 #titleRow {
   display: flex;
-  align-items: baseline;
-  /* h2와 텍스트 베이스라인 맞춤 */
-  gap: .5rem;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin-bottom: 0.65rem;
 }
 
 #titleRow h2 {
   margin: 0;
-  /* h2 기본 상하 마진 제거 */
+  font-size: 1.5rem;
+  line-height: 1.1;
 }
 
 #titleRow span {
-  line-height: 1;
-  /* 필요 시 높이 보정 */
+  color: #4b5563;
+  font-size: 0.92rem;
+  line-height: 1.3;
+}
+
+#panelLabel {
+  align-self: flex-end;
+  margin-top: 0.65rem;
+  margin-bottom: 0.45rem;
+  color: #6b7280;
+  font-size: 0.82rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  text-align: right;
+}
+
+#importDebugPanel {
+  margin-top: 0;
+}
+
+#importDebugPanel > .import-debug-label {
+  display: list-item;
+  color: #111827;
+  font-size: 0.82rem;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  text-align: left;
+  cursor: pointer;
+  list-style-position: inside;
+}
+
+#importDebugPanel > .import-debug-label::marker {
+  color: #111827;
+  font-size: 0.72rem;
+}
+
+#importDebugPanel > .import-debug-label::-webkit-details-marker {
+  color: #111827;
+  font-size: 0.72rem;
 }
 
 /* btnDebug: Blockly 위로 올리고 클릭 가능하게 강제 */
@@ -100,6 +140,12 @@ code {
   font-size: 44px !important;
   line-height: 1 !important;
   opacity: 0.3 !important;
+}
+
+body.floating-buttons-hidden #btnDebug,
+body.floating-buttons-hidden #btnTaskAlt {
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 /* ===== Debug Modal (override, do NOT touch #btnDebug) ===== */
@@ -237,7 +283,7 @@ code {
 
 #debugModal .debug-summary {
   color: #111827;
-  background: #eef2f7;
+  background: #ffffff;
   border-color: #e5e7eb;
 }
 
@@ -293,11 +339,103 @@ code {
   margin: 0;
   padding: 14px 16px;
   overflow: auto;
-  white-space: pre-wrap;
   font-size: 12px;
   color: #111827;
   background: #f3f4f6;
-  /* match panel */
+  white-space: normal;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-sizing: border-box;
+}
+
+#debugModal .debug-issue-summary {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #fca5a5;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#debugModal .debug-issue-list {
+  display: grid;
+  gap: 10px;
+}
+
+#debugModal .debug-issue-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 10px 12px;
+}
+
+#debugModal .debug-issue-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+#debugModal .debug-issue-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+}
+
+#debugModal .debug-issue-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #fdba74;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 11px;
+}
+
+#debugModal .debug-issue-body {
+  display: grid;
+  gap: 6px;
+}
+
+#debugModal .debug-issue-row {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 8px;
+  align-items: start;
+}
+
+#debugModal .debug-issue-key {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#debugModal .debug-issue-value {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 3px 6px;
+  color: #111827;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 11px;
+}
+
+#debugModal .debug-issue-note,
+#debugModal .debug-issue-empty {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 8px 10px;
+  color: #4b5563;
+  line-height: 1.45;
+  white-space: pre-wrap;
 }
 
 #taskAltModal {
@@ -395,6 +533,9 @@ code {
   -webkit-appearance: button;
   padding: 4px 10px;
   min-height: 32px;
+  font-size: 12px;
+  font-family: "Segoe UI", "Malgun Gothic", sans-serif;
+  font-weight: 400;
   border: 1px solid #d1d5db;
   background: #ffffff;
   border-radius: 8px;
@@ -455,6 +596,30 @@ code {
   gap: 8px;
 }
 
+.taskalt-item-actions {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.taskalt-result-item {
+  position: relative;
+  padding-right: 132px;
+}
+
+.taskalt-result-item .taskalt-head {
+  display: block;
+}
+
+.taskalt-result-item .taskalt-item-actions {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  gap: 10px;
+}
+
 .taskalt-name-btn {
   border: none;
   background: transparent;
@@ -463,6 +628,30 @@ code {
   font-weight: 700;
   padding: 0;
   color: #111827;
+}
+
+.taskalt-inline-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.taskalt-open-btn {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1.2;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.taskalt-open-btn.active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
 }
 
 .taskalt-item-title {

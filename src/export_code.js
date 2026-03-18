@@ -1,4 +1,5 @@
 import { pushYamlToHomeAssistant } from './homeassistant/push_automation';
+import { yamlGenerator } from './generators/yaml';
 
 function getYamlText(outputId) {
   const el = document.getElementById(outputId);
@@ -13,6 +14,31 @@ function toSafeFilename(name, fallback = 'automation') {
 function extractAliasForFilename(yaml) {
   const m = yaml.match(/^\s*-?\s*alias:\s*['"]?(.+?)['"]?\s*$/m);
   return m ? m[1].replace(/^['"]|['"]$/g, '') : null;
+}
+
+function findAutomationRootBlock(ws) {
+  if (!ws || typeof ws.getTopBlocks !== 'function') return null;
+  const roots = ws.getTopBlocks(true);
+  return roots.find((block) => block && (block.type === 'event_action' || block.type === 'event_condition_action')) || null;
+}
+
+function hasMeaningfulId(block) {
+  if (!block || typeof block.getFieldValue !== 'function') return false;
+  const value = String(block.getFieldValue('ID') || '').trim();
+  return Boolean(value && value !== '(Optional)');
+}
+
+function persistGeneratedAutomationId(ws, outputId, id) {
+  if (!ws || !id) return;
+  const root = findAutomationRootBlock(ws);
+  if (!root || hasMeaningfulId(root) || !root.getField('ID')) return;
+
+  root.setFieldValue(String(id), 'ID');
+
+  const host = document.getElementById(outputId);
+  if (host) {
+    host.innerText = yamlGenerator.workspaceToCode(ws);
+  }
 }
 
 function downloadYamlFile(yaml, filename) {
@@ -38,7 +64,7 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null) {
 
     const wrap = document.createElement('div');
     wrap.id = 'yamlButtons';
-    wrap.style.marginTop = '8px';
+    wrap.style.marginTop = '2px';
 
     const exportBtn = document.createElement('button');
     exportBtn.id = 'exportYamlBtn';
@@ -96,6 +122,9 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null) {
 
       try {
         const result = await pushYamlToHomeAssistant(yaml, {});
+        if (result?.idWasGenerated) {
+          persistGeneratedAutomationId(ws, outputId, result.id);
+        }
         pushBtn.textContent = 'Pushed!';
         setTimeout(() => (pushBtn.textContent = prev), 1200);
         alert(`Home Assistant에 반영 완료!\n- id: ${result.id}\n- alias: ${result.alias}`);

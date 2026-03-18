@@ -31,17 +31,16 @@ YAML ⇄ Visual Blocks ⇄ YAML.
 
 ## How to Access the Program
 To run the **HA Smart Block** program locally, first download or clone this repository from GitHub.  
-After extracting or cloning the files, open a terminal (PowerShell or VS Code terminal) and navigate to: `/blockly/HA_smartblock`.
+After extracting or cloning the files, open a terminal (PowerShell or VS Code terminal) and navigate to the project root: `/blockly`.
 
 Then install dependencies and launch the program:
 ~~~bash
-cd .\HA_smartblock\
 npm install
 npm run start
 ~~~
 
 ## Environment Variables (HA Integration)
-To use Home Assistant integration features (automation list, pull/push, conflict analyzer), create a local `.env` file in `HA_smartblock/`.
+To use Home Assistant integration features (automation list, pull/push, conflict analyzer), create a local `.env` file in the project root.
 
 Example:
 ~~~env
@@ -72,7 +71,6 @@ Live pull/push requires HA credentials:
 - UI entry: 🛠 button → Run (sends request only)  
 - The analyzer server must be running only if you use Conflict Analyzer:
 ~~~bash
-cd HA_smartblock
 node server/analyze_server.js
 ~~~
 - Python analyzer: `src/homeassistant/conflict_analyzer/ha_eca_conflict_analyzer.py`  

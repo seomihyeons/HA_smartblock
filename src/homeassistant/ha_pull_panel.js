@@ -1,6 +1,7 @@
 import { pullAutomationIndexWithEditability, pullAutomationConfig } from './pull_automation';
 import { renderAutomationToWorkspace } from '../import/yamlToBlocks';
 import { normalizeAutomationObject } from '../import/yaml_import';
+import { showImportDebugJson } from '../import/import_debug_panel';
 
 const arrify = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
 
@@ -75,7 +76,7 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
         panel.style.overflow = 'hidden';
         panel.style.boxSizing = 'border-box';
 
-        const title = el('div', { innerText: 'HA Automations (Pull)' });
+        const title = el('div', { innerText: 'Home Assistant Automations' });
         title.style.fontWeight = '700';
         title.style.marginBottom = '8px';
 
@@ -85,7 +86,7 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
         row.style.alignItems = 'center';
         row.style.marginBottom = '8px';
 
-        const btnLoad = el('button', { id: 'haLoadListBtn', innerText: 'Load list' });
+        const btnLoad = el('button', { id: 'haLoadListBtn', innerText: 'Load' });
         const btnRefresh = el('button', { id: 'haRefreshBtn', innerText: 'Refresh', disabled: true });
         btnRefresh.style.opacity = '0.6';
 
@@ -187,6 +188,7 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
                                 return;
                             }
 
+                            showImportDebugJson(internal);
                             renderAutomationToWorkspace(ws, internal, { clearBefore: true });
 
                             setStatus(status, `Loaded: ${internal.alias || internal.id}`);
