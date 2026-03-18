@@ -9,6 +9,7 @@ import { save, load } from './serialization';
 import { setupYamlExportButtons } from './export_code';
 import { setupYamlImportButton } from './import/import_button';
 import { yamlTextToInternalJson } from './import/yaml_import';
+import { showImportDebugJson } from './import/import_debug_panel';
 import { renderAutomationToWorkspace } from './import/yamlToBlocks';
 import './blocks/extensions.js';
 
@@ -148,47 +149,6 @@ ws.addChangeListener((e) => {
   }
   runCode();
 });
-
-function ensureImportDebugPanel() {
-  const host = document.getElementById('generatedCode');
-  if (!host) return null;
-
-  let panel = document.getElementById('importDebugPanel');
-  if (!panel) {
-    panel = document.createElement('details');
-    panel.id = 'importDebugPanel';
-    panel.open = true;
-    panel.style.marginBottom = '8px';
-
-    const sum = document.createElement('summary');
-    sum.textContent = 'Imported JSON (normalized)';
-
-    const pre = document.createElement('pre');
-    pre.id = 'importDebugPre';
-    pre.style.background = '#111827';
-    pre.style.color = '#e5e7eb';
-    pre.style.padding = '8px';
-    pre.style.marginTop = '6px';
-    pre.style.whiteSpace = 'pre-wrap';
-    pre.style.borderRadius = '6px';
-
-    panel.appendChild(sum);
-    panel.appendChild(pre);
-
-    host.parentNode.insertBefore(panel, host);
-  }
-  return document.getElementById('importDebugPre');
-}
-
-function showImportDebugJson(obj) {
-  const pre = ensureImportDebugPanel();
-  if (!pre) return;
-  try {
-    pre.textContent = JSON.stringify(obj, null, 2);
-  } catch {
-    pre.textContent = String(obj);
-  }
-}
 
 import { setupHaPullPanel } from './homeassistant/ha_pull_panel';
 

@@ -1,6 +1,7 @@
 import { pullAutomationIndexWithEditability, pullAutomationConfig } from './pull_automation';
 import { renderAutomationToWorkspace } from '../import/yamlToBlocks';
 import { normalizeAutomationObject } from '../import/yaml_import';
+import { showImportDebugJson } from '../import/import_debug_panel';
 
 const arrify = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
 
@@ -187,6 +188,7 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
                                 return;
                             }
 
+                            showImportDebugJson(internal);
                             renderAutomationToWorkspace(ws, internal, { clearBefore: true });
 
                             setStatus(status, `Loaded: ${internal.alias || internal.id}`);

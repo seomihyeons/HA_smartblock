@@ -38,7 +38,7 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null) {
 
     const wrap = document.createElement('div');
     wrap.id = 'yamlButtons';
-    wrap.style.marginTop = '8px';
+    wrap.style.marginTop = '2px';
 
     const exportBtn = document.createElement('button');
     exportBtn.id = 'exportYamlBtn';

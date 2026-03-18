@@ -5,6 +5,8 @@ import {
   compareResultsWithBaseline,
 } from './run_task_alt';
 import { renderAutomationToWorkspace } from '../../src/import/yamlToBlocks';
+import { showImportDebugJson } from '../../src/import/import_debug_panel';
+import { setModalOpenState } from '../../src/utils/floating_modal_state';
 import { readBaselineFile, appendBaselineSnapshot, clearBaselineFile } from './baseline_io';
 
 function $(id) { return document.getElementById(id); }
@@ -182,45 +184,6 @@ export function initTaskAltUI({ ws }) {
     applySelectedFiles(toYamlFiles(folderInput.files));
     folderInput.value = '';
   });
-
-  const ensureImportDebugPanel = () => {
-    const host = $('generatedCode');
-    if (!host) return null;
-    let panel = $('importDebugPanel');
-    if (!panel) {
-      panel = document.createElement('details');
-      panel.id = 'importDebugPanel';
-      panel.open = true;
-      panel.style.marginBottom = '8px';
-
-      const sum = document.createElement('summary');
-      sum.textContent = 'Imported JSON (normalized)';
-
-      const pre = document.createElement('pre');
-      pre.id = 'importDebugPre';
-      pre.style.background = '#111827';
-      pre.style.color = '#e5e7eb';
-      pre.style.padding = '8px';
-      pre.style.marginTop = '6px';
-      pre.style.whiteSpace = 'pre-wrap';
-      pre.style.borderRadius = '6px';
-
-      panel.appendChild(sum);
-      panel.appendChild(pre);
-      host.parentNode.insertBefore(panel, host);
-    }
-    return $('importDebugPre');
-  };
-
-  const showImportDebugJson = (obj) => {
-    const pre = ensureImportDebugPanel();
-    if (!pre) return;
-    try {
-      pre.textContent = JSON.stringify(obj, null, 2);
-    } catch {
-      pre.textContent = String(obj);
-    }
-  };
 
   const applyPreview = (res, idx) => {
     if (!res) return;
@@ -818,15 +781,18 @@ export function initTaskAltUI({ ws }) {
   const open = () => {
     hideImportChoiceMode();
     modal.classList.remove('hidden');
+    setModalOpenState('taskAltModal', true);
   };
   const close = () => {
     hideImportChoiceMode();
     modal.classList.add('hidden');
+    setModalOpenState('taskAltModal', false);
   };
 
   btn.addEventListener('click', open);
   backdrop?.addEventListener('click', close);
   btnClose?.addEventListener('click', close);
+  setModalOpenState('taskAltModal', !modal.classList.contains('hidden'));
 
   btnImport.addEventListener('click', () => {
     if (importChoiceMode) hideImportChoiceMode();

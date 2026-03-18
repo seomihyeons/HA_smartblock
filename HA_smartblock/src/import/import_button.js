@@ -12,7 +12,7 @@ export function setupYamlImportButton(arg1, arg2) {
     if (!wrap) {
       wrap = document.createElement('div');
       wrap.id = 'yamlButtons';
-      wrap.style.marginTop = '8px';
+      wrap.style.marginTop = '2px';
       host.parentNode.insertBefore(wrap, host.nextSibling);
     }
     if (document.getElementById('importYamlBtn')) return true;

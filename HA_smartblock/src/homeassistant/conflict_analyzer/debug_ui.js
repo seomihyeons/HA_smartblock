@@ -1,4 +1,5 @@
 import { runConflictAnalyzer } from "./run_conflict_analyzer";
+import { setModalOpenState } from "../../utils/floating_modal_state";
 
 function $(id) { return document.getElementById(id); }
 function setText(el, text) { if (el) el.textContent = text; }
@@ -65,8 +66,14 @@ export function initConflictAnalyzerUI() {
 
     if (!btnDebug || !modal || !btnRun || !btnCopy || !out) return;
 
-    const open = () => modal.classList.remove("hidden");
-    const close = () => modal.classList.add("hidden");
+    const open = () => {
+        modal.classList.remove("hidden");
+        setModalOpenState("debugModal", true);
+    };
+    const close = () => {
+        modal.classList.add("hidden");
+        setModalOpenState("debugModal", false);
+    };
 
     const copy = async () => {
         const text = out.textContent || "";
@@ -172,4 +179,5 @@ export function initConflictAnalyzerUI() {
     setError("");
     toggleSpinner(false);
     btnCopy.disabled = false;
+    setModalOpenState("debugModal", !modal.classList.contains("hidden"));
 }
