@@ -26,6 +26,6 @@ export const eventNumericSensorBlocks =
       "previousStatement": "HA_EVENT",
       "nextStatement": "HA_EVENT",
       "colour": 180,
-      "tooltip": "선택한 sensor의 수치가 임계값을 넘거나 내려갈 때 트리거합니다. above/below는 하나만 써도 되고 둘 다 써서 구간(사이)로도 설정 가능합니다.",
+      "tooltip": "Triggers when the selected sensor crosses the above/below thresholds. You can use one threshold or both to define a range.",
     }
   ]);

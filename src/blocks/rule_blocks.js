@@ -14,7 +14,7 @@ export const ruleBlocks =
       ],
       "message1": "Event %1", "args1": [ { "type": "input_statement", "name": "EVENT", "check": "HA_EVENT" } ],
       "message2": "Action %1", "args2": [ { "type": "input_statement", "name": "ACTION", "check": "HA_ACTION" } ],
-      "colour": "3B4574","tooltip": "Event / Action을 묶는 컨테이너",
+      "colour": "3B4574","tooltip": "Container block that groups Event and Action blocks.",
       "helpUrl": ""
     },
 
@@ -30,7 +30,7 @@ export const ruleBlocks =
       "message2": "Condition %1", "args2": [ { "type": "input_statement", "name": "CONDITION", "check": "HA_CONDITION" } ],
       "message3": "Action %1", "args3": [ { "type": "input_statement", "name": "ACTION", "check": "HA_ACTION"} ],
       "colour": "3B4574",
-      "tooltip": "Event / Condition / Action을 묶는 컨테이너",
+      "tooltip": "Container block that groups Event, Condition, and Action blocks.",
       "helpUrl": ""
     }
   ]);

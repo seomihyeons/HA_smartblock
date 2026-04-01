@@ -27,7 +27,7 @@ Blockly.Blocks['condition_numeric_state_entity'] = {
     this.setPreviousStatement(true, 'HA_CONDITION');
     this.setNextStatement(true, 'HA_CONDITION');
     this.setColour('#AECA3E');
-    this.setTooltip('엔티티의 숫자 상태를 기준으로 비교합니다 (numeric_state).');
+    this.setTooltip('Compares an entity using its numeric state value (numeric_state).');
     this.setHelpUrl('');
 
     this.updateShape_();

@@ -38,7 +38,7 @@ export const haEventSunBlocks =
     "previousStatement": "HA_EVENT",
     "nextStatement": "HA_EVENT",
     "colour": 180,
-    "tooltip": "Sunrise/Sunset 트리거. 필요하면 뒤에 offset(HH:MM:SS)을 연결하세요.",
+    "tooltip": "Sunrise/sunset trigger. Connect an offset (HH:MM:SS) if needed.",
     "helpUrl": ""
   },
   {
@@ -53,7 +53,7 @@ export const haEventSunBlocks =
     "output": "HA_DURATION",
     "colour": 180,
     "extensions": ["ha_sun_offset_numeric_fields"],
-    "tooltip": "오프셋 시간(±HH:MM:SS). +는 이후, -는 이전을 의미합니다.",
+    "tooltip": "Offset time (±HH:MM:SS). + means after, - means before.",
     "helpUrl": ""
   }
 ]);

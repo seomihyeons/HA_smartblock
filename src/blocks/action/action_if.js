@@ -13,7 +13,7 @@ export const actionIfBlocks = Blockly.common.createBlockDefinitionsFromJsonArray
     "colour": "#E3CC57",
     "previousStatement": 'HA_ACTION',
     "nextStatement": 'HA_ACTION',
-    "tooltip": "조건이 참이면 THEN 동작을, 거짓이면 ELSE 동작을 실행합니다.",
+    "tooltip": "Runs the THEN actions when the condition is true, otherwise runs the ELSE actions.",
     "helpUrl": ""
   },
   {
@@ -26,7 +26,7 @@ export const actionIfBlocks = Blockly.common.createBlockDefinitionsFromJsonArray
     "previousStatement": 'HA_ACTION',
     "nextStatement": 'HA_ACTION',
     "colour": "#E3CC57",
-    "tooltip": "조건이 참일 때만 THEN 동작을 실행합니다. 거짓이면 다음 액션으로 넘어갑니다.",
+    "tooltip": "Runs the THEN actions only when the condition is true. Otherwise, execution continues to the next action.",
     "helpUrl": ""
   }
 ]);

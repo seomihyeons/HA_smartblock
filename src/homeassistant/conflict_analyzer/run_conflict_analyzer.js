@@ -1,23 +1,12 @@
-import YAML from "js-yaml";
-import { pullAutomationIndexWithEditability } from "../pull_automation";
-
-export async function runConflictAnalyzer({ onlyEnabled = true, concurrency = 3 } = {}) {
-    const { editable } = await pullAutomationIndexWithEditability({
-        concurrency,
-        includeConfig: true,
-    });
-
-    const targets = onlyEnabled
-        ? editable.filter((x) => String(x?.meta?.state || "").toLowerCase() === "on")
-        : editable;
-
-    const configs = targets.map((x) => x.config).filter(Boolean);
-    const yamlText = YAML.dump(configs, { noRefs: true, lineWidth: -1 });
-
+export async function runConflictAnalyzer({ onlyEnabled = true, concurrency = 8 } = {}) {
     const res = await fetch("/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ yaml: yamlText }),
+        body: JSON.stringify({
+            mode: "ha",
+            onlyEnabled,
+            concurrency,
+        }),
     });
 
     const body = await res.json().catch(() => ({}));

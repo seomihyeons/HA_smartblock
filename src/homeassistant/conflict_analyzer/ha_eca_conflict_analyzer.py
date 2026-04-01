@@ -438,7 +438,7 @@ def main(argv=None) -> int:
     p.add_argument("--ha_base", dest="ha_base")
     p.add_argument("--ha_token", dest="ha_token")
     p.add_argument("--only_enabled", action="store_true", default=True)
-    p.add_argument("--concurrency", type=int, default=3)
+    p.add_argument("--concurrency", type=int, default=8)
     args = p.parse_args(argv)
 
     if args.ha:

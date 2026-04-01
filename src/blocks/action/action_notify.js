@@ -100,7 +100,7 @@ export const actionNotifyBlocks = Blockly.common.createBlockDefinitionsFromJsonA
     previousStatement: 'HA_ACTION',
     nextStatement: 'HA_ACTION',
     colour: '#E3CC57',
-    tooltip: 'notify 대상과 message를 한 블록에서 입력합니다. 아래에 tag/entity/actions를 선택 연결할 수 있습니다.',
+    tooltip: 'Configures the notify target and message in one block. Tag, entity, and action blocks can be connected below.',
     helpUrl: '',
   },
   // Legacy compatibility blocks: keep definitions so old saved workspaces can load.
@@ -153,7 +153,7 @@ export const actionNotifyBlocks = Blockly.common.createBlockDefinitionsFromJsonA
     previousStatement: ['HA_NOTIFY', 'HA_NOTIFY_TAG'],
     nextStatement: ['HA_NOTIFY', 'HA_NOTIFY_TAG'],
     colour: '#E3CC57',
-    tooltip: 'notify data.data.push 옵션',
+    tooltip: 'Configures the notify data.data.push option.',
     helpUrl: '',
     extensions: ['notify_push_option_dynamic'],
   },

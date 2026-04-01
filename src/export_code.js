@@ -88,7 +88,7 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null) {
     exportBtn.addEventListener('click', () => {
       const yaml = getYamlText(outputId);
       if (!yaml.trim()) {
-        alert('내보낼 YAML이 없습니다.');
+        alert('There is no YAML to export.');
         return;
       }
       const alias = extractAliasForFilename(yaml);
@@ -99,7 +99,7 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null) {
     copyBtn.addEventListener('click', async () => {
       const yaml = getYamlText(outputId);
       if (!yaml.trim()) {
-        alert('복사할 YAML이 없습니다.');
+        alert('There is no YAML to copy.');
         return;
       }
       try {
@@ -108,13 +108,13 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null) {
         setTimeout(() => (copyBtn.textContent = 'Copy YAML'), 1200);
       } catch (err) {
         console.error(err);
-        alert('클립보드 복사에 실패했습니다.');
+        alert('Failed to copy YAML to the clipboard.');
       }
     });
 
     pushBtn.addEventListener('click', async () => {
       const yaml = getYamlText(outputId);
-      if (!yaml.trim()) return alert('보낼 YAML이 없습니다.');
+      if (!yaml.trim()) return alert('There is no YAML to push.');
 
       pushBtn.disabled = true;
       const prev = pushBtn.textContent;
@@ -127,10 +127,10 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null) {
         }
         pushBtn.textContent = 'Pushed!';
         setTimeout(() => (pushBtn.textContent = prev), 1200);
-        alert(`Home Assistant에 반영 완료!\n- id: ${result.id}\n- alias: ${result.alias}`);
+        alert(`Successfully pushed to Home Assistant\n\n- Alias: ${result.alias}\n- ID: ${result.id}`);
       } catch (e) {
         console.error(e);
-        alert(`HA 푸시 실패\n${e?.message || e}`);
+        alert(`Failed to push to Home Assistant\n${e?.message || e}`);
         pushBtn.textContent = prev;
       } finally {
         pushBtn.disabled = false;

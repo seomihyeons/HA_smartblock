@@ -12,7 +12,7 @@ export const conditionLogicBlocks =
       "previousStatement": "HA_CONDITION",
       "nextStatement": "HA_CONDITION",
       "colour": "#AECA3E",
-      "tooltip": "조건들을 and/or로 묶습니다.",
+      "tooltip": "Groups conditions with and/or logic.",
       "helpUrl": ""
     },
     {
@@ -20,7 +20,7 @@ export const conditionLogicBlocks =
       "message0": "not",
       "output": "HA_CONDITION_MOD",
       "colour": "#AECA3E",
-      "tooltip": "단일 조건 블록에 not을 붙입니다.",
+      "tooltip": "Applies not logic to a single condition block.",
       "helpUrl": ""
     },
     {

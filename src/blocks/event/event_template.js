@@ -31,7 +31,7 @@ export const eventTemplateBlocks =
       previousStatement: 'HA_EVENT',
       nextStatement: 'HA_EVENT',
       colour: 180,
-      tooltip: 'template trigger를 설정합니다.',
+      tooltip: 'Configures a template trigger.',
       helpUrl: '',
       extensions: ['ha_event_template_toggle_id'],
     },

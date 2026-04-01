@@ -291,7 +291,7 @@ function initScriptCallBlock(block) {
   block.setPreviousStatement(true, 'HA_ACTION');
   block.setNextStatement(true, 'HA_ACTION');
   block.setColour('#E3CC57');
-  block.setTooltip('script.*, python_script.* 액션을 실행합니다.');
+  block.setTooltip('Runs script.* or python_script.* actions.');
   block.setHelpUrl('');
   block.setInputsInline(true);
 
@@ -333,7 +333,7 @@ function initScriptTargetEntityBlock(block) {
   block.setPreviousStatement(true, 'HA_ACTION_TARGET');
   block.setNextStatement(true, 'HA_ACTION_TARGET');
   block.setColour('#E3CC57');
-  block.setTooltip('script 엔티티를 target으로 지정합니다.');
+  block.setTooltip('Sets a script entity as the target.');
   block.setHelpUrl('');
   block.setInputsInline(true);
 
