@@ -13,7 +13,7 @@ const baseTimeBlocks =
       "nextStatement": "HA_EVENT",
       "inputsInline": false,
       "colour": 180,
-      "tooltip": "지정한 시각에 트리거됩니다. (오른쪽 슬롯에 주/월 제약 블럭을 연결해서 확장 가능)",
+      "tooltip": "Triggers at the specified time. You can extend it with weekday or month constraint blocks in the right input.",
       "helpUrl": ""
     }
   ]);
@@ -84,11 +84,11 @@ function validateTimePatternBlock(block) {
   const validS = isValidTimePatternField(s, 0, 59);
 
   if (!hasAny) {
-    block.setWarningText('hours/minutes/seconds 중 최소 1개는 입력해야 합니다.');
+    block.setWarningText('At least one of hours, minutes, or seconds must be provided.');
     return;
   }
   if (!validH || !validM || !validS) {
-    block.setWarningText('time_pattern 형식이 올바르지 않습니다. (예: *, /5, 0, 1,15,30, 1-5)');
+    block.setWarningText('The time_pattern format is invalid. Example: *, /5, 0, 1,15,30, 1-5');
     return;
   }
   block.setWarningText(null);
@@ -111,7 +111,7 @@ const timePatternBlock = {
     this.setNextStatement(true, 'HA_EVENT');
     this.setInputsInline(true);
     this.setColour(180);
-    this.setTooltip('time_pattern trigger (hours/minutes/seconds는 패턴 입력 가능)');
+    this.setTooltip('time_pattern trigger. Pattern values can be entered for hours, minutes, and seconds.');
     this.setHelpUrl('');
 
     const update = () => {

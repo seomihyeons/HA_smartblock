@@ -14,6 +14,6 @@ export const actionDelayBlocks =
       "previousStatement": "HA_ACTION",
       "nextStatement": "HA_ACTION",
       "colour": "E3CC57",
-      "tooltip": "다음 동작을 실행하기 전, 지정된 시간 동안 기다리는 블럭입니다."
+      "tooltip": "Waits for the specified duration before running the next action."
     }
   ]);

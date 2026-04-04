@@ -37,7 +37,7 @@ Blockly.Blocks.condition_state_cover = {
     this.setPreviousStatement(true, 'HA_CONDITION');
     this.setNextStatement(true, 'HA_CONDITION');
     this.setColour('#AECA3E');
-    this.setTooltip('cover 엔티티의 상태/속성을 검사합니다.');
+    this.setTooltip('Checks the state or attributes of a cover entity.');
     this.setHelpUrl('');
 
     this.getField('STATE_KIND')?.setValidator((newValue) => {
@@ -78,7 +78,7 @@ export const conditionStateBlocks =
         previousStatement: 'HA_CONDITION',
         nextStatement: 'HA_CONDITION',
         colour: '#AECA3E',
-        tooltip: `${domain} 엔티티의 상태를 검사합니다.`,
+        tooltip: `Checks the state of the selected ${domain} entity.`,
         helpUrl: '',
         mutator: 'ha_condition_optional_data',
       }))
@@ -92,7 +92,7 @@ Blockly.Blocks['condition_data_attribute'] = {
     this.setPreviousStatement(true, 'HA_CONDITION_DATA');
     this.setNextStatement(true, 'HA_CONDITION_DATA');
     this.setColour('#AECA3E');
-    this.setTooltip('state condition의 attribute 값을 설정합니다.');
+    this.setTooltip('Sets the attribute value for a state condition.');
     this.setHelpUrl('');
   },
 };
@@ -105,7 +105,7 @@ Blockly.Blocks['condition_data_state'] = {
     this.setPreviousStatement(true, 'HA_CONDITION_DATA');
     this.setNextStatement(true, 'HA_CONDITION_DATA');
     this.setColour('#AECA3E');
-    this.setTooltip('state condition의 state 값을 텍스트로 설정합니다.');
+    this.setTooltip('Sets the state value as text for a state condition.');
     this.setHelpUrl('');
   },
 };

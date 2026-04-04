@@ -14,6 +14,6 @@ export const eventSunStateBlocks =
       previousStatement: 'HA_EVENT',
       nextStatement: 'HA_EVENT',
       colour: 180,
-      tooltip: 'sun.sun 엔티티가 above/below_horizon 상태를 오갈 때 트리거',
+      tooltip: 'Triggers when sun.sun changes between above_horizon and below_horizon.',
     },
   ]);

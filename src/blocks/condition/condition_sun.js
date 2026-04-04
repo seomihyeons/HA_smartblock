@@ -10,7 +10,7 @@ export const conditionSunBlocks =
       previousStatement: 'HA_CONDITION',
       nextStatement: 'HA_CONDITION',
       colour: '#AECA3E',
-      tooltip: 'sun 조건. before/after 중 하나 이상 필요합니다.',
+      tooltip: 'Sun condition. At least one of before or after is required.',
       helpUrl: '',
     },
     {
@@ -30,7 +30,7 @@ export const conditionSunBlocks =
       previousStatement: 'HA_CONDITION_SUN_PART',
       nextStatement: 'HA_CONDITION_SUN_PART',
       colour: '#AECA3E',
-      tooltip: 'after sunrise/sunset. 필요하면 offset을 연결하세요.',
+      tooltip: 'After sunrise or sunset. Connect an offset if needed.',
       helpUrl: '',
     },
     {
@@ -50,7 +50,7 @@ export const conditionSunBlocks =
       previousStatement: 'HA_CONDITION_SUN_PART',
       nextStatement: 'HA_CONDITION_SUN_PART',
       colour: '#AECA3E',
-      tooltip: 'before sunrise/sunset. 필요하면 offset을 연결하세요.',
+      tooltip: 'Before sunrise or sunset. Connect an offset if needed.',
       helpUrl: '',
     },
     {
@@ -71,7 +71,7 @@ export const conditionSunBlocks =
       ],
       output: 'HA_DURATION',
       colour: '#AECA3E',
-      tooltip: 'sun 조건용 offset(±HH:MM:SS)',
+      tooltip: 'Offset for sun conditions (±HH:MM:SS).',
       helpUrl: '',
     },
   ]);

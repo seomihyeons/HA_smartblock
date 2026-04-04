@@ -52,7 +52,7 @@ export const actionDataBlocks = Blockly.common.createBlockDefinitionsFromJsonArr
     previousStatement: 'HA_ACTION_DATA',
     nextStatement: 'HA_ACTION_DATA',
     colour: '#E3CC57',
-    tooltip: '0~100 밝기 퍼센트',
+    tooltip: 'Brightness percentage from 0 to 100.',
     helpUrl: '',
   },
 
@@ -65,7 +65,7 @@ export const actionDataBlocks = Blockly.common.createBlockDefinitionsFromJsonArr
     previousStatement: 'HA_ACTION_DATA',
     nextStatement: 'HA_ACTION_DATA',
     colour: '#E3CC57',
-    tooltip: '전환 시간(초)',
+    tooltip: 'Transition time in seconds.',
     helpUrl: '',
   },
 
@@ -78,7 +78,7 @@ export const actionDataBlocks = Blockly.common.createBlockDefinitionsFromJsonArr
     previousStatement: 'HA_ACTION_DATA',
     nextStatement: 'HA_ACTION_DATA',
     colour: '#E3CC57',
-    tooltip: '조명 effect를 선택하거나 custom 값을 입력합니다.',
+    tooltip: 'Select a light effect or enter a custom value.',
     helpUrl: '',
   },
 
@@ -91,7 +91,7 @@ export const actionDataBlocks = Blockly.common.createBlockDefinitionsFromJsonArr
     previousStatement: 'HA_ACTION_DATA',
     nextStatement: 'HA_ACTION_DATA',
     colour: '#E3CC57',
-    tooltip: 'media_player.play_media announce 옵션',
+    tooltip: 'Announce option for media_player.play_media.',
     helpUrl: '',
   },
 
@@ -104,7 +104,7 @@ export const actionDataBlocks = Blockly.common.createBlockDefinitionsFromJsonArr
     previousStatement: 'HA_ACTION_DATA',
     nextStatement: 'HA_ACTION_DATA',
     colour: '#E3CC57',
-    tooltip: 'media_player.play_media media_content_type 옵션',
+    tooltip: 'media_content_type option for media_player.play_media.',
     helpUrl: '',
   },
 
@@ -117,7 +117,7 @@ export const actionDataBlocks = Blockly.common.createBlockDefinitionsFromJsonArr
     previousStatement: 'HA_ACTION_DATA',
     nextStatement: 'HA_ACTION_DATA',
     colour: '#E3CC57',
-    tooltip: 'climate.set_preset_mode preset_mode 값',
+    tooltip: 'preset_mode value for climate.set_preset_mode.',
     helpUrl: '',
   },
 
@@ -133,7 +133,7 @@ export const actionDataBlocks = Blockly.common.createBlockDefinitionsFromJsonArr
     previousStatement: 'HA_ACTION_DATA',
     nextStatement: 'HA_ACTION_DATA',
     colour: '#E3CC57',
-    tooltip: '범용 key/value 텍스트 블록',
+    tooltip: 'Generic key/value text block.',
     helpUrl: '',
     extensions: ['ha_action_data_kv_autotype'],
   },
@@ -165,7 +165,7 @@ Blockly.Blocks['action_data_color'] = {
     this.setPreviousStatement(true, 'HA_ACTION_DATA');
     this.setNextStatement(true, 'HA_ACTION_DATA');
     this.setColour('#E3CC57');
-    this.setTooltip('name은 1칸 입력, rgb는 3칸(R/G/B) 입력');
+    this.setTooltip('Use one field for name mode, or three fields for RGB mode (R/G/B).');
     this.setHelpUrl('');
 
     this.updateValueInput_();

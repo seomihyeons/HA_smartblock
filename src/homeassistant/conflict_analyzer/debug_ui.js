@@ -193,7 +193,7 @@ export function initConflictAnalyzerUI() {
 
         const startedAt = performance.now();
         try {
-            const report = await runConflictAnalyzer({ onlyEnabled: true, concurrency: 3 });
+            const report = await runConflictAnalyzer({ onlyEnabled: true, concurrency: 8 });
             const ms = Math.round(performance.now() - startedAt);
             setSummary(buildSummary(report, ms));
             renderIssueCards(out, report);

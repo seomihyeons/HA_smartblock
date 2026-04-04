@@ -37,7 +37,7 @@ Blockly.Blocks.condition_time = {
     this.setPreviousStatement(true, 'HA_CONDITION');
     this.setNextStatement(true, 'HA_CONDITION');
     this.setColour('#AECA3E');
-    this.setTooltip('time 조건: after/before를 설정합니다.');
+    this.setTooltip('Time condition: configure after and/or before.');
     this.setHelpUrl('');
     this.setOnChange(() => this.updateWarning_());
     this.updateShape_();
@@ -62,7 +62,7 @@ Blockly.Blocks.condition_time = {
 
   updateWarning_() {
     if (!this.hasAfter_ && !this.hasBefore_) {
-      this.setWarningText('after 또는 before 중 하나는 선택해야 합니다.');
+      this.setWarningText('You must select at least one of after or before.');
       return;
     }
     this.setWarningText(null);
@@ -161,7 +161,7 @@ Blockly.Blocks.condition_time_weekly = {
     this.setPreviousStatement(true, 'HA_CONDITION');
     this.setNextStatement(true, 'HA_CONDITION');
     this.setColour('#AECA3E');
-    this.setTooltip('time 조건: weekday 선택');
+    this.setTooltip('Time condition: select weekdays.');
     this.setHelpUrl('');
   },
 };

@@ -39,10 +39,11 @@ Blockly.Extensions.register('action_group_dynamic_service', function () {
     }
   };
 
-  const syncChildService = () => {
+  const syncChildService = (nextService = null) => {
     const input = this.getInput('ENTITIES');
     const firstBlock = input?.connection?.targetBlock();
-    const service = this.getFieldValue('SERVICE') || '';
+    const selectedService = nextService ?? this.getFieldValue('SERVICE');
+    const service = String(selectedService || '');
 
     let b = firstBlock;
     while (b) {
@@ -70,7 +71,7 @@ Blockly.Extensions.register('action_group_dynamic_service', function () {
   });
 
   serviceField.setValidator((newVal) => {
-    syncChildService();
+    syncChildService(newVal);
     return newVal;
   });
 });
@@ -92,7 +93,7 @@ export const actionGroupBlocks =
       previousStatement: 'HA_ACTION',
       nextStatement: 'HA_ACTION',
       colour: '#E3CC57',
-      tooltip: '여러 엔티티에 동일한 액션을 한 번에 실행합니다.',
+      tooltip: 'Runs the same action on multiple entities at once.',
       helpUrl: '',
       mutator: 'ha_action_optional_data',
       extensions: ['action_group_dynamic_service'],
@@ -106,7 +107,7 @@ export const actionGroupBlocks =
       previousStatement: 'HA_ACTION',
       nextStatement: 'HA_ACTION',
       colour: '#E3CC57',
-      tooltip: '그룹 액션이 적용될 엔티티를 선택합니다.',
+      tooltip: 'Selects an entity included in the group action.',
       helpUrl: '',
     },
   ]);

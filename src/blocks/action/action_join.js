@@ -49,7 +49,7 @@ export const actionJoinBlocks =
       previousStatement: 'HA_ACTION',
       nextStatement: 'HA_ACTION',
       colour: '#E3CC57',
-      tooltip: '도메인.join 액션을 구성합니다. member에는 같은 도메인 액션 블록을 연결하세요.',
+      tooltip: 'Builds a domain.join action. Connect action blocks from the same domain as members.',
       helpUrl: '',
       extensions: ['action_join_dynamic_domain'],
     },

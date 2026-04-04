@@ -132,7 +132,7 @@ document.addEventListener('yaml-imported', (e) => {
     renderAutomationToWorkspace(ws, internal, { clearBefore: true });
   } catch (err) {
     console.error(err);
-    alert('YAML 파싱/정규화 중 오류가 발생했습니다. 콘솔을 확인하세요.');
+    alert('An error occurred while parsing or normalizing YAML. Check the console for details.');
   }
 });
 
@@ -140,11 +140,11 @@ document.addEventListener('yaml-imported', (e) => {
 const runCode = () => {
   try {
     const code = yamlGenerator.workspaceToCode(ws);
-    console.log('생성된 YAML 코드:', code);
+    console.log('Generated YAML code:', code);
     codeDiv.innerText = code;
   } catch (error) {
-    console.error('코드 생성 실패:', error);
-    codeDiv.innerText = '코드 생성 실패: ' + error.message;
+    console.error('Code generation failed:', error);
+    codeDiv.innerText = 'Code generation failed: ' + error.message;
   }
 };
 

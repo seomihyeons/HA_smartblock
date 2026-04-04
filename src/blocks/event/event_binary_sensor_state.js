@@ -26,7 +26,7 @@ export const eventBinarySensorStateBlocks =
       "previousStatement": "HA_EVENT",
       "nextStatement": "HA_EVENT",
       "colour": 180,
-      "tooltip": "선택한 binary_sensor의 상태 변화(on/off)를 감지하는 상태 트리거입니다.",
+      "tooltip": "State trigger that detects on/off changes for the selected binary_sensor.",
       "helpUrl": ""
     }
   ]);

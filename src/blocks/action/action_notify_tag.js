@@ -14,7 +14,7 @@ export const actionNotifyTagBlocks =
     previousStatement: 'HA_NOTIFY',
     nextStatement: 'HA_NOTIFY',
     colour: '#E3CC57',
-    tooltip: 'notify의 data.data(payload)를 구성합니다. (tag + entity_id + actions)',
+    tooltip: 'Builds notify data.data (payload) with tag, entity_id, and actions.',
     helpUrl: '',
     mutator: 'ha_notify_tag_optional_details',
   },
@@ -28,7 +28,7 @@ export const actionNotifyTagBlocks =
     previousStatement: 'HA_NOTIFY_TAG',
     nextStatement: 'HA_NOTIFY_TAG',
     colour: '#E3CC57',
-    tooltip: 'camera entity_id를 설정합니다.',
+    tooltip: 'Sets the camera entity_id.',
     helpUrl: '',
   },
 
@@ -42,7 +42,7 @@ export const actionNotifyTagBlocks =
     previousStatement: 'HA_NOTIFY_TAG',
     nextStatement: 'HA_NOTIFY_TAG',
     colour: '#E3CC57',
-    tooltip: '알림 actions[]의 버튼(action id)을 시작합니다.',
+    tooltip: 'Starts a button entry in notify actions[] using the action id.',
     helpUrl: '',
   },
 
@@ -55,7 +55,7 @@ export const actionNotifyTagBlocks =
     previousStatement: 'HA_NOTIFY_TAG',
     nextStatement: 'HA_NOTIFY_TAG',
     colour: '#E3CC57',
-    tooltip: '버튼 title',
+    tooltip: 'Button title.',
     helpUrl: '',
   },
 
@@ -68,7 +68,7 @@ export const actionNotifyTagBlocks =
     previousStatement: 'HA_NOTIFY_TAG',
     nextStatement: 'HA_NOTIFY_TAG',
     colour: '#E3CC57',
-    tooltip: 'destructive 버튼 스타일 여부',
+    tooltip: 'Whether to use the destructive button style.',
     helpUrl: '',
   },
 
@@ -104,7 +104,7 @@ export const actionNotifyTagBlocks =
     previousStatement: ['HA_NOTIFY', 'HA_NOTIFY_TAG'],
     nextStatement: ['HA_NOTIFY', 'HA_NOTIFY_TAG'],
     colour: '#E3CC57',
-    tooltip: 'notify data.data.push 옵션을 구성합니다.',
+    tooltip: 'Builds the notify data.data.push option.',
     helpUrl: '',
   },
   {

@@ -13,6 +13,6 @@ export const eventForBlocks =
       ],
       "output": "DURATION",
       "colour": 180,
-      "tooltip": "HH:MM:SS 형태의 duration을 생성합니다."
+      "tooltip": "Creates a duration in HH:MM:SS format."
     }
   ]);

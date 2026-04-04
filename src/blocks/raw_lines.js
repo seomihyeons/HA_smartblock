@@ -12,7 +12,7 @@ export const rawLinesBlocks =
       previousStatement: 'HA_EVENT',
       nextStatement: 'HA_EVENT',
       colour: 180,
-      tooltip: '구현되지 않은 trigger YAML을 원문 그대로 표시합니다(수정 불가).',
+      tooltip: 'Displays unsupported trigger YAML as-is. This block is read-only.',
       helpUrl: '',
     },
     {
@@ -24,7 +24,7 @@ export const rawLinesBlocks =
       previousStatement: 'HA_CONDITION',
       nextStatement: 'HA_CONDITION',
       colour: "AECA3E",
-      tooltip: '구현되지 않은 condition YAML을 원문 그대로 표시합니다(수정 불가).',
+      tooltip: 'Displays unsupported condition YAML as-is. This block is read-only.',
       helpUrl: '',
     },
     {
@@ -36,7 +36,7 @@ export const rawLinesBlocks =
       previousStatement: 'HA_ACTION',
       nextStatement: 'HA_ACTION',
       colour: "E3CC57",
-      tooltip: '구현되지 않은 action YAML을 원문 그대로 표시합니다(수정 불가).',
+      tooltip: 'Displays unsupported action YAML as-is. This block is read-only.',
       helpUrl: '',
     },
   ]);

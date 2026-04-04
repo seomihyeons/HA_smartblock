@@ -9,7 +9,7 @@ export const haEventStateBlocks =
       "previousStatement": "HA_EVENT",
       "nextStatement": "HA_EVENT",
       "colour": 180,
-      "tooltip": "Home Assistant 코어가 시작(start)하거나 종료(shutdown)할 때 트리거됩니다.",
+      "tooltip": "Triggers when the Home Assistant core starts or shuts down.",
       "helpUrl": ""
     }
   ]);

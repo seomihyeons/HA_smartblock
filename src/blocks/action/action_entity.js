@@ -63,7 +63,7 @@ export const actionEntityBlocks =
       previousStatement: ['HA_ACTION', `HA_ACTION_${domain}`],
       nextStatement: ['HA_ACTION', `HA_ACTION_${domain}`],
       colour: '#E3CC57',
-      tooltip: `${domain} 엔티티에 대한 액션을 실행합니다.`,
+      tooltip: `Runs an action for the selected ${domain} entity.`,
       helpUrl: '',
       mutator: 'ha_action_optional_data',
       extensions: ['action_entity_template_input'],

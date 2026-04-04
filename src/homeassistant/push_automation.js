@@ -55,14 +55,14 @@ function parseYamlToSingleAutomation(yamlText) {
 
     if (Array.isArray(loaded)) {
         if (loaded.length !== 1) {
-            throw new Error(`자동화가 ${loaded.length}개로 파싱됨. (지금은 1개만 푸시 지원)`);
+            throw new Error(`Parsed ${loaded.length} automations. Only one automation can be pushed at a time.`);
         }
         return loaded[0];
     }
 
     if (loaded && typeof loaded === 'object') return loaded;
 
-    throw new Error('YAML 파싱 결과가 object/list가 아닙니다.');
+    throw new Error('The parsed YAML result is not an object or list.');
 }
 
 function slugifyIdPart(value, fallback = 'automation') {
@@ -84,7 +84,7 @@ function genIdFromAlias(alias, prefix = 'sb') {
 }
 
 export async function pushYamlToHomeAssistant(yamlText, { id } = {}) {
-    if (!yamlText || !yamlText.trim()) throw new Error('YAML이 비어있습니다.');
+    if (!yamlText || !yamlText.trim()) throw new Error('YAML is empty.');
 
     const raw = parseYamlToSingleAutomation(yamlText);
     const payload = normalizeAutomationPayload(raw);
@@ -108,7 +108,7 @@ export async function pushYamlToHomeAssistant(yamlText, { id } = {}) {
     try { body = text ? JSON.parse(text) : null; } catch { }
 
     if (!res.ok) {
-        throw new Error(`푸시 실패: ${res.status} ${res.statusText}\n${typeof body === 'string' ? body : JSON.stringify(body)}`);
+        throw new Error(`Push failed: ${res.status} ${res.statusText}\n${typeof body === 'string' ? body : JSON.stringify(body)}`);
     }
 
     return {

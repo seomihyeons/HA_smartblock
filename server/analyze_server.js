@@ -54,7 +54,14 @@ app.post("/analyze", (req, res) => {
         if (!haBase || !haToken) {
             return res.status(500).json({ error: "Missing HA_BASE_URL(or HA_IP/HA_PORT) or HA_TOKEN in server .env" });
         }
-        args = [PY_PATH, "--ha", "--out", "stdout", "--concurrency", String(req.body?.concurrency ?? 3)];
+        args = [
+            PY_PATH,
+            "--ha",
+            "--out",
+            "stdout",
+            "--concurrency",
+            String(req.body?.concurrency ?? 8),
+        ];
     } else {
         const yamlText = req.body?.yaml;
         if (!yamlText) return res.status(400).json({ error: "Missing body.yaml" });
