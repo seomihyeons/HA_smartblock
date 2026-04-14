@@ -19,7 +19,7 @@ and conversely, users can import existing YAML files to view and modify them as 
 Thus, **HA-SmartBlock provides a true round-trip editing environment**:  
 YAML ⇄ Visual Blocks ⇄ YAML.
 
-![HA-SmartBlock](./ha_smartblock.png)
+![HA-SmartBlock](./HA-SmartBlock.png)
 
 ## Key Features
 - Visual block editor for Home Assistant triggers, conditions, and actions
