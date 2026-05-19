@@ -1,15 +1,16 @@
 # HA-SmartBlock
-**Visual Round-Trip Programming Environment for Home Assistant**
+**An ECA(Event-Condtion-Action)-Based
+Visual Block System for Home Assistant**
 
 ## Home Assistant
-[Home Assistant](https://www.home-assistant.io/) is one of the leading open-source IoT platforms.  
+[Home Assistant](https://www.home-assistant.io/) is a widely used open-source home automation platform.   
 It enables users to automate smart devices through YAML-based automation scripts that combine **triggers**, **conditions**, and **actions**.
 
 However, YAML syntax requires users to handle indentation, nested logic, and strict formatting —  
-which can make automation difficult for non-developers.
+which can make automation difficult for end users.
 
 ## Overview
-**HA-SmartBlock** extends the idea of *Smart Block (for SmartThings)* to the **Home Assistant** environment.  
+**HA-SmartBlock** extends the idea of [*Smart Block (for SmartThings)*](https://github.com/baknayeon/smartblock) to the **Home Assistant** environment.  
 It allows users to **create and edit automations visually** without writing YAML code manually.
 
 When users build their automations with blocks,  
