@@ -24,25 +24,25 @@ YAML ⇄ Visual Blocks ⇄ YAML.
 
 ## Key Features
 - Visual block editor for Home Assistant triggers, conditions, and actions
-- Round-trip editing between YAML and Blockly blocks
+- Bidirectional transformation between YAML and visual blocks
 - Import normalization with fallback preservation for unsupported syntax
-- Home Assistant automation pull and push support
-- Conflict Analyzer (E-A) integration
-- Automation Regression Test workflow for batch verification
-- Alias-based automatic `id` generation when pushing automations without an `id`
+- Home Assistant integration for automation import/export
+- Automation conflict detection and analysis
+- Regression testing workflow for validating block-system extensions
 
-## How to Access the Program
+## Getting Started
+### Clone Repository
 To run the **HA-SmartBlock** program locally, first download or clone this repository from GitHub.  
-After extracting or cloning the files, open a terminal (PowerShell or VS Code terminal) and navigate to the project root: `/blockly`.
+After extracting or cloning the files, open a terminal (PowerShell or VS Code terminal) and navigate to the project root: `/HA_smartblock`.
 
-Then install dependencies and launch the program:
 ~~~bash
-npm install
-npm run start
+git clone <repository_url>
 ~~~
 
-## Environment Variables (HA Integration)
-To use Home Assistant integration features (automation list, pull/push, conflict analyzer), create a local `.env` file in the project root.
+
+### Environment Variables (for Home Assistant Integration)
+To enable integration with your Home Assistant instance,
+create a local `.env` file in the project root before starting the program.
 
 Example:
 ~~~env
@@ -52,16 +52,15 @@ HA_TOKEN=<YOUR_LONG_LIVED_TOKEN>
 
 Notes:
 - `.env` is ignored by git and must be created locally
-- if `.env` is missing, the visual block editor still works, but HA pull/push and analyzer features are unavailable
+- if `.env` is missing, the visual block editor remains functional, but Home Assistant integration features are disabled
 - do not expose the local dev server publicly while using `HA_TOKEN`
 
-Optional variables:
-- HA_IP
-- HA_PORT
-- ANALYZER_HOST
-- ANALYZER_PORT
-- DEV_SERVER_HOST
-- HA_SSL_VERIFY
+### Install and Run
+Install dependencies and launch the program:
+~~~bash
+npm install
+npm run start
+~~~
 
 ## Home Assistant Integration
 HA-SmartBlock can interact with a running Home Assistant instance.
@@ -84,8 +83,10 @@ Live pull/push requires HA credentials:
 - Set `HA_BASE_URL` or `HA_IP` / `HA_PORT`
 - Set `HA_TOKEN`
 
-## Conflict Analyzer (E-A)
+## Conflict Analyzer
 UI entry: `🛠`
+
+The conflict analyzer detects potential redundancy, inconsistency, and circularity conflicts among Home Assistant automations.
 
 The analyzer reports summary information such as:
 - automations analyzed
@@ -114,12 +115,21 @@ node server/analyze_server.js
 - Requires Python 3 and PyYAML
 - [Analyzer Repository](https://github.com/kwanghoon/haanalyzer)
 
-## Task Alt Verification
-- UI entry: ⛏ inside the app
+## Regression Verification
+UI entry: `⛏`
+
+The regression workflow helps ensure backward compatibility and semantic stability when extending the block system by verifying that newly added blocks or conversion logic changes do not introduce unintended side effects on existing automation assets.
+
+Features include:
+- Batch verification using Home Assistant automation datasets
+- Baseline generation and comparison against regenerated YAML outputs
+- Automated detection of unexpected structural and semantic changes
+- Regression reports highlighting status, counts, and structural differences
+- Baseline management through the local development server API
+
 - Datasets: `test/test_*`
-- Baseline stored via local dev server API
-- Regression report highlights status, count, and RAW changes
-- Note: datasets are large and intended for verification use
+- Note: Regression datasets are large and intended primarily for verification and testing purposes.
+
 
 ## Security Notes
 - Dev server and analyzer are local-only by default.
