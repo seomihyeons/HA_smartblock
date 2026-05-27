@@ -1,0 +1,84 @@
+// src/blocks/event/event_entity.js
+import * as Blockly from 'blockly';
+import { dummyEntities } from '../../data/entities_index.js';
+import { STATE_DOMAINS, getStates } from '../../data/options.js';
+
+function getEntityOptions(domain, { numericOnly = false } = {}) {
+  const filtered = (dummyEntities || []).filter(e => {
+    const id = String(e.entity_id || '');
+    if (!id.startsWith(`${domain}.`)) return false;
+    if (!numericOnly) return true;
+    return !Number.isNaN(Number(e.state));
+  });
+
+  if (!filtered.length) return [['(No entities)', '']];
+  return filtered.map(e => [e.attributes?.friendly_name || e.entity_id, e.entity_id]);
+}
+
+// getStates(domain) = [['on','on'], ...] 그대로 쓰되 (any) 옵션만 추가
+function withAny(options) {
+  const opts = (options || []).filter(([, v]) => v); // '(No states)' 같은 빈 값 제거
+  if (!opts.length) return [['(any)', '']];
+  return [...opts, ['(any)', '']];
+}
+
+const labelOf = (domain) => (domain === 'binary_sensor' ? 'binary sensor' : domain);
+
+Blockly.Extensions.register('event_trigger_optional_id', function () {
+  const sync = () => {
+    const useId = this.getFieldValue('USE_ID') === 'TRUE';
+    const idField = this.getField('ID');
+    idField?.setVisible(useId);
+    if (!useId && idField) this.setFieldValue('', 'ID');
+    if (this.rendered) this.render();
+  };
+
+  this.getField('USE_ID')?.setValidator((newVal) => {
+    setTimeout(sync, 0);
+    return newVal;
+  });
+
+  sync();
+});
+
+export const eventEntityBlocks =
+  Blockly.common.createBlockDefinitionsFromJsonArray([
+    ...STATE_DOMAINS
+      .map(domain => ({
+        type: `event_${domain}_state`,
+        message0: `${labelOf(domain)} %1 from %2 to %3 id %4 %5 %6`,
+        args0: [
+          { type: 'field_dropdown', name: 'ENTITY_ID', options: () => getEntityOptions(domain) },
+          { type: 'field_dropdown', name: 'FROM', options: () => withAny(getStates(domain)) },
+          { type: 'field_dropdown', name: 'TO', options: () => withAny(getStates(domain)) },
+          { type: 'field_checkbox', name: 'USE_ID', checked: false },
+          { type: 'field_input', name: 'ID', text: '' },
+          { type: 'input_value', name: 'FOR' },
+        ],
+        previousStatement: 'HA_EVENT',
+        nextStatement: 'HA_EVENT',
+        colour: 180,
+        tooltip: `Triggers when the selected ${domain} entity changes state.`,
+        helpUrl: '',
+        extensions: ['event_trigger_optional_id'],
+      })),
+
+    {
+      type: 'event_sensor_numeric_state',
+      message0: `sensor %1 above %2 below %3 id %4 %5 %6`,
+      args0: [
+        { type: 'field_dropdown', name: 'ENTITY_ID', options: () => getEntityOptions('sensor', { numericOnly: true }) },
+        { type: 'field_number', name: 'ABOVE', value: 0, precision: 0.1 },
+        { type: 'field_number', name: 'BELOW', value: 0, precision: 0.1 },
+        { type: 'field_checkbox', name: 'USE_ID', checked: false },
+        { type: 'field_input', name: 'ID', text: '' },
+        { type: 'input_value', name: 'FOR', check: 'DURATION' },
+      ],
+      previousStatement: 'HA_EVENT',
+      nextStatement: 'HA_EVENT',
+      colour: 180,
+      tooltip: 'Triggers when the selected sensor value matches the above/below thresholds.',
+      helpUrl: '',
+      extensions: ['event_trigger_optional_id'],
+    },
+  ]);

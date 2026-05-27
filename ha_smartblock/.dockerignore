@@ -1,0 +1,9 @@
+node_modules
+dist
+build
+.git
+.env
+*.log
+test/**/*.yaml
+test/**/*.yml
+test/task_alt/baseline.json
