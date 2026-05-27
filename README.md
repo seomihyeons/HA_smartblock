@@ -24,6 +24,7 @@ YAML ⇄ Visual Blocks ⇄ YAML.
 
 ## Key Features
 - Visual block editor for Home Assistant triggers, conditions, and actions
+- Entity dropdowns populated from the user's Home Assistant instance in add-on mode
 - Bidirectional transformation between YAML and visual blocks
 - Import normalization with fallback preservation for unsupported syntax
 - Home Assistant integration for automation import/export
@@ -31,6 +32,27 @@ YAML ⇄ Visual Blocks ⇄ YAML.
 - Regression testing workflow for validating block-system extensions
 
 ## Getting Started
+### Install as a Home Assistant Add-on
+HA-SmartBlock is available as a Home Assistant add-on repository.
+
+1. Open Home Assistant.
+2. Go to **Settings** → **Add-ons** → **Add-on Store**.
+3. Open the menu in the top-right corner and select **Repositories**.
+4. Add this repository URL:
+
+~~~text
+https://github.com/seomihyeons/HA_smartblock
+~~~
+
+5. Install **HA SmartBlock** from the Add-on Store.
+6. Start the add-on and open the Web UI.
+
+The add-on is distributed as a pre-built GHCR container image:
+
+~~~text
+ghcr.io/seomihyeons/ha_smartblock
+~~~
+
 ### Clone Repository
 To run the **HA-SmartBlock** program locally, first download or clone this repository from GitHub.  
 After extracting or cloning the files, open a terminal (PowerShell or VS Code terminal) and navigate to the project root: `/HA_smartblock`.

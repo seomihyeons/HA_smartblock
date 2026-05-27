@@ -1,4 +1,5 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
@@ -21,6 +22,85 @@ function getHaApiBaseUrl() {
 
 function getHaCoreBaseUrl() {
   return getHaApiBaseUrl().replace(/\/api$/, '');
+}
+
+function requestJsonFromHa(apiPath) {
+  const token = process.env.HA_TOKEN || process.env.SUPERVISOR_TOKEN || '';
+  if (!token) {
+    return Promise.reject(new Error('Missing SUPERVISOR_TOKEN/HA_TOKEN'));
+  }
+
+  const target = new URL(`${getHaApiBaseUrl()}${apiPath}`);
+  const client = target.protocol === 'https:' ? https : http;
+
+  return new Promise((resolve, reject) => {
+    const req = client.request(
+      target,
+      {
+        method: 'GET',
+        headers: {
+          authorization: `Bearer ${token}`,
+          accept: 'application/json',
+        },
+        timeout: 15000,
+      },
+      (resp) => {
+        let raw = '';
+        resp.setEncoding('utf8');
+        resp.on('data', (chunk) => { raw += chunk; });
+        resp.on('end', () => {
+          if ((resp.statusCode || 500) >= 400) {
+            reject(new Error(`Home Assistant API returned ${resp.statusCode}: ${raw}`));
+            return;
+          }
+          try {
+            resolve(JSON.parse(raw));
+          } catch {
+            reject(new Error('Home Assistant API returned invalid JSON'));
+          }
+        });
+      }
+    );
+    req.on('timeout', () => req.destroy(new Error('Home Assistant API timed out')));
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+function normalizeHaEntityState(row) {
+  const entityId = String(row?.entity_id || '').trim();
+  if (!entityId || !entityId.includes('.')) return null;
+
+  const attributes = (row.attributes && typeof row.attributes === 'object')
+    ? row.attributes
+    : {};
+  return {
+    entity_id: entityId,
+    state: row.state,
+    attributes,
+    domain: entityId.split('.', 1)[0],
+    friendly_name: attributes.friendly_name || entityId,
+  };
+}
+
+async function sendRuntimeEntities(_req, res) {
+  try {
+    const states = await requestJsonFromHa('/states');
+    const entities = (Array.isArray(states) ? states : [])
+      .map(normalizeHaEntityState)
+      .filter(Boolean)
+      .sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+
+    const domains = [...new Set(entities.map((e) => e.domain))].sort();
+    sendJson(res, 200, {
+      source: 'homeassistant',
+      count: entities.length,
+      domains,
+      entities,
+    });
+  } catch (e) {
+    sendJson(res, 502, { error: String(e?.message || e) });
+  }
 }
 
 function sendJson(res, status, payload) {
@@ -395,6 +475,11 @@ const server = http.createServer(async (req, res) => {
 
   if (url.startsWith('/ha/api')) {
     proxyHomeAssistant(req, res);
+    return;
+  }
+
+  if (req.method === 'GET' && url.split('?')[0] === '/api/entities') {
+    sendRuntimeEntities(req, res);
     return;
   }
 
