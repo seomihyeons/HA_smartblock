@@ -1,18 +1,37 @@
 # HA SmartBlock Add-on
 
-HA SmartBlock provides a Blockly-based visual editor for Home Assistant automations.
+HA SmartBlock is a visual Blockly editor for Home Assistant automations.
 
-## Usage
+It helps you load existing automations, inspect them as blocks, edit the logic visually, and export or push YAML back to Home Assistant.
+
+## Features
+
+- Load Home Assistant automations
+- Use entity dropdowns populated from your Home Assistant instance
+- Open automations as Blockly workspaces
+- Export or copy generated YAML
+- Push automation changes back to Home Assistant
+- Run automation analysis
+- Test Task Alt YAML files
+
+## Getting Started
 
 1. Install and start the add-on.
-2. Open the Web UI from the add-on page.
-3. Build or import an automation.
-4. Export YAML or push the automation back to Home Assistant.
+2. Open the Web UI.
+3. Use **Load** to import automations from Home Assistant.
+4. Select an automation to open it in Blockly.
+5. Export, copy, analyze, or push the generated YAML.
 
-The add-on uses Home Assistant's Supervisor token internally. Do not paste long-lived Home Assistant tokens into the UI.
+## Home Assistant Access
 
-## Notes
+The add-on uses Home Assistant's Supervisor token internally, so you do not need to paste a long-lived Home Assistant token into the UI.
 
-- This add-on is experimental.
-- The UI is served through Home Assistant Ingress.
-- Regression baseline data is stored in the add-on data directory.
+Entity dropdowns are loaded from Home Assistant when the Web UI starts. If the Home Assistant API is unavailable, HA SmartBlock falls back to bundled sample entities so the editor can still open.
+
+## Analyzer
+
+The analyzer can inspect automations for potential logic issues. If no issues are detected, the UI reports that the system logic is consistent.
+
+## Task Alt
+
+Task Alt can import YAML files and run regression-style checks. Baseline data is stored in the add-on data directory.

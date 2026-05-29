@@ -21,6 +21,7 @@ import { yamlGenerator } from './generators/yaml';
 
 import { toolbox } from './toolbox';
 import { customTheme } from './utils/custom_theme.js';
+import { loadRuntimeEntities } from './data/entities_index.js';
 
 import './blocks/extensions';
 
@@ -94,86 +95,90 @@ Blockly.common.defineBlocks(actionScriptBlocks);
 Blockly.common.defineBlocks(actionNotifyTagBlocks);
 Blockly.common.defineBlocks(actionMqttBlocks);
 
-const codeDiv = document.getElementById('generatedCode');
-const blocklyDiv = document.getElementById('blocklyDiv');
-const ws = Blockly.inject(blocklyDiv, {
-  toolbox,
-  theme: customTheme,
-  move: {
-    scrollbars: true,
-    drag: true,
-    wheel: true,
-  },
-  zoom: {
-    controls: false,
-    wheel: true,
-    pinch: true,
-    startScale: 1,
-    minScale: 0.4,
-    maxScale: 2.5,
-    scaleSpeed: 1.15,
-  },
-});
-
-window.Blockly = Blockly;
-window.ws = ws;
-
-setupYamlExportButtons('generatedCode', ws);
-setupYamlImportButton({ outputId: 'generatedCode', ws: ws });
-
-
-document.addEventListener('yaml-imported', (e) => {
-  try {
-    const yamlText = e.detail.text;
-    const internal = yamlTextToInternalJson(yamlText);
-
-    showImportDebugJson(internal);
-
-    renderAutomationToWorkspace(ws, internal, { clearBefore: true });
-  } catch (err) {
-    console.error(err);
-    alert('An error occurred while parsing or normalizing YAML. Check the console for details.');
-  }
-});
-
-
-const runCode = () => {
-  try {
-    const code = yamlGenerator.workspaceToCode(ws);
-    console.log('Generated YAML code:', code);
-    codeDiv.innerText = code;
-  } catch (error) {
-    console.error('Code generation failed:', error);
-    codeDiv.innerText = 'Code generation failed: ' + error.message;
-  }
-};
-
-load(ws);
-runCode();
-
-ws.addChangeListener((e) => {
-  if (e.isUiEvent) return;
-  save(ws);
-});
-
-ws.addChangeListener((e) => {
-  if (
-    e.isUiEvent ||
-    e.type == Blockly.Events.FINISHED_LOADING ||
-    ws.isDragging()
-  ) {
-    return;
-  }
-  runCode();
-});
-
 import { setupHaPullPanel } from './homeassistant/ha_pull_panel';
 
-setupHaPullPanel({ ws });
+async function initApp() {
+  await loadRuntimeEntities();
 
+  const codeDiv = document.getElementById('generatedCode');
+  const blocklyDiv = document.getElementById('blocklyDiv');
+  const ws = Blockly.inject(blocklyDiv, {
+    toolbox,
+    theme: customTheme,
+    move: {
+      scrollbars: true,
+      drag: true,
+      wheel: true,
+    },
+    zoom: {
+      controls: false,
+      wheel: true,
+      pinch: true,
+      startScale: 1,
+      minScale: 0.4,
+      maxScale: 2.5,
+      scaleSpeed: 1.15,
+    },
+  });
 
+  window.Blockly = Blockly;
+  window.ws = ws;
 
-window.addEventListener("DOMContentLoaded", () => {
+  setupYamlExportButtons('generatedCode', ws);
+  setupYamlImportButton({ outputId: 'generatedCode', ws: ws });
+
+  document.addEventListener('yaml-imported', (e) => {
+    try {
+      const yamlText = e.detail.text;
+      const internal = yamlTextToInternalJson(yamlText);
+
+      showImportDebugJson(internal);
+
+      renderAutomationToWorkspace(ws, internal, { clearBefore: true });
+    } catch (err) {
+      console.error(err);
+      alert('An error occurred while parsing or normalizing YAML. Check the console for details.');
+    }
+  });
+
+  const runCode = () => {
+    try {
+      const code = yamlGenerator.workspaceToCode(ws);
+      console.log('Generated YAML code:', code);
+      codeDiv.innerText = code;
+    } catch (error) {
+      console.error('Code generation failed:', error);
+      codeDiv.innerText = 'Code generation failed: ' + error.message;
+    }
+  };
+
+  load(ws);
+  runCode();
+
+  ws.addChangeListener((e) => {
+    if (e.isUiEvent) return;
+    save(ws);
+  });
+
+  ws.addChangeListener((e) => {
+    if (
+      e.isUiEvent ||
+      e.type == Blockly.Events.FINISHED_LOADING ||
+      ws.isDragging()
+    ) {
+      return;
+    }
+    runCode();
+  });
+
+  setupHaPullPanel({ ws });
   initConflictAnalyzerUI();
   initTaskAltUI({ ws });
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  initApp().catch((err) => {
+    console.error(err);
+    alert('Failed to initialize HA SmartBlock. Check the console for details.');
+  });
 });
