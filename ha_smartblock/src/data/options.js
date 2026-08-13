@@ -530,8 +530,8 @@ export const slug = (s) =>
     .replace(/[^a-z0-9_]+/g, '');
 
 export const CUSTOM_NOTIFY_TARGETS = [
-  'USER1_devices',
-  'USER2_devices',
+  'mobile_app_phone',
+  'mobile_app_tablet',
 ];
 
 export const PRESET_NOTIFY_SERVICES = [

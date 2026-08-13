@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "notes": [
+    "Labels are intentionally small and manually authored for second-pass revision evidence.",
+    "The current analyzer top-level output reports inconsistency issues only; redundancy and circularity are included as labeled cases but marked unsupported_by_current_output."
+  ],
+  "cases": [
+    {
+      "id": "01_no_conflict",
+      "file": "cases/01_no_conflict.yaml",
+      "label": "no_conflict",
+      "expected_binary_inconsistency": false,
+      "comparable_output": true
+    },
+    {
+      "id": "02_direct_inconsistency",
+      "file": "cases/02_direct_inconsistency.yaml",
+      "label": "direct_inconsistency",
+      "expected_binary_inconsistency": true,
+      "comparable_output": true
+    },
+    {
+      "id": "03_redundancy",
+      "file": "cases/03_redundancy.yaml",
+      "label": "redundancy",
+      "expected_binary_inconsistency": false,
+      "comparable_output": false,
+      "unsupported_reason": "Current analyzer output does not expose a redundancy issue type."
+    },
+    {
+      "id": "04_circularity",
+      "file": "cases/04_circularity.yaml",
+      "label": "circularity",
+      "expected_binary_inconsistency": false,
+      "comparable_output": false,
+      "unsupported_reason": "Tarjan SCC helper exists in code, but current analyze_ha_automations output does not report circularity."
+    },
+    {
+      "id": "05_indirect_inconsistency",
+      "file": "cases/05_indirect_inconsistency.yaml",
+      "label": "indirect_inconsistency",
+      "expected_binary_inconsistency": true,
+      "comparable_output": true
+    }
+  ]
+}
