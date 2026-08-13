@@ -1,0 +1,261 @@
+{
+  "generated_at_utc": "2026-06-30T16:46:49.408Z",
+  "mode": "current-code-headless",
+  "source": {
+    "evaluator": "revision_evidence/scripts/headless_task_alt_eval.js",
+    "bundler_config": "revision_evidence/scripts/webpack.headless.config.cjs",
+    "code_basis": "root src/ and test/ current working tree; ha_smartblock/ remains the Home Assistant add-on distribution variant",
+    "git_branch": "ha-addon-dynamic-entities",
+    "git_commit": "b2503b18d8a064c4fc1b5cb371a6b1eab9058ad1",
+    "working_tree_status_short": "M .gitignore\n M ha_smartblock/.dockerignore\n D ha_smartblock/src/data/entities_geekofweek.js\n M ha_smartblock/src/data/entities_index.js\n D ha_smartblock/src/data/fetch_GOW.py\n M ha_smartblock/src/data/options.js\n M src/data/entities_index.js\n M test/test_blinds/4_blinds_close_upstairs_blinds_when_sun_below_horizon.yaml\n?? revision_evidence/",
+    "started_at_utc": "2026-06-30T16:46:45.091Z",
+    "finished_at_utc": "2026-06-30T16:46:49.408Z"
+  },
+  "dataset": {
+    "filesystem_test_yaml_total_including_demo": 866,
+    "excluded_demo_files": [
+      "test/test_raw_demo/1_raw_condition_zone_demo.yaml",
+      "test/test_raw_demo/2_raw_event_webhook_demo.yaml",
+      "test/test_xhome_demo/1_xhome_demo_entrance_evening_scene.yaml",
+      "test/test_xhome_demo/2_xhome_demo_entrance_mood_lamp.yaml",
+      "test/test_xhome_demo/test.yaml"
+    ],
+    "evaluation_dataset_rule": "test/test_*/*.yaml and *.yml excluding test/test_raw_demo/** and test/test_xhome_demo/**",
+    "evaluation_dataset_count": 861
+  },
+  "conversion_results": {
+    "total_automations": 861,
+    "fully_imported_into_editable_blocks_current_headless": 861,
+    "partially_imported_with_raw_fallback_blocks": 0,
+    "failed_to_import_or_parse": 0,
+    "export_success_count": 861,
+    "exact_round_trip_matches": 430,
+    "normalization_only_differences": 431,
+    "semantic_mismatches": 0,
+    "error_count": 0,
+    "raw_block_count": 0,
+    "unsupported_construct_types_from_raw_blocks": {},
+    "status_counts": {
+      "PASS": 430,
+      "PASS_WITH_NORMALIZATION": 431
+    }
+  },
+  "processing_time": {
+    "import_time_ms": 2523.778,
+    "export_time_ms": 106.863,
+    "total_time_ms": 4233.057,
+    "average_import_time_ms": 2.931,
+    "average_export_time_ms": 0.124,
+    "average_total_time_ms": 4.916,
+    "note": "Import time is yamlTextToInternalJson plus renderAutomationToWorkspace. Export time is yamlGenerator.workspaceToCode. Total time includes file read, import, raw classification, export, regenerated parse, and semantic comparison."
+  },
+  "failure_taxonomy": {
+    "parse_or_import_error": 0,
+    "export_error": 0,
+    "compare_or_regenerated_parse_error": 0,
+    "semantic_mismatch": 0,
+    "raw_fallback_used": 0,
+    "failure_category_counts": {}
+  },
+  "by_keyword": {
+    "3d_printer": {
+      "total": 52,
+      "statuses": {
+        "PASS": 47,
+        "PASS_WITH_NORMALIZATION": 5
+      }
+    },
+    "alarm": {
+      "total": 20,
+      "statuses": {
+        "PASS_WITH_NORMALIZATION": 12,
+        "PASS": 8
+      }
+    },
+    "bedtime": {
+      "total": 17,
+      "statuses": {
+        "PASS": 6,
+        "PASS_WITH_NORMALIZATION": 11
+      }
+    },
+    "blinds": {
+      "total": 55,
+      "statuses": {
+        "PASS_WITH_NORMALIZATION": 55
+      }
+    },
+    "bug_zapper": {
+      "total": 6,
+      "statuses": {
+        "PASS": 6
+      }
+    },
+    "camera": {
+      "total": 30,
+      "statuses": {
+        "PASS": 16,
+        "PASS_WITH_NORMALIZATION": 14
+      }
+    },
+    "christmas": {
+      "total": 22,
+      "statuses": {
+        "PASS_WITH_NORMALIZATION": 22
+      }
+    },
+    "climate": {
+      "total": 40,
+      "statuses": {
+        "PASS": 10,
+        "PASS_WITH_NORMALIZATION": 30
+      }
+    },
+    "doors": {
+      "total": 6,
+      "statuses": {
+        "PASS": 6
+      }
+    },
+    "energy": {
+      "total": 5,
+      "statuses": {
+        "PASS_WITH_NORMALIZATION": 5
+      }
+    },
+    "fans": {
+      "total": 26,
+      "statuses": {
+        "PASS_WITH_NORMALIZATION": 26
+      }
+    },
+    "fountain": {
+      "total": 11,
+      "statuses": {
+        "PASS": 11
+      }
+    },
+    "garage": {
+      "total": 21,
+      "statuses": {
+        "PASS_WITH_NORMALIZATION": 17,
+        "PASS": 4
+      }
+    },
+    "holiday": {
+      "total": 28,
+      "statuses": {
+        "PASS_WITH_NORMALIZATION": 28
+      }
+    },
+    "ios_actions": {
+      "total": 24,
+      "statuses": {
+        "PASS": 3,
+        "PASS_WITH_NORMALIZATION": 21
+      }
+    },
+    "laundry": {
+      "total": 7,
+      "statuses": {
+        "PASS": 7
+      }
+    },
+    "led_clock": {
+      "total": 80,
+      "statuses": {
+        "PASS_WITH_NORMALIZATION": 44,
+        "PASS": 36
+      }
+    },
+    "lights": {
+      "total": 75,
+      "statuses": {
+        "PASS": 45,
+        "PASS_WITH_NORMALIZATION": 30
+      }
+    },
+    "location": {
+      "total": 51,
+      "statuses": {
+        "PASS": 38,
+        "PASS_WITH_NORMALIZATION": 13
+      }
+    },
+    "locks": {
+      "total": 6,
+      "statuses": {
+        "PASS_WITH_NORMALIZATION": 5,
+        "PASS": 1
+      }
+    },
+    "media": {
+      "total": 38,
+      "statuses": {
+        "PASS": 10,
+        "PASS_WITH_NORMALIZATION": 28
+      }
+    },
+    "motion": {
+      "total": 76,
+      "statuses": {
+        "PASS": 63,
+        "PASS_WITH_NORMALIZATION": 13
+      }
+    },
+    "network": {
+      "total": 5,
+      "statuses": {
+        "PASS": 3,
+        "PASS_WITH_NORMALIZATION": 2
+      }
+    },
+    "occupancy": {
+      "total": 2,
+      "statuses": {
+        "PASS": 1,
+        "PASS_WITH_NORMALIZATION": 1
+      }
+    },
+    "roomba": {
+      "total": 88,
+      "statuses": {
+        "PASS": 63,
+        "PASS_WITH_NORMALIZATION": 25
+      }
+    },
+    "system": {
+      "total": 32,
+      "statuses": {
+        "PASS_WITH_NORMALIZATION": 11,
+        "PASS": 21
+      }
+    },
+    "vacation": {
+      "total": 7,
+      "statuses": {
+        "PASS": 2,
+        "PASS_WITH_NORMALIZATION": 5
+      }
+    },
+    "water_works": {
+      "total": 22,
+      "statuses": {
+        "PASS": 20,
+        "PASS_WITH_NORMALIZATION": 2
+      }
+    },
+    "weather": {
+      "total": 9,
+      "statuses": {
+        "PASS": 3,
+        "PASS_WITH_NORMALIZATION": 6
+      }
+    }
+  },
+  "limitations": [
+    "This is a headless Node/webpack evaluation of the current working tree, not an independently containerized Home Assistant add-on run.",
+    "Timing values are wall-clock measurements from this local machine and should be reported with the hardware/software context if used in the manuscript.",
+    "The evaluator reuses the repository lightweight YAML parser and semantic comparator; it is not a Home Assistant runtime validation."
+  ]
+}

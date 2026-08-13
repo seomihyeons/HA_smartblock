@@ -1,0 +1,19 @@
+- alias: Circular light turns off when on
+  trigger:
+    - platform: state
+      entity_id: light.loop
+      to: "on"
+  action:
+    - service: light.turn_off
+      target:
+        entity_id: light.loop
+
+- alias: Circular light turns on when off
+  trigger:
+    - platform: state
+      entity_id: light.loop
+      to: "off"
+  action:
+    - service: light.turn_on
+      target:
+        entity_id: light.loop
