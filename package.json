@@ -19,7 +19,11 @@
   "dependencies": {
     "blockly": "^11.0.0",
     "dotenv": "^17.2.3",
-    "js-yaml": "^4.1.1"
+    "js-yaml": "^4.3.1"
+  },
+  "overrides": {
+    "form-data": "4.0.6",
+    "ws": "8.21.3"
   },
   "devDependencies": {
     "css-loader": "^6.7.1",
