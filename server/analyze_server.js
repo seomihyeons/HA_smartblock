@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import dotenv from "dotenv";
+import { buildEntityCards, createFakeAutomationDraft } from "./llm_draft_service.mjs";
 
 dotenv.config();
 
@@ -40,6 +41,57 @@ function guardLocal(req, res) {
     }
     return true;
 }
+
+async function fetchHomeAssistantStates() {
+    const haBase = buildHaBaseUrl();
+    const haToken = process.env.HA_TOKEN || "";
+    if (!haBase || !haToken) {
+        throw new Error("Missing HA_BASE_URL(or HA_IP/HA_PORT) or HA_TOKEN in server .env");
+    }
+
+    const response = await fetch(`${haBase.replace(/\/$/, "")}/api/states`, {
+        headers: {
+            Authorization: `Bearer ${haToken}`,
+            "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) {
+        throw new Error(`Home Assistant states request failed: ${response.status}`);
+    }
+    const states = await response.json();
+    if (!Array.isArray(states)) {
+        throw new Error("Home Assistant states response was not an array");
+    }
+    return states;
+}
+
+app.post("/api/llm/automation/draft", async (req, res) => {
+    if (!guardLocal(req, res)) return;
+
+    try {
+        const suppliedCards = Array.isArray(req.body?.entity_cards)
+            ? req.body.entity_cards
+            : null;
+        const entityCards = suppliedCards || buildEntityCards(await fetchHomeAssistantStates());
+        const result = createFakeAutomationDraft({
+            command: req.body?.command,
+            selections: req.body?.selections,
+            entity_cards: entityCards,
+        });
+        return res.json({
+            ...result,
+            context: {
+                source: suppliedCards ? "request" : "live_ha",
+                entity_count: entityCards.length,
+            },
+        });
+    } catch (error) {
+        const message = String(error?.message || error);
+        const status = message.includes("Missing HA_") ? 503 : 500;
+        return res.status(status).json({ status: "failure", error: message });
+    }
+});
 
 app.post("/analyze", (req, res) => {
     if (!guardLocal(req, res)) return;

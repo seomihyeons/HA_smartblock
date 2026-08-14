@@ -183,17 +183,17 @@ export function initConflictAnalyzerUI() {
         return `Unexpected error: ${msg}`;
     };
 
-    const run = async () => {
+    const run = async ({ draftYaml = null } = {}) => {
         setText(out, "");
         setSummary("Automations analyzed: -\nEvents: -\nActions: -\nRule edges: -\nInconsistency issues: -\nConflict types: -\nConflicting entities: -\nElapsed: running...");
         setError("");
-        setStatus("running", "Analyzing...");
+        setStatus("running", draftYaml ? "Analyzing draft with Home Assistant..." : "Analyzing...");
         toggleSpinner(true);
         btnRun.disabled = true;
 
         const startedAt = performance.now();
         try {
-            const report = await runConflictAnalyzer({ onlyEnabled: true, concurrency: 8 });
+            const report = await runConflictAnalyzer({ onlyEnabled: true, concurrency: 8, draftYaml });
             const ms = Math.round(performance.now() - startedAt);
             setSummary(buildSummary(report, ms));
             renderIssueCards(out, report);
@@ -215,7 +215,13 @@ export function initConflictAnalyzerUI() {
     backdrop?.addEventListener("click", close);
     btnClose?.addEventListener("click", close);
     btnCopy.addEventListener("click", copy);
-    btnRun.addEventListener("click", run);
+    btnRun.addEventListener("click", () => { void run(); });
+    document.addEventListener("open-conflict-analyzer", (event) => {
+        open();
+        if (event?.detail?.autoRun) {
+            void run({ draftYaml: event?.detail?.draftYaml || null });
+        }
+    });
 
     setStatus("idle", "Ready");
     setSummary("Automations analyzed: -\nEvents: -\nActions: -\nRule edges: -\nInconsistency issues: -\nConflict types: -\nConflicting entities: -\nElapsed: -");

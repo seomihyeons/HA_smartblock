@@ -6,6 +6,7 @@
   "private": true,
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:llm": "node --test server/tests/*.test.mjs",
     "build": "webpack --mode production",
     "start": "webpack serve --mode development --open --hot"
   },
@@ -19,6 +20,7 @@
   "dependencies": {
     "blockly": "^11.0.0",
     "dotenv": "^17.2.3",
+    "express": "^5.2.1",
     "js-yaml": "^4.3.1"
   },
   "overrides": {

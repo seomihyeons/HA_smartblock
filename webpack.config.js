@@ -282,6 +282,12 @@ module.exports = (env, argv) => {
           changeOrigin: true,
           secure: false,
         },
+
+        '/api/llm': {
+          target: 'http://localhost:8787',
+          changeOrigin: true,
+          secure: false,
+        },
       },
 
       setupMiddlewares: (middlewares, devServer) => {
@@ -290,7 +296,7 @@ module.exports = (env, argv) => {
 
         app.use((req, res, next) => {
           const url = String(req.url || '');
-          if (url.startsWith('/ha/api') || url.startsWith('/analyze')) {
+          if (url.startsWith('/ha/api') || url.startsWith('/analyze') || url.startsWith('/api/llm')) {
             const addr = String(req.socket?.remoteAddress || '');
             if (!isLocalAddress(addr)) {
               sendJson(res, 403, { error: 'forbidden' });

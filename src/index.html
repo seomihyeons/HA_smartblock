@@ -32,6 +32,33 @@
     ⛏
   </button>
 
+  <button id="btnAiAssistant" class="floating-btn" type="button" title="AI Automation Assistant" aria-label="AI Automation Assistant">
+    🗨︎
+  </button>
+
+  <aside id="aiAssistantPanel" class="ai-assistant-panel hidden" aria-labelledby="aiAssistantTitle">
+    <div class="ai-assistant-header">
+      <div>
+        <div id="aiAssistantTitle" class="ai-assistant-title">AI 자동화 도우미</div>
+        <div class="ai-assistant-subtitle">자연어 요청을 검증된 Blockly 초안으로 변환합니다.</div>
+      </div>
+      <button id="aiAssistantClose" class="ai-assistant-close" type="button" aria-label="Close">×</button>
+    </div>
+
+    <div id="aiAssistantMessages" class="ai-assistant-messages" aria-live="polite">
+      <div class="ai-message ai-message-assistant">
+        만들고 싶은 자동화를 입력해 주세요. 현재 프로토타입은 움직임 감지 후 조명 켜기를 지원합니다.
+      </div>
+    </div>
+
+    <div id="aiAssistantStatus" class="ai-assistant-status state-idle">Fake provider · Draft only</div>
+
+    <form id="aiAssistantForm" class="ai-assistant-form">
+      <textarea id="aiAssistantInput" rows="3" maxlength="1000" placeholder="예: 현관 움직임이 감지되면 무드램프를 켜줘" required></textarea>
+      <button id="aiAssistantSend" type="submit">보내기</button>
+    </form>
+  </aside>
+
   <!-- Debug modal -->
   <div id="debugModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="debugModalTitle">
     <div id="debugModalBackdrop" class="modal-backdrop" aria-hidden="true"></div>
