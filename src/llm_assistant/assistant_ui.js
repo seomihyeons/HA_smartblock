@@ -26,11 +26,13 @@ function setStatus(element, state, message) {
 export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspaceYaml }) {
   const openButton = $('btnAiAssistant');
   const panel = $('aiAssistantPanel');
+  const backdrop = $('aiAssistantBackdrop');
   const closeButton = $('aiAssistantClose');
   const form = $('aiAssistantForm');
   const input = $('aiAssistantInput');
   const sendButton = $('aiAssistantSend');
   const messages = $('aiAssistantMessages');
+  const welcome = $('aiAssistantWelcome');
   const status = $('aiAssistantStatus');
 
   if (!openButton || !panel || !closeButton || !form || !input || !messages || !status) {
@@ -38,7 +40,9 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
   }
 
   let activeCommand = '';
+  let conversation = [];
   let selections = {};
+  let awaitingClarification = false;
   let busy = false;
 
   const scrollToLatest = () => {
@@ -69,19 +73,19 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
   const importDraft = (automation, button) => {
     const hasBlocks = typeof ws?.getAllBlocks === 'function' && ws.getAllBlocks(false).length > 0;
     if (hasBlocks) {
-      const accepted = window.confirm('현재 작업공간을 생성된 자동화 초안으로 교체할까요?');
+      const accepted = window.confirm('Replace the current workspace with this automation draft?');
       if (!accepted) return false;
     }
 
     try {
       button.disabled = true;
       renderAutomationToWorkspace(ws, automation, { clearBefore: true });
-      appendMessage('assistant', '검증된 초안을 Blockly 작업공간에 가져왔습니다. 저장하거나 실행하지는 않았습니다.');
+      appendMessage('assistant', 'The validated draft was imported into Blockly. It was not saved or executed.');
       setStatus(status, 'done', 'Imported to Blockly · Not saved to Home Assistant');
       return true;
     } catch (error) {
       button.disabled = false;
-      appendMessage('assistant', `Blockly 가져오기에 실패했습니다.\n${error?.message || error}`, 'ai-message-error');
+      appendMessage('assistant', `Blockly import failed.\n${error?.message || error}`, 'ai-message-error');
       setStatus(status, 'error', 'Blockly import failed');
       return false;
     }
@@ -90,33 +94,53 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
   const renderDraft = (result) => {
     const automation = result.automation || {};
     const trigger = automation.triggers?.[0] || {};
-    const action = automation.actions?.[0] || {};
+    const hasTrigger = Array.isArray(automation.triggers) && automation.triggers.length > 0;
+    const actionsList = Array.isArray(automation.actions) ? automation.actions : [];
     const card = createElement('section', 'ai-draft-card');
-    card.appendChild(createElement('div', 'ai-draft-title', automation.alias || '자동화 초안'));
+    card.appendChild(createElement('div', 'ai-draft-title', automation.alias || 'Automation draft'));
     card.appendChild(createElement(
       'div',
       'ai-draft-row',
-      `Trigger · ${firstEntityId(trigger.entity_id)} · ${trigger.from || '*'} → ${trigger.to || '*'}`,
+      hasTrigger
+        ? `Trigger · ${firstEntityId(trigger.entity_id)} · ${trigger.from || '*'} → ${trigger.to || '*'}`
+        : 'Trigger · Manual run draft',
     ));
-    card.appendChild(createElement(
-      'div',
-      'ai-draft-row',
-      `Action · ${actionName(action)} · ${firstEntityId(action.target?.entity_id)}`,
-    ));
+    actionsList.forEach((action, index) => {
+      const targets = Array.isArray(action.target?.entity_id)
+        ? action.target.entity_id.join(', ')
+        : firstEntityId(action.target?.entity_id);
+      card.appendChild(createElement(
+        'div',
+        'ai-draft-row',
+        `Action ${index + 1} · ${actionName(action)} · ${targets}`,
+      ));
+    });
+
+    const assumptions = [
+      ...(result.pipeline?.goal_analysis?.assumptions || []),
+      ...(result.pipeline?.policy_notes || []),
+    ];
+    if (assumptions.length) {
+      card.appendChild(createElement(
+        'div',
+        'ai-draft-assumptions',
+        `AI assumptions · ${assumptions.join(' · ')}`,
+      ));
+    }
 
     const validation = result.validation || {};
     const validationText = validation.schema_valid && validation.grounded && validation.blockly_supported
       ? '✓ Schema · ✓ Entity grounding · ✓ Blockly support'
-      : '검증 결과를 확인할 수 없습니다.';
+      : 'Validation results are unavailable.';
     card.appendChild(createElement('div', 'ai-draft-validation', validationText));
 
     const actions = createElement('div', 'ai-draft-actions');
-    const importButton = createElement('button', '', '블록으로 가져오기');
+    const importButton = createElement('button', '', 'Import blocks');
     importButton.type = 'button';
     importButton.addEventListener('click', () => importDraft(automation, importButton));
     actions.appendChild(importButton);
 
-    const analyzeButton = createElement('button', '', '가져오고 충돌 분석');
+    const analyzeButton = createElement('button', '', 'Import and analyze conflicts');
     analyzeButton.type = 'button';
     analyzeButton.addEventListener('click', () => {
       const imported = importDraft(automation, analyzeButton);
@@ -140,7 +164,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     busy = true;
     sendButton.disabled = true;
     input.disabled = true;
-    setStatus(status, 'running', 'Home Assistant context loading · Fake provider planning...');
+    setStatus(status, 'running', 'Home Assistant context loading · Automation draft planning...');
 
     try {
       const response = await fetch('/api/llm/automation/draft', {
@@ -148,6 +172,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           command: activeCommand,
+          conversation,
           context_source: 'live_ha',
           selections,
         }),
@@ -158,15 +183,27 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       }
 
       if (result.status === 'success') {
-        appendMessage('assistant', '실제 Home Assistant entity에 근거한 자동화 초안을 만들었습니다.');
+        awaitingClarification = false;
+        appendMessage('assistant', 'A validated draft was created from your live Home Assistant entities.');
         renderDraft(result);
-        setStatus(status, 'done', `Validated draft · ${result.context?.entity_count || 0} entities considered`);
+        const provider = result.model || result.provider || 'unknown provider';
+        const pipelineVersion = result.system?.pipeline_version
+          ? ` · pipeline ${result.system.pipeline_version}`
+          : '';
+        setStatus(
+          status,
+          'done',
+          `Validated draft · ${provider}${pipelineVersion} · ${result.context?.entity_count || 0} entities considered`,
+        );
         selections = {};
         return;
       }
 
       if (result.status === 'needs_confirmation') {
-        appendMessage('assistant', result.question || '사용할 entity를 선택해 주세요.');
+        awaitingClarification = false;
+        const question = result.question || 'Select the entity to use.';
+        appendMessage('assistant', question);
+        conversation.push({ role: 'assistant', content: question });
         const list = createElement('div', 'ai-candidate-list');
         for (const candidate of result.candidates || []) {
           const label = candidate.area
@@ -176,7 +213,9 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           button.type = 'button';
           button.addEventListener('click', async () => {
             selections[`${result.role}_entity_id`] = candidate.entity_id;
-            appendMessage('user', `${label} 선택`);
+            const selectionMessage = `Selected entity: ${candidate.entity_id}`;
+            appendMessage('user', `${label} selected`);
+            conversation.push({ role: 'user', content: selectionMessage });
             list.querySelectorAll('button').forEach((item) => { item.disabled = true; });
             await requestDraft();
           });
@@ -184,19 +223,40 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
         }
         messages.appendChild(list);
         scrollToLatest();
-        setStatus(status, 'idle', 'Entity confirmation required');
+        setStatus(
+          status,
+          'idle',
+          `Entity confirmation required · ${result.model || result.provider || 'provider unknown'}`,
+        );
+        return;
+      }
+
+      if (result.status === 'needs_clarification') {
+        const questions = Array.isArray(result.questions) && result.questions.length
+          ? result.questions
+          : [result.question || 'Please provide a little more detail about the request.'];
+        const question = questions[0];
+        appendMessage('assistant', question);
+        conversation.push({ role: 'assistant', content: question });
+        awaitingClarification = true;
+        setStatus(
+          status,
+          'idle',
+          `Clarification required · ${result.model || result.provider || 'provider unknown'}`,
+        );
         return;
       }
 
       if (result.status === 'unsupported') {
-        appendMessage('assistant', result.reason || '현재 지원 범위에서 처리할 수 없는 요청입니다.');
+        awaitingClarification = false;
+        appendMessage('assistant', result.reason || 'This request is outside the currently supported scope.');
         setStatus(status, 'idle', 'Unsupported request · Nothing executed');
         return;
       }
 
       throw new Error(result.error || 'Draft generation failed.');
     } catch (error) {
-      appendMessage('assistant', `요청 처리에 실패했습니다.\n${error?.message || error}`, 'ai-message-error');
+      appendMessage('assistant', `The request could not be processed.\n${error?.message || error}`, 'ai-message-error');
       setStatus(status, 'error', 'Draft request failed · Check analyzer server and Home Assistant connection');
     } finally {
       busy = false;
@@ -208,6 +268,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
 
   openButton.addEventListener('click', openPanel);
   closeButton.addEventListener('click', closePanel);
+  backdrop?.addEventListener('click', closePanel);
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !panel.classList.contains('hidden')) closePanel();
   });
@@ -218,8 +279,15 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     const command = input.value.trim();
     if (!command) return;
 
-    activeCommand = command;
-    selections = {};
+    welcome?.remove();
+
+    if (awaitingClarification && conversation.length) {
+      conversation.push({ role: 'user', content: command });
+    } else {
+      activeCommand = command;
+      conversation = [{ role: 'user', content: command }];
+      selections = {};
+    }
     appendMessage('user', command);
     input.value = '';
     await requestDraft();
