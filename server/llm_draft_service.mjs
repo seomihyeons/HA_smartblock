@@ -1,3 +1,15 @@
+import { validateAutomationIr } from '../src/automation_ir/schema.mjs';
+import {
+  applyConservativeDraftPolicy,
+  analyzeAutomationGoal,
+  validateSemanticAlignment,
+} from './automation_goal_analyzer.mjs';
+import { requestOllamaDraft } from './ollama_automation_provider.mjs';
+import { OLLAMA_DRAFT_RESPONSE_SCHEMA } from './ollama_automation_provider.mjs';
+import { validateJsonSchema } from './json_schema_validator.mjs';
+
+export const LLM_PIPELINE_VERSION = '0.2.0';
+
 const TURN_ON_RE = /(켜|켜줘|turn\s+on|switch\s+on)/i;
 const MOTION_RE = /(움직임|움직|모션|motion|movement|presence)/i;
 
@@ -106,11 +118,11 @@ function resolveCandidate(command, candidates, selectedEntityId) {
 }
 
 function confirmation(role, candidates) {
-  const label = role === 'trigger' ? '움직임 센서' : '조명';
+  const label = role === 'trigger' ? 'motion sensor' : 'light';
   return {
     status: 'needs_confirmation',
     role,
-    question: `어느 ${label}을 의미하나요?`,
+    question: `Which ${label} did you mean?`,
     candidates: candidates.slice(0, 8).map(({ card, score }) => ({
       entity_id: card.entity_id,
       name: card.friendly_name || card.entity_id,
@@ -120,39 +132,355 @@ function confirmation(role, candidates) {
   };
 }
 
-export function validateDraft(automation, cards) {
-  const errors = [];
+export function validateDraft(automation, cards, options = {}) {
+  const schemaValidation = validateAutomationIr(automation);
+  const errors = [...schemaValidation.errors];
   const entityIds = new Set(cards.map((card) => card.entity_id));
   const triggers = Array.isArray(automation?.triggers) ? automation.triggers : [];
   const actions = Array.isArray(automation?.actions) ? automation.actions : [];
+  const allowManualTrigger = options.allow_manual_trigger === true;
 
-  if (triggers.length !== 1) errors.push('MVP requires exactly one trigger.');
-  if (actions.length !== 1) errors.push('MVP requires exactly one action.');
-
-  const triggerEntityIds = Array.isArray(triggers[0]?.entity_id)
-    ? triggers[0].entity_id
-    : [triggers[0]?.entity_id].filter(Boolean);
-  for (const entityId of triggerEntityIds) {
-    if (!entityIds.has(entityId)) errors.push(`Unknown trigger entity: ${entityId}`);
+  if (triggers.length > 1 || (triggers.length === 0 && !allowManualTrigger)) {
+    errors.push('MVP requires one trigger, or no trigger for an explicitly manual draft.');
+  }
+  if (actions.length !== 1) {
+    errors.push('MVP requires exactly one action.');
+  }
+  if ((automation?.conditions || []).length !== 0) {
+    errors.push('MVP does not support conditions yet.');
   }
 
-  const targetEntityIds = Array.isArray(actions[0]?.target?.entity_id)
-    ? actions[0].target.entity_id
-    : [actions[0]?.target?.entity_id].filter(Boolean);
-  for (const entityId of targetEntityIds) {
-    if (!entityIds.has(entityId)) errors.push(`Unknown action entity: ${entityId}`);
+  if (triggers.length === 1) {
+    const triggerPlatform = triggers[0]?.platform || triggers[0]?.trigger;
+    if (triggerPlatform !== 'state') errors.push('MVP only supports state triggers.');
+    if (!Array.isArray(triggers[0]?.entity_id) || triggers[0].entity_id.length === 0) {
+      errors.push('State trigger entity_id must be a non-empty string array.');
+    }
+    if (triggers[0]?.from != null && triggers[0]?.from !== 'off') {
+      errors.push('MVP motion trigger from must be "off" when provided.');
+    }
+    if (triggers[0]?.to !== 'on') errors.push('MVP motion trigger requires to "on".');
+
+    const triggerEntityIds = Array.isArray(triggers[0]?.entity_id)
+      ? triggers[0].entity_id
+      : [triggers[0]?.entity_id].filter(Boolean);
+    for (const entityId of triggerEntityIds) {
+      if (!entityIds.has(entityId)) errors.push(`Unknown trigger entity: ${entityId}`);
+    }
   }
 
-  if (actions[0]?.action !== 'light.turn_on' && actions[0]?.service !== 'light.turn_on') {
-    errors.push('MVP only supports light.turn_on actions.');
+  const requestedServices = Array.isArray(options.allowed_services) && options.allowed_services.length
+    ? new Set(options.allowed_services)
+    : new Set(['light.turn_on', 'light.turn_off']);
+  const cardsById = new Map(cards.map((card) => [card.entity_id, card]));
+  for (const [index, action] of actions.entries()) {
+    const service = text(action?.action || action?.service);
+    if (action?.action && action?.service && action.action !== action.service) {
+      errors.push(`actions[${index}] action and service must match.`);
+    }
+    if (!requestedServices.has(service)) {
+      errors.push(`actions[${index}] uses a service outside the requested scope: ${service || '<missing>'}.`);
+    }
+    const targetEntityIds = Array.isArray(action?.target?.entity_id)
+      ? action.target.entity_id
+      : [action?.target?.entity_id].filter(Boolean);
+    if (!Array.isArray(action?.target?.entity_id) || targetEntityIds.length === 0) {
+      errors.push(`actions[${index}] target.entity_id must be a non-empty string array.`);
+    }
+    for (const entityId of targetEntityIds) {
+      if (!entityIds.has(entityId)) {
+        errors.push(`Unknown action entity: ${entityId}`);
+        continue;
+      }
+      const hints = cardsById.get(entityId)?.supported_actions || [];
+      if (!hints.includes(service)) {
+        errors.push(`Entity ${entityId} does not advertise service ${service}.`);
+      }
+    }
   }
 
   return {
-    schema_valid: Boolean(automation && typeof automation === 'object'),
+    schema_valid: schemaValidation.valid,
+    schema_version: schemaValidation.schema_version,
     grounded: errors.every((error) => !error.startsWith('Unknown')),
     blockly_supported: errors.length === 0,
     errors,
   };
+}
+
+function confirmationFromModel(output, cards) {
+  if (output?.role !== 'trigger' && output?.role !== 'action') {
+    return null;
+  }
+  const cardsById = new Map(cards.map((card) => [card.entity_id, card]));
+  const candidateIds = uniqueStrings(output.candidate_entity_ids).slice(0, 8);
+  const candidates = candidateIds.flatMap((entityId) => {
+    const card = cardsById.get(entityId);
+    if (!card) return [];
+    return [{
+      entity_id: card.entity_id,
+      name: card.friendly_name || card.entity_id,
+      area: card.area || null,
+    }];
+  });
+  if (!candidates.length) return null;
+
+  return {
+    status: 'needs_confirmation',
+    provider: 'ollama',
+    role: output.role,
+    question: text(output.question) || 'Select the entity to use.',
+    candidates,
+  };
+}
+
+export async function createOllamaAutomationDraft(payload = {}, options = {}) {
+  const command = text(payload.command);
+  const cards = Array.isArray(payload.entity_cards) ? payload.entity_cards : [];
+  if (!command) return { status: 'failure', provider: 'ollama', error: 'command is required' };
+  if (!cards.length) {
+    return {
+      status: 'failure',
+      provider: 'ollama',
+      error: 'No Home Assistant entities are available.',
+    };
+  }
+
+  let repair = '';
+  let lastErrors = [];
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    let response;
+    try {
+      response = await requestOllamaDraft(payload, { ...options, repair });
+    } catch (error) {
+      const message = text(error?.message || error);
+      if (attempt === 0 && message.includes('invalid JSON')) {
+        repair = message;
+        lastErrors = [message];
+        continue;
+      }
+      throw error;
+    }
+
+    const output = response.output;
+    const responseValidation = validateJsonSchema(OLLAMA_DRAFT_RESPONSE_SCHEMA, output);
+    if (!responseValidation.valid) {
+      lastErrors = responseValidation.errors;
+    } else if (output.status === 'unsupported') {
+      return {
+        status: 'unsupported',
+        provider: 'ollama',
+        model: response.model,
+        reason: text(output.reason) || 'This request is outside the currently supported scope.',
+      };
+    } else if (output.status === 'needs_confirmation') {
+      const result = confirmationFromModel(output, response.entity_cards);
+      if (result) return { ...result, model: response.model };
+      lastErrors = ['needs_confirmation must contain valid candidate entity IDs.'];
+    } else if (output.status === 'success') {
+      const validation = validateDraft(output.automation, cards, {
+        allowed_services: payload.goal_analysis?.requested_services,
+        allow_manual_trigger: payload.goal_analysis?.trigger_kind === 'none',
+      });
+      if (!validation.errors.length) {
+        return {
+          status: 'success',
+          provider: 'ollama',
+          model: response.model,
+          automation: output.automation,
+          validation,
+          selected_entities: {
+            trigger: output.automation.triggers[0]?.entity_id || [],
+            action: output.automation.actions[0].target?.entity_id,
+          },
+        };
+      }
+      lastErrors = validation.errors;
+    } else {
+      lastErrors = ['status must be success, needs_confirmation, or unsupported.'];
+    }
+
+    repair = lastErrors.join(' ');
+  }
+
+  return {
+    status: 'failure',
+    provider: 'ollama',
+    error: 'The Ollama draft failed validation after one repair attempt.',
+    validation: { errors: lastErrors },
+  };
+}
+
+export async function createAutomationDraft(payload = {}, options = {}) {
+  const env = options.env || process.env;
+  const provider = text(env.LLM_PROVIDER || 'fake').toLocaleLowerCase();
+  if (provider === 'fake') {
+    return { ...createFakeAutomationDraft(payload), provider: 'fake' };
+  }
+  if (provider === 'ollama') {
+    const pipelineStartedAt = Date.now();
+    const goalStartedAt = Date.now();
+    const goal = await analyzeAutomationGoal(payload, options);
+    const goalAnalysisMs = Date.now() - goalStartedAt;
+    if (goal.status !== 'ready') {
+      return {
+        ...goal,
+        pipeline: {
+          stage: goal.status === 'needs_clarification' ? 'clarification' : 'goal_analysis',
+          timings_ms: {
+            goal_analysis: goalAnalysisMs,
+            total: Date.now() - pipelineStartedAt,
+          },
+        },
+      };
+    }
+
+    const conversation = Array.isArray(payload.conversation) ? payload.conversation : [];
+    const combinedCommand = conversation.length
+      ? conversation
+        .filter((turn) => turn?.role === 'user')
+        .map((turn) => text(turn.content))
+        .filter(Boolean)
+        .join('\n')
+      : payload.command;
+    if (goal.goal_analysis.inferred_action) {
+      const policyResult = applyConservativeDraftPolicy({
+        alias: `${text(combinedCommand)} · AI Draft`,
+        triggers: [],
+        conditions: [],
+        actions: [],
+      }, goal.goal_analysis, payload.entity_cards);
+      const validation = validateDraft(policyResult.automation, payload.entity_cards, {
+        allowed_services: goal.goal_analysis.requested_services,
+        allow_manual_trigger: true,
+      });
+      const semanticValidation = validateSemanticAlignment(
+        policyResult.automation,
+        goal.goal_analysis,
+        payload.entity_cards,
+      );
+      const timings = {
+        goal_analysis: goalAnalysisMs,
+        planning: 0,
+        total: Date.now() - pipelineStartedAt,
+      };
+      if (validation.errors.length || !semanticValidation.aligned) {
+        return {
+          status: 'unsupported',
+          provider: 'ollama',
+          model: goal.model,
+          reason: 'No draft can be produced from the currently supported low-risk actions.',
+          validation,
+          semantic_validation: semanticValidation,
+          pipeline: {
+            stage: 'policy_validation',
+            timings_ms: timings,
+            goal_analysis: goal.goal_analysis,
+            policy_notes: policyResult.notes,
+          },
+        };
+      }
+      return {
+        status: 'success',
+        provider: 'ollama',
+        model: goal.model,
+        automation: policyResult.automation,
+        validation,
+        semantic_validation: semanticValidation,
+        selected_entities: {
+          trigger: [],
+          action: policyResult.automation.actions.flatMap(
+            (action) => action.target?.entity_id || [],
+          ),
+        },
+        pipeline: {
+          stage: 'complete',
+          timings_ms: timings,
+          goal_analysis: goal.goal_analysis,
+          policy_notes: policyResult.notes,
+        },
+      };
+    }
+    const planningStartedAt = Date.now();
+    const result = await createOllamaAutomationDraft({
+      ...payload,
+      command: combinedCommand,
+      goal_analysis: goal.goal_analysis,
+    }, options);
+    const planningMs = Date.now() - planningStartedAt;
+    const timings = {
+      goal_analysis: goalAnalysisMs,
+      planning: planningMs,
+      total: Date.now() - pipelineStartedAt,
+    };
+    if (result.status !== 'success') {
+      return {
+        ...result,
+        pipeline: { stage: 'planning', timings_ms: timings, goal_analysis: goal.goal_analysis },
+      };
+    }
+    const policyResult = applyConservativeDraftPolicy(
+      result.automation,
+      goal.goal_analysis,
+      payload.entity_cards,
+    );
+    const policyValidation = validateDraft(policyResult.automation, payload.entity_cards, {
+      allowed_services: goal.goal_analysis.requested_services,
+      allow_manual_trigger: goal.goal_analysis.trigger_kind === 'none',
+    });
+    if (policyValidation.errors.length) {
+      const noInferredTargets = goal.goal_analysis.inferred_action
+        && policyResult.automation.actions.length === 0;
+      return {
+        status: noInferredTargets ? 'unsupported' : 'failure',
+        provider: 'ollama',
+        model: result.model,
+        reason: noInferredTargets
+          ? 'There are no supported lights currently on, so there is nothing to change.'
+          : undefined,
+        error: noInferredTargets ? undefined : 'The conservative draft policy produced an invalid draft.',
+        validation: policyValidation,
+        pipeline: {
+          stage: 'policy_validation',
+          timings_ms: timings,
+          goal_analysis: goal.goal_analysis,
+          policy_notes: policyResult.notes,
+        },
+      };
+    }
+    const semanticValidation = validateSemanticAlignment(
+      policyResult.automation,
+      goal.goal_analysis,
+      payload.entity_cards,
+    );
+    if (!semanticValidation.aligned) {
+      return {
+        status: 'failure',
+        provider: 'ollama',
+        model: result.model,
+        error: 'The generated draft does not match the analyzed user intent.',
+        validation: { errors: semanticValidation.errors },
+        pipeline: {
+          stage: 'semantic_feedback',
+          timings_ms: timings,
+          goal_analysis: goal.goal_analysis,
+        },
+      };
+    }
+    return {
+      ...result,
+      automation: policyResult.automation,
+      validation: policyValidation,
+      semantic_validation: semanticValidation,
+      pipeline: {
+        stage: 'complete',
+        timings_ms: timings,
+        goal_analysis: goal.goal_analysis,
+        policy_notes: policyResult.notes,
+      },
+    };
+  }
+  throw new Error(`Unsupported LLM_PROVIDER: ${provider}`);
 }
 
 export function createFakeAutomationDraft(payload = {}) {
@@ -171,7 +499,7 @@ export function createFakeAutomationDraft(payload = {}) {
   if (!MOTION_RE.test(command) || !TURN_ON_RE.test(command)) {
     return {
       status: 'unsupported',
-      reason: '현재 프로토타입은 움직임 감지 → 조명 켜기 자동화만 지원합니다.',
+      reason: 'The fake prototype provider supports only motion-detected light-on automations.',
     };
   }
 
@@ -191,17 +519,17 @@ export function createFakeAutomationDraft(payload = {}) {
   const trigger = resolveCandidate(command, triggerCandidates, selections.trigger_entity_id);
   if (trigger === undefined) return confirmation('trigger', triggerCandidates);
   if (trigger === null) {
-    return { status: 'unsupported', reason: '요청에 맞는 움직임 센서를 찾지 못했습니다.' };
+    return { status: 'unsupported', reason: 'No motion sensor matched the request.' };
   }
 
   const actionTarget = resolveCandidate(command, actionCandidates, selections.action_entity_id);
   if (actionTarget === undefined) return confirmation('action', actionCandidates);
   if (actionTarget === null) {
-    return { status: 'unsupported', reason: '요청에 맞는 조명을 찾지 못했습니다.' };
+    return { status: 'unsupported', reason: 'No light matched the request.' };
   }
 
   const automation = {
-    alias: `${trigger.friendly_name || trigger.entity_id} 감지 시 ${actionTarget.friendly_name || actionTarget.entity_id} 켜기`,
+    alias: `Turn on ${actionTarget.friendly_name || actionTarget.entity_id} when ${trigger.friendly_name || trigger.entity_id} detects motion`,
     triggers: [{
       platform: 'state',
       entity_id: [trigger.entity_id],

@@ -6,7 +6,9 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import dotenv from "dotenv";
-import { buildEntityCards, createFakeAutomationDraft } from "./llm_draft_service.mjs";
+import { buildEntityCards, createAutomationDraft, LLM_PIPELINE_VERSION } from "./llm_draft_service.mjs";
+import { GOAL_PROMPT_VERSION } from "./automation_goal_analyzer.mjs";
+import { DRAFT_PROMPT_VERSION } from "./ollama_automation_provider.mjs";
 
 dotenv.config();
 
@@ -66,6 +68,22 @@ async function fetchHomeAssistantStates() {
     return states;
 }
 
+app.get("/api/llm/status", (req, res) => {
+    if (!guardLocal(req, res)) return;
+    return res.json({
+        status: "ready",
+        provider: String(process.env.LLM_PROVIDER || "fake").toLowerCase(),
+        model: process.env.LLM_PROVIDER === "ollama"
+            ? String(process.env.OLLAMA_MODEL || "qwen3:4b")
+            : null,
+        system: {
+            pipeline_version: LLM_PIPELINE_VERSION,
+            goal_prompt_version: GOAL_PROMPT_VERSION,
+            draft_prompt_version: DRAFT_PROMPT_VERSION,
+        },
+    });
+});
+
 app.post("/api/llm/automation/draft", async (req, res) => {
     if (!guardLocal(req, res)) return;
 
@@ -74,13 +92,19 @@ app.post("/api/llm/automation/draft", async (req, res) => {
             ? req.body.entity_cards
             : null;
         const entityCards = suppliedCards || buildEntityCards(await fetchHomeAssistantStates());
-        const result = createFakeAutomationDraft({
+        const result = await createAutomationDraft({
             command: req.body?.command,
+            conversation: req.body?.conversation,
             selections: req.body?.selections,
             entity_cards: entityCards,
         });
         return res.json({
             ...result,
+            system: {
+                pipeline_version: LLM_PIPELINE_VERSION,
+                goal_prompt_version: GOAL_PROMPT_VERSION,
+                draft_prompt_version: DRAFT_PROMPT_VERSION,
+            },
             context: {
                 source: suppliedCards ? "request" : "live_ha",
                 entity_count: entityCards.length,

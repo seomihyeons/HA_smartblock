@@ -83,6 +83,18 @@ test('validator rejects an entity outside the supplied context', () => {
   assert.match(validation.errors.join('\n'), /Unknown action entity/);
 });
 
+test('validator applies the shared automation IR schema first', () => {
+  const validation = validateDraft({
+    triggers: {},
+    conditions: [],
+    actions: [],
+  }, baseCards);
+
+  assert.equal(validation.schema_valid, false);
+  assert.equal(validation.schema_version, 1);
+  assert.match(validation.errors.join('\n'), /triggers must be an array/);
+});
+
 test('fake provider rejects requests outside the MVP scope', () => {
   const result = createFakeAutomationDraft({
     command: '내일 날씨를 알려줘',
