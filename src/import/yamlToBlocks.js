@@ -3,6 +3,8 @@ import * as Blockly from 'blockly';
 import { createTriggerBlock, createTriggerBlocks } from './blocks/trigger_mapper';
 import { createConditionsRoot } from './blocks/condition_mapper';
 import { createActionNode } from './blocks/action_mapper';
+import { createRawLinesBlock } from './blocks/raw_fallback';
+import { mapActionsWithIndividualFallback } from './action_fallback.mjs';
 
 const ROOT_BLOCK_TYPE = 'event_condition_action';
 
@@ -442,36 +444,25 @@ export function renderAutomationToWorkspace(ws, autoJson, opts = {}) {
     : [];
 
   if (actions.length) {
-    const created = [];
-    let allOk = true;
-
-    actions.forEach((a) => {
-      const b = createActionNode(a, ws);
-      if (!b) {
-        allOk = false;
-        return;
-      }
-      setIdIfPresent(b, a);
-      created.push(b);
+    const created = mapActionsWithIndividualFallback(actions, {
+      createAction: (a) => createActionNode(a, ws),
+      createRawAction: (a) => {
+        const rawText = dumpSectionListYaml([a]);
+        return createRawLinesBlock(ws, 'action', rawText.trimEnd().split('\n'));
+      },
     });
 
-    if (allOk && created.length === actions.length) {
-      created.forEach((b, i) => {
-        b.initSvg();
-        b.render();
-        if (root && IN_ACTION) appendChild(root, b, IN_ACTION);
-        else b.moveBy(80, 360 + i * 80);
-      });
-    } else {
-      created.forEach((b) => b.dispose(false));
+    created.forEach((b, index) => {
+      const a = actions[index];
+      setIdIfPresent(b, a);
+    });
 
-      const rawText = dumpSectionListYaml(actions);
-      const rawBlock = createRawBlock(ws, 'ha_actions_raw', rawText);
-      if (rawBlock) {
-        if (root && IN_ACTION) appendChild(root, rawBlock, IN_ACTION);
-        else rawBlock.moveBy(80, 360);
-      }
-    }
+    created.forEach((b, i) => {
+      b.initSvg();
+      b.render();
+      if (root && IN_ACTION) appendChild(root, b, IN_ACTION);
+      else b.moveBy(80, 360 + i * 80);
+    });
   }
 
   Blockly.svgResize(ws);
