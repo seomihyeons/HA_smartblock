@@ -8,10 +8,11 @@ import { requestOllamaDraft } from './ollama_automation_provider.mjs';
 import { OLLAMA_DRAFT_RESPONSE_SCHEMA } from './ollama_automation_provider.mjs';
 import { validateJsonSchema } from './json_schema_validator.mjs';
 
-export const LLM_PIPELINE_VERSION = '0.2.0';
+export const LLM_PIPELINE_VERSION = '0.3.0';
 
 const TURN_ON_RE = /(켜|켜줘|turn\s+on|switch\s+on)/i;
 const MOTION_RE = /(움직임|움직|모션|motion|movement|presence)/i;
+const TRIGGER_LANGUAGE_RE = /\b(?:when|whenever|if|after|before|once)\b|(?:감지|움직임|열리|닫히).*(?:면|때)|(?:되면|할\s*때)/iu;
 
 function text(value) {
   return String(value ?? '').trim();
@@ -132,6 +133,120 @@ function confirmation(role, candidates) {
   };
 }
 
+function explicitLightService(command) {
+  const onMatch = text(command).match(/(?:켜\s*(?:줘|줘요|주세요|라)?|turn\s+on|switch\s+on)/iu);
+  const offMatch = text(command).match(/(?:꺼\s*(?:줘|줘요|주세요|라)?|끄\s*(?:기|세요|라고|도록|자)?|turn\s+off|switch\s+off)/iu);
+  if (Boolean(onMatch) === Boolean(offMatch)) return null;
+  const match = onMatch || offMatch;
+  return {
+    service: onMatch ? 'light.turn_on' : 'light.turn_off',
+    phrase: match[0],
+  };
+}
+
+function explicitTargetScore(command, card) {
+  const source = normalized(command);
+  const entityId = normalized(card.entity_id);
+  const entityTail = normalized(text(card.entity_id).split('.').slice(1).join(' '));
+  const friendlyName = normalized(card.friendly_name);
+  const area = normalized(card.area);
+  let score = 0;
+  if (entityId && source.includes(entityId)) score += 100;
+  if (entityTail && source.includes(entityTail)) score += 80;
+  if (friendlyName && source.includes(friendlyName)) score += 60;
+  if (area && source.includes(area)) score += 40;
+  const ignored = /^(?:light|lights|lamp|lamps|불|불을|조명|조명을|켜줘|꺼줘|켜|꺼|끄|turn|switch|on|off)$/iu;
+  for (const field of [friendlyName, area, entityTail]) {
+    for (const token of field.split(' ').filter((item) => item.length > 1 && !ignored.test(item))) {
+      if (source.includes(token)) score += 5;
+    }
+  }
+  return score;
+}
+
+function tryExplicitManualLightFastPath(payload) {
+  const conversation = Array.isArray(payload.conversation) ? payload.conversation : [];
+  const command = conversation.length
+    ? conversation.filter((turn) => turn?.role === 'user').map((turn) => text(turn.content)).filter(Boolean).join('\n')
+    : text(payload.command);
+  const explicit = explicitLightService(command);
+  if (!explicit || TRIGGER_LANGUAGE_RE.test(command)) return null;
+
+  const supportedLights = (Array.isArray(payload.entity_cards) ? payload.entity_cards : [])
+    .filter((card) => card?.domain === 'light' && card.supported_actions?.includes(explicit.service));
+  if (!supportedLights.length) return null;
+
+  const selectedId = text(payload.selections?.action_entity_id);
+  let target = selectedId
+    ? supportedLights.find((card) => card.entity_id === selectedId)
+    : null;
+  const ranked = supportedLights
+    .map((card) => ({ card, score: explicitTargetScore(command, card) }))
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score || a.card.entity_id.localeCompare(b.card.entity_id));
+
+  if (!target && ranked.length === 1) target = ranked[0].card;
+  if (!target && ranked.length > 1 && ranked[0].score > ranked[1].score) target = ranked[0].card;
+  if (!target && !ranked.length && supportedLights.length === 1) target = supportedLights[0];
+  if (!target) {
+    if (!ranked.length) return null;
+    return confirmation('action', ranked);
+  }
+
+  const automation = {
+    alias: `${target.friendly_name || target.entity_id} ${explicit.service === 'light.turn_on' ? 'on' : 'off'} · AI Draft`,
+    triggers: [],
+    conditions: [],
+    actions: [{
+      service: explicit.service,
+      target: { entity_id: [target.entity_id] },
+      data: {},
+    }],
+  };
+  const validation = validateDraft(automation, payload.entity_cards, {
+    allowed_services: [explicit.service],
+    allow_manual_trigger: true,
+  });
+  if (validation.errors.length) return null;
+
+  const goalAnalysis = {
+    status: 'ready',
+    goal_type: 'automation_creation',
+    goal_category: 'lighting',
+    home_supports_goal: true,
+    trigger_specified: false,
+    trigger_kind: 'none',
+    primary_service: explicit.service,
+    requested_services: [explicit.service],
+    action_source: 'explicit',
+    target_scope: 'specific',
+    target_hints: [],
+    target_entity_ids: [target.entity_id],
+    risk_level: 'low',
+    confidence: 100,
+    assumptions: [],
+    questions: [],
+    reason: 'A reversible manual lighting action and a unique grounded target were detected locally.',
+    evidence: { trigger_phrase: '', action_phrase: explicit.phrase, target_phrase: '' },
+    inferred_action: false,
+  };
+  return {
+    status: 'success',
+    provider: 'local-fast-path',
+    automation,
+    validation,
+    semantic_validation: { aligned: true, errors: [] },
+    selected_entities: { trigger: [], action: [target.entity_id] },
+    pipeline: {
+      stage: 'complete',
+      mode: 'explicit_manual_light_fast_path',
+      timings_ms: { goal_analysis: 0, planning: 0, total: 0 },
+      goal_analysis: goalAnalysis,
+      ollama_calls: [],
+    },
+  };
+}
+
 export function validateDraft(automation, cards, options = {}) {
   const schemaValidation = validateAutomationIr(automation);
   const errors = [...schemaValidation.errors];
@@ -248,10 +363,17 @@ export async function createOllamaAutomationDraft(payload = {}, options = {}) {
 
   let repair = '';
   let lastErrors = [];
+  const ollamaCalls = [];
   for (let attempt = 0; attempt < 2; attempt += 1) {
     let response;
     try {
       response = await requestOllamaDraft(payload, { ...options, repair });
+      ollamaCalls.push({
+        stage: 'planning',
+        attempt: attempt + 1,
+        context_entities: response.entity_cards.length,
+        ...response.performance,
+      });
     } catch (error) {
       const message = text(error?.message || error);
       if (attempt === 0 && message.includes('invalid JSON')) {
@@ -272,10 +394,11 @@ export async function createOllamaAutomationDraft(payload = {}, options = {}) {
         provider: 'ollama',
         model: response.model,
         reason: text(output.reason) || 'This request is outside the currently supported scope.',
+        ollama_calls: ollamaCalls,
       };
     } else if (output.status === 'needs_confirmation') {
       const result = confirmationFromModel(output, response.entity_cards);
-      if (result) return { ...result, model: response.model };
+      if (result) return { ...result, model: response.model, ollama_calls: ollamaCalls };
       lastErrors = ['needs_confirmation must contain valid candidate entity IDs.'];
     } else if (output.status === 'success') {
       const validation = validateDraft(output.automation, cards, {
@@ -293,6 +416,7 @@ export async function createOllamaAutomationDraft(payload = {}, options = {}) {
             trigger: output.automation.triggers[0]?.entity_id || [],
             action: output.automation.actions[0].target?.entity_id,
           },
+          ollama_calls: ollamaCalls,
         };
       }
       lastErrors = validation.errors;
@@ -308,6 +432,7 @@ export async function createOllamaAutomationDraft(payload = {}, options = {}) {
     provider: 'ollama',
     error: 'The Ollama draft failed validation after one repair attempt.',
     validation: { errors: lastErrors },
+    ollama_calls: ollamaCalls,
   };
 }
 
@@ -319,6 +444,26 @@ export async function createAutomationDraft(payload = {}, options = {}) {
   }
   if (provider === 'ollama') {
     const pipelineStartedAt = Date.now();
+    const fastPath = text(env.LLM_ENABLE_FAST_PATH).toLocaleLowerCase() === 'false'
+      ? null
+      : tryExplicitManualLightFastPath(payload);
+    if (fastPath) {
+      const total = Date.now() - pipelineStartedAt;
+      if (fastPath.pipeline) {
+        fastPath.pipeline.timings_ms.total = total;
+        return fastPath;
+      }
+      return {
+        ...fastPath,
+        provider: 'local-fast-path',
+        pipeline: {
+          stage: 'confirmation',
+          mode: 'explicit_manual_light_fast_path',
+          timings_ms: { goal_analysis: 0, planning: 0, total },
+          ollama_calls: [],
+        },
+      };
+    }
     const goalStartedAt = Date.now();
     const goal = await analyzeAutomationGoal(payload, options);
     const goalAnalysisMs = Date.now() - goalStartedAt;
@@ -331,6 +476,7 @@ export async function createAutomationDraft(payload = {}, options = {}) {
             goal_analysis: goalAnalysisMs,
             total: Date.now() - pipelineStartedAt,
           },
+          ollama_calls: goal.ollama_calls || [],
         },
       };
     }
@@ -377,6 +523,7 @@ export async function createAutomationDraft(payload = {}, options = {}) {
             timings_ms: timings,
             goal_analysis: goal.goal_analysis,
             policy_notes: policyResult.notes,
+            ollama_calls: goal.ollama_calls || [],
           },
         };
       }
@@ -398,6 +545,7 @@ export async function createAutomationDraft(payload = {}, options = {}) {
           timings_ms: timings,
           goal_analysis: goal.goal_analysis,
           policy_notes: policyResult.notes,
+          ollama_calls: goal.ollama_calls || [],
         },
       };
     }
@@ -416,7 +564,12 @@ export async function createAutomationDraft(payload = {}, options = {}) {
     if (result.status !== 'success') {
       return {
         ...result,
-        pipeline: { stage: 'planning', timings_ms: timings, goal_analysis: goal.goal_analysis },
+        pipeline: {
+          stage: 'planning',
+          timings_ms: timings,
+          goal_analysis: goal.goal_analysis,
+          ollama_calls: [...(goal.ollama_calls || []), ...(result.ollama_calls || [])],
+        },
       };
     }
     const policyResult = applyConservativeDraftPolicy(
@@ -445,6 +598,7 @@ export async function createAutomationDraft(payload = {}, options = {}) {
           timings_ms: timings,
           goal_analysis: goal.goal_analysis,
           policy_notes: policyResult.notes,
+          ollama_calls: [...(goal.ollama_calls || []), ...(result.ollama_calls || [])],
         },
       };
     }
@@ -464,6 +618,7 @@ export async function createAutomationDraft(payload = {}, options = {}) {
           stage: 'semantic_feedback',
           timings_ms: timings,
           goal_analysis: goal.goal_analysis,
+          ollama_calls: [...(goal.ollama_calls || []), ...(result.ollama_calls || [])],
         },
       };
     }
@@ -477,6 +632,7 @@ export async function createAutomationDraft(payload = {}, options = {}) {
         timings_ms: timings,
         goal_analysis: goal.goal_analysis,
         policy_notes: policyResult.notes,
+        ollama_calls: [...(goal.ollama_calls || []), ...(result.ollama_calls || [])],
       },
     };
   }

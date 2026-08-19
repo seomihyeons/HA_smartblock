@@ -296,7 +296,12 @@ function clarification(analysis, fallbackQuestion) {
 
 export async function analyzeAutomationGoal(payload = {}, options = {}) {
   const sourceText = conversationText(payload);
-  const entityCards = selectOllamaEntityContext(sourceText, payload.entity_cards, 80);
+  const env = options.env || process.env;
+  const configuredMaxCards = Number.parseInt(String(env.LLM_MAX_ENTITY_CARDS || ''), 10);
+  const maxCards = Number.isFinite(configuredMaxCards) && configuredMaxCards > 0
+    ? configuredMaxCards
+    : 32;
+  const entityCards = selectOllamaEntityContext(sourceText, payload.entity_cards, maxCards);
   const messages = [
     { role: 'system', content: GOAL_ANALYZER_PROMPT },
     {
@@ -317,11 +322,18 @@ export async function analyzeAutomationGoal(payload = {}, options = {}) {
   let analysis;
   let analysisValidation = { valid: false, errors: ['No goal analysis was returned.'] };
   let requestMessages = messages;
+  const ollamaCalls = [];
   for (let attempt = 0; attempt < 2; attempt += 1) {
     response = await requestOllamaStructured({
       schema: GOAL_ANALYSIS_SCHEMA,
       messages: requestMessages,
     }, options);
+    ollamaCalls.push({
+      stage: 'goal_analysis',
+      attempt: attempt + 1,
+      context_entities: entityCards.length,
+      ...response.performance,
+    });
     analysis = normalizeGoalAnalysis(response.output, sourceText, entityCards);
     analysisValidation = validateGoalAnalysis(analysis, sourceText, entityCards);
     if (analysisValidation.valid) break;
@@ -341,6 +353,7 @@ export async function analyzeAutomationGoal(payload = {}, options = {}) {
       model: response?.model,
       error: 'Goal analysis failed local validation after one repair attempt.',
       validation: analysisValidation,
+      ollama_calls: ollamaCalls,
     };
   }
 
@@ -354,16 +367,17 @@ export async function analyzeAutomationGoal(payload = {}, options = {}) {
       model: response.model,
       reason: text(analysis.reason) || 'This goal is outside the current automation-generation scope.',
       goal_analysis: analysis,
+      ollama_calls: ollamaCalls,
     };
   }
   if (analysis.status === 'needs_clarification') {
-    return { ...clarification(analysis, 'Describe the desired action and what should start the automation.'), model: response.model };
+    return { ...clarification(analysis, 'Describe the desired action and what should start the automation.'), model: response.model, ollama_calls: ollamaCalls };
   }
   if (analysis.trigger_kind !== 'state' && analysis.trigger_kind !== 'none') {
     const question = analysis.trigger_kind === 'time'
       ? 'Time triggers are not supported yet. Should I create a manually runnable draft instead?'
       : 'Should I use a supported state trigger or create a manually runnable draft?';
-    return { ...clarification(analysis, question), model: response.model };
+    return { ...clarification(analysis, question), model: response.model, ollama_calls: ollamaCalls };
   }
   const services = Array.isArray(analysis.requested_services)
     ? [...new Set(analysis.requested_services.map(text).filter(Boolean))]
@@ -372,6 +386,7 @@ export async function analyzeAutomationGoal(payload = {}, options = {}) {
     return {
       ...clarification(analysis, 'Should the lights turn on or off for this goal?'),
       model: response.model,
+      ollama_calls: ollamaCalls,
     };
   }
   const actionIsExplicit = analysis.action_source === 'explicit';
@@ -382,10 +397,11 @@ export async function analyzeAutomationGoal(payload = {}, options = {}) {
     return {
       ...clarification(analysis, 'Which lighting action should replace the inferred action?'),
       model: response.model,
+      ollama_calls: ollamaCalls,
     };
   }
   if (analysis.trigger_kind === 'state' && !phraseAppears(analysis.evidence?.trigger_phrase, sourceText)) {
-    return { ...clarification(analysis, 'Which entity state change should be used as the trigger?'), model: response.model };
+    return { ...clarification(analysis, 'Which entity state change should be used as the trigger?'), model: response.model, ollama_calls: ollamaCalls };
   }
   const supported = services.every((service) => entityCards.some(
     (card) => Array.isArray(card.supported_actions) && card.supported_actions.includes(service),
@@ -397,6 +413,7 @@ export async function analyzeAutomationGoal(payload = {}, options = {}) {
       model: response.model,
       reason: 'This goal cannot be planned with the available Home Assistant entities and supported services.',
       goal_analysis: analysis,
+      ollama_calls: ollamaCalls,
     };
   }
 
@@ -404,6 +421,7 @@ export async function analyzeAutomationGoal(payload = {}, options = {}) {
     status: 'ready',
     provider: 'ollama',
     model: response.model,
+    ollama_calls: ollamaCalls,
     goal_analysis: {
       ...analysis,
       goal_type: 'automation_creation',

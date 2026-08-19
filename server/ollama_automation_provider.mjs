@@ -4,7 +4,7 @@ const ENTITY_ID_ARRAY_SCHEMA = {
   items: { type: 'string' },
 };
 
-export const DRAFT_PROMPT_VERSION = '2026-08-16.1';
+export const DRAFT_PROMPT_VERSION = '2026-08-18.1';
 
 const MVP_AUTOMATION_SCHEMA = {
   type: 'object',
@@ -206,7 +206,7 @@ export function buildOllamaMessages({ command, entity_cards, selections, goal_an
 
 export async function requestOllamaDraft(payload, options = {}) {
   const env = options.env || process.env;
-  const maxCards = positiveInteger(env.LLM_MAX_ENTITY_CARDS, 80);
+  const maxCards = positiveInteger(env.LLM_MAX_ENTITY_CARDS, 32);
   const entityCards = selectOllamaEntityContext(
     payload.command,
     payload.entity_cards,
@@ -233,6 +233,7 @@ export async function requestOllamaStructured({ schema, messages }, options = {}
   const baseUrl = text(env.OLLAMA_BASE_URL) || 'http://127.0.0.1:11434';
   const model = text(env.OLLAMA_MODEL) || 'qwen3:4b';
   const timeoutMs = positiveInteger(env.LLM_REQUEST_TIMEOUT_MS, 120000);
+  const keepAlive = text(env.OLLAMA_KEEP_ALIVE) || '30m';
 
   const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/api/chat`, {
     method: 'POST',
@@ -240,6 +241,7 @@ export async function requestOllamaStructured({ schema, messages }, options = {}
     body: JSON.stringify({
       model,
       stream: false,
+      keep_alive: keepAlive,
       format: schema,
       messages,
       options: {
@@ -262,9 +264,25 @@ export async function requestOllamaStructured({ schema, messages }, options = {}
   }
 
   try {
+    const milliseconds = (value) => Number.isFinite(Number(value))
+      ? Math.round(Number(value) / 1_000_000)
+      : null;
+    const performance = {
+      total_ms: milliseconds(body.total_duration),
+      load_ms: milliseconds(body.load_duration),
+      prompt_eval_ms: milliseconds(body.prompt_eval_duration),
+      generation_ms: milliseconds(body.eval_duration),
+      prompt_tokens: Number.isFinite(Number(body.prompt_eval_count))
+        ? Number(body.prompt_eval_count)
+        : null,
+      generated_tokens: Number.isFinite(Number(body.eval_count))
+        ? Number(body.eval_count)
+        : null,
+    };
     return {
       output: JSON.parse(content),
       model: text(body.model) || model,
+      performance,
     };
   } catch {
     throw new Error('Ollama returned invalid JSON.');

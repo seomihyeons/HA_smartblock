@@ -57,6 +57,12 @@ function ollamaResponse(output) {
     json: async () => ({
       model: 'qwen3:4b',
       message: { content: JSON.stringify(output) },
+      total_duration: 2_000_000_000,
+      load_duration: 100_000_000,
+      prompt_eval_count: 200,
+      prompt_eval_duration: 800_000_000,
+      eval_count: 20,
+      eval_duration: 1_000_000_000,
     }),
     text: async () => '',
   };
@@ -91,6 +97,9 @@ test('Ollama provider requests schema-constrained output and validates the draft
   assert.deepEqual(requestBody.format, OLLAMA_DRAFT_RESPONSE_SCHEMA);
   assert.equal(requestBody.options.temperature, 0);
   assert.equal(requestBody.stream, false);
+  assert.equal(requestBody.keep_alive, '30m');
+  assert.equal(result.ollama_calls[0].total_ms, 2000);
+  assert.equal(result.ollama_calls[0].prompt_tokens, 200);
 });
 
 test('Ollama provider repairs one hallucinated entity before accepting output', async () => {

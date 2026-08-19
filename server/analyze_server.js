@@ -98,6 +98,14 @@ app.post("/api/llm/automation/draft", async (req, res) => {
             selections: req.body?.selections,
             entity_cards: entityCards,
         });
+        const pipeline = result?.pipeline || {};
+        console.info("[llm-draft]", JSON.stringify({
+            status: result?.status,
+            provider: result?.provider,
+            mode: pipeline.mode || "llm",
+            timings_ms: pipeline.timings_ms || null,
+            ollama_calls: pipeline.ollama_calls || [],
+        }));
         return res.json({
             ...result,
             system: {

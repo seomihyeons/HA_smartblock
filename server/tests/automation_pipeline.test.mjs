@@ -69,7 +69,7 @@ test('abstract bedtime goal produces a conservative manual light-off draft witho
     command: '잠들 준비를 해줘',
     entity_cards: cards,
   }, {
-    env: { LLM_PROVIDER: 'ollama' },
+    env: { LLM_PROVIDER: 'ollama', LLM_ENABLE_FAST_PATH: 'false' },
     fetchImpl: async () => {
       calls += 1;
       if (calls === 1) return ollamaResponse({
@@ -320,7 +320,7 @@ test('explicit Korean light-on wording repairs inferred evidence before planning
     conversation: [{ role: 'user', content: '거실 조명을 켜줘' }],
     entity_cards: cards,
   }, {
-    env: { LLM_PROVIDER: 'ollama' },
+    env: { LLM_PROVIDER: 'ollama', LLM_ENABLE_FAST_PATH: 'false' },
     fetchImpl: async () => {
       calls += 1;
       if (calls === 1) return ollamaResponse({ ...base, action_source: 'inferred' });
@@ -361,7 +361,7 @@ test('malformed goal output is rejected after one local-schema repair attempt', 
     command: '거실 조명을 켜줘',
     entity_cards: cards,
   }, {
-    env: { LLM_PROVIDER: 'ollama' },
+    env: { LLM_PROVIDER: 'ollama', LLM_ENABLE_FAST_PATH: 'false' },
     fetchImpl: async () => {
       calls += 1;
       return ollamaResponse({
@@ -404,4 +404,63 @@ test('specific inferred target never expands to another room', () => {
   ]);
 
   assert.deepEqual(result.automation.actions[0].target.entity_id, ['light.living_room']);
+});
+
+test('an explicit manual light command uses the grounded fast path without Ollama', async () => {
+  let calls = 0;
+  const result = await createAutomationDraft({
+    command: '거실 불을 켜줘',
+    entity_cards: cards,
+  }, {
+    env: { LLM_PROVIDER: 'ollama' },
+    fetchImpl: async () => {
+      calls += 1;
+      throw new Error('Ollama should not be called for a unique explicit manual light target.');
+    },
+  });
+
+  assert.equal(calls, 0);
+  assert.equal(result.status, 'success');
+  assert.equal(result.provider, 'local-fast-path');
+  assert.equal(result.pipeline.mode, 'explicit_manual_light_fast_path');
+  assert.deepEqual(result.pipeline.ollama_calls, []);
+  assert.deepEqual(result.automation.triggers, []);
+  assert.equal(result.automation.actions[0].service, 'light.turn_on');
+  assert.deepEqual(result.automation.actions[0].target.entity_id, ['light.living_room']);
+});
+
+test('trigger language bypasses the manual fast path and preserves two-stage planning', async () => {
+  let calls = 0;
+  const result = await createAutomationDraft({
+    command: '현관 움직임이 감지되면 거실 조명을 꺼줘',
+    entity_cards: cards,
+  }, {
+    env: { LLM_PROVIDER: 'ollama' },
+    fetchImpl: async () => {
+      calls += 1;
+      if (calls === 1) return ollamaResponse(readyAnalysis());
+      return ollamaResponse({
+        status: 'success',
+        automation: {
+          alias: '현관 움직임 감지 시 거실 조명 끄기',
+          triggers: [{
+            platform: 'state',
+            entity_id: ['binary_sensor.entrance_motion'],
+            from: 'off',
+            to: 'on',
+          }],
+          conditions: [],
+          actions: [{
+            service: 'light.turn_off',
+            target: { entity_id: ['light.living_room'] },
+            data: {},
+          }],
+        },
+      });
+    },
+  });
+
+  assert.equal(calls, 2);
+  assert.equal(result.status, 'success');
+  assert.equal(result.pipeline.mode, undefined);
 });
