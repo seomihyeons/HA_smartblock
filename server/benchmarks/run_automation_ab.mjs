@@ -12,6 +12,7 @@ import {
 import {
   benchmarkGoalAnalysisFields,
   evaluateBenchmarkCase,
+  orderedBenchmarkModels,
   summarizeBenchmarkRows,
 } from './benchmark_metrics.mjs';
 import { collectBenchmarkMetadata } from './benchmark_metadata.mjs';
@@ -198,8 +199,7 @@ if (warmupEnabled) {
 for (let repetition = 1; repetition <= repetitions; repetition += 1) {
   for (const testCase of selectedCases) {
     const caseIndex = selectedCases.indexOf(testCase);
-    const forwardOrder = ((repetition - 1) * selectedCases.length + caseIndex) % 2 === 0;
-    for (const model of forwardOrder ? models : [...models].reverse()) {
+    for (const model of orderedBenchmarkModels(models, repetition, caseIndex)) {
       const total = models.length * selectedCases.length * repetitions;
       process.stdout.write(
         `[${rows.length + 1}/${total}] ${model} ${testCase.id}\n`,

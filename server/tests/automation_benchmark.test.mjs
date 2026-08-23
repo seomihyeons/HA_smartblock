@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   benchmarkGoalAnalysisFields,
   evaluateBenchmarkCase,
+  orderedBenchmarkModels,
   summarizeBenchmarkRows,
 } from '../benchmarks/benchmark_metrics.mjs';
 import { collectBenchmarkMetadata } from '../benchmarks/benchmark_metadata.mjs';
@@ -156,4 +157,14 @@ test('benchmark metadata marks a changed worktree as dirty', () => {
   assert.equal(metadata.git.working_tree, 'dirty');
   assert.equal(metadata.cpu.model, null);
   assert.equal(metadata.cpu.logical_cores, 0);
+});
+
+test('benchmark model order alternates for every case across repetitions', () => {
+  const models = ['model-a', 'model-b'];
+
+  assert.deepEqual(orderedBenchmarkModels(models, 1, 0), ['model-a', 'model-b']);
+  assert.deepEqual(orderedBenchmarkModels(models, 2, 0), ['model-b', 'model-a']);
+  assert.deepEqual(orderedBenchmarkModels(models, 1, 1), ['model-b', 'model-a']);
+  assert.deepEqual(orderedBenchmarkModels(models, 2, 1), ['model-a', 'model-b']);
+  assert.deepEqual(models, ['model-a', 'model-b']);
 });

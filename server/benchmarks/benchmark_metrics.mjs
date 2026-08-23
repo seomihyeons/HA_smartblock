@@ -60,6 +60,11 @@ function latencySummary(rows) {
   };
 }
 
+export function orderedBenchmarkModels(models, repetition, caseIndex) {
+  const forwardOrder = (caseIndex + repetition - 1) % 2 === 0;
+  return forwardOrder ? [...models] : [...models].reverse();
+}
+
 export function benchmarkGoalAnalysisFields(result) {
   const analysis = result?.pipeline?.goal_analysis || result?.goal_analysis;
   return {
