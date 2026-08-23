@@ -30,6 +30,15 @@ YAML ⇄ Visual Blocks ⇄ YAML.
 - Home Assistant integration for automation import/export
 - Automation conflict detection and analysis
 - Regression testing workflow for validating block-system extensions
+- Preview-only local AI assistant for grounded lighting automation drafts
+
+## Local AI Automation Assistant
+
+The feature branch includes an Ollama-based assistant that turns a natural-language goal into a reviewable Blockly automation draft. It separates goal analysis from structured planning and validates JSON Schema, EntityCard grounding, supported services, Blockly capability, and semantic alignment before showing a result.
+
+The assistant currently supports a state trigger or manual draft with `light.turn_on` and `light.turn_off`. Explicit manual lighting requests use a deterministic local fast path. The assistant never saves an automation or calls a Home Assistant service; the user must explicitly import and review the draft in Blockly.
+
+See [docs/llm_assistant_mvp.md](docs/llm_assistant_mvp.md) for setup, supported scope, privacy boundaries, and verification commands.
 
 ## Getting Started
 ### Install as a Home Assistant Add-on
@@ -157,6 +166,10 @@ Features include:
 - Dev server and analyzer are local-only by default.
 - Do not expose the dev server publicly when using `HA_TOKEN`.
 - If LAN access is required, set `DEV_SERVER_HOST=0.0.0.0` and add your own access guard.
+
+## License
+
+HA SmartBlock contributions are provided under the MIT License. Files retaining Google LLC copyright and `SPDX-License-Identifier: Apache-2.0` remain under Apache License 2.0. See `LICENSE`, `LICENSES/Apache-2.0.txt`, and `THIRD_PARTY_NOTICES.md`.
 
 ## Demo Video
 [Watch the Demo Video](https://youtu.be/_tS3Mm9kdRk)

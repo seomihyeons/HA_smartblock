@@ -37,7 +37,9 @@ For a low-risk inferred `light.turn_off` goal, the LLM classifies the goal and p
 
 Ambiguous entity candidates produce a confirmation response. Requests outside the supported trigger/action syntax produce an `unsupported` response. Both goal-analysis and draft responses are validated locally with JSON Schema rather than trusting Ollama's response-format constraint. Explicit/inferred action consistency, exact evidence spans, target hints, entity grounding, advertised services, Blockly capability, and analyzed intent are checked before a draft is shown. Each model stage permits at most one repair attempt.
 
-The current research artifact versions are `pipeline 0.2.0`, `goal prompt 2026-08-16.2`, and `draft prompt 2026-08-16.1`. Every API response includes these values under `system` so that a running server can be distinguished from stale code.
+The current research artifact versions are `pipeline 0.3.2`, `goal prompt 2026-08-16.2`, and `draft prompt 2026-08-16.1`. Every API response includes these values under `system` so that a running server can be distinguished from stale code.
+
+Pipeline 0.3.2 also repairs explicit state-trigger metadata deterministically when the request contains both a conditional phrase and a known EntityCard. This does not select a new entity or bypass planning validation; it prevents a small model's inconsistent `trigger_specified`, `trigger_kind`, and evidence fields from rejecting an otherwise explicit request. Inferred target IDs are retained only when the corresponding EntityCard is mentioned in the request.
 
 The running configuration can be checked without invoking a model:
 
@@ -85,16 +87,18 @@ LLM_PROVIDER=fake
 To use a local Ollama model:
 
 ```powershell
-ollama pull qwen3:4b
+ollama pull qwen3:4b-q4_K_M
 ```
 
 ```dotenv
 LLM_PROVIDER=ollama
 OLLAMA_BASE_URL=http://127.0.0.1:11434
-OLLAMA_MODEL=qwen3:4b
+OLLAMA_MODEL=qwen3:4b-q4_K_M
+OLLAMA_THINK=false
 OLLAMA_SEED=42
+OLLAMA_KEEP_ALIVE=30m
 LLM_REQUEST_TIMEOUT_MS=120000
-LLM_MAX_ENTITY_CARDS=80
+LLM_MAX_ENTITY_CARDS=32
 ```
 
 The server calls Ollama's local `/api/chat` endpoint with `temperature: 0` and a JSON Schema response format. It sends only the natural-language request, an optional entity selection, compact EntityCards, and the supported service list.

@@ -1,5 +1,5 @@
 name: "HA SmartBlock"
-version: "0.1.1"
+version: "1.3.0"
 slug: "ha_smartblock"
 description: "Visual Blockly editor for Home Assistant automations"
 url: "https://github.com/seomihyeons/HA_smartblock"

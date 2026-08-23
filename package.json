@@ -1,6 +1,6 @@
 {
   "name": "ha_smartblock",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "description": "Visual round-trip programming environment for Home Assistant automations",
   "main": "index.js",
   "private": true,
@@ -8,6 +8,8 @@
     "test": "node --test test/ir/*.test.mjs server/tests/*.test.mjs",
     "test:ir": "node --test test/ir/*.test.mjs",
     "test:llm": "node --test server/tests/*.test.mjs",
+    "benchmark:llm": "node server/benchmarks/run_automation_ab.mjs",
+    "sbom": "node scripts/generate_spdx_sbom.mjs",
     "build": "webpack --mode production",
     "start": "webpack serve --mode development --open --hot"
   },
@@ -17,7 +19,7 @@
     "automation"
   ],
   "author": "",
-  "license": "Apache-2.0",
+  "license": "MIT AND Apache-2.0",
   "dependencies": {
     "ajv": "^8.17.1",
     "blockly": "^11.0.0",
