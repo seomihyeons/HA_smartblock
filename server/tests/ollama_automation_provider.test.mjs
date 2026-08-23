@@ -83,7 +83,7 @@ test('Ollama provider requests schema-constrained output and validates the draft
     command: '현관 움직임이 감지되면 거실 조명을 켜줘',
     entity_cards: cards,
   }, {
-    env: { OLLAMA_MODEL: 'qwen3:4b' },
+    env: { OLLAMA_MODEL: 'qwen3:4b', OLLAMA_THINK: 'false' },
     fetchImpl: async (_url, request) => {
       requestBody = JSON.parse(request.body);
       return ollamaResponse({ status: 'success', automation: automation() });
@@ -97,6 +97,7 @@ test('Ollama provider requests schema-constrained output and validates the draft
   assert.deepEqual(requestBody.format, OLLAMA_DRAFT_RESPONSE_SCHEMA);
   assert.equal(requestBody.options.temperature, 0);
   assert.equal(requestBody.stream, false);
+  assert.equal(requestBody.think, false);
   assert.equal(requestBody.keep_alive, '30m');
   assert.equal(result.ollama_calls[0].total_ms, 2000);
   assert.equal(result.ollama_calls[0].prompt_tokens, 200);

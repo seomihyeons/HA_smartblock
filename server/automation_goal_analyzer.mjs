@@ -124,6 +124,8 @@ const EXPLICIT_SERVICE_PATTERNS = [
   },
 ];
 
+const SLEEP_PREPARATION_RE = /(?:잠들|잠자|취침|수면|잘\s*준비|자러|bedtime|sleep|go(?:ing)?\s+to\s+bed|prepar(?:e|ing)\s+for\s+bed)/iu;
+
 function detectExplicitService(source) {
   const matches = [];
   for (const { service, pattern } of EXPLICIT_SERVICE_PATTERNS) {
@@ -133,6 +135,25 @@ function detectExplicitService(source) {
     }
   }
   return matches.sort((a, b) => b.index - a.index)[0] || null;
+}
+
+function detectExplicitStateTrigger(source, cards = []) {
+  const value = text(source);
+  const koreanConditional = value.match(/^(.+?(?:면|때|경우|후))(?:\s|,)/u);
+  const englishConditional = value.match(
+    /^\s*((?:when|if|after|once)\b.+?)(?:,|\bthen\b)/iu,
+  );
+  const phrase = text(koreanConditional?.[1] || englishConditional?.[1]);
+  if (!phrase) return null;
+
+  const normalizedPhrase = normalized(phrase);
+  const referencesKnownEntity = cards.some((card) => [
+    card?.entity_id,
+    card?.friendly_name,
+  ].map(normalized).filter(Boolean).some(
+    (candidate) => normalizedPhrase.includes(candidate) || candidate.includes(normalizedPhrase),
+  ));
+  return referencesKnownEntity ? { kind: 'state', phrase } : null;
 }
 
 function normalized(value) {
@@ -159,12 +180,21 @@ function cardMatchesAnalysisTarget(card, analysis) {
   return cardMatchesTargetHints(card, analysis?.target_hints || []);
 }
 
+function sourceMentionsCard(source, card) {
+  const value = normalized(source);
+  return [card?.entity_id, card?.friendly_name, card?.area]
+    .map(normalized)
+    .filter(Boolean)
+    .some((candidate) => value.includes(candidate));
+}
+
 function normalizeGoalAnalysis(analysis, sourceText, cards) {
   if (!analysis || typeof analysis !== 'object' || Array.isArray(analysis)) return analysis;
   const normalizedAnalysis = typeof structuredClone === 'function'
     ? structuredClone(analysis)
     : JSON.parse(JSON.stringify(analysis));
   const explicitService = detectExplicitService(sourceText);
+  const explicitTrigger = detectExplicitStateTrigger(sourceText, cards);
   if (
     explicitService
     && normalizedAnalysis.primary_service === explicitService.service
@@ -179,6 +209,14 @@ function normalizeGoalAnalysis(analysis, sourceText, cards) {
   }
   if (normalizedAnalysis.trigger_specified === false && normalizedAnalysis.evidence) {
     normalizedAnalysis.evidence.trigger_phrase = '';
+  }
+  if (normalizedAnalysis.status === 'ready' && explicitTrigger) {
+    normalizedAnalysis.trigger_specified = true;
+    normalizedAnalysis.trigger_kind = explicitTrigger.kind;
+    normalizedAnalysis.evidence = {
+      ...(normalizedAnalysis.evidence || {}),
+      trigger_phrase: explicitTrigger.phrase,
+    };
   }
 
   const cardIds = new Set((cards || []).map((card) => card.entity_id));
@@ -197,6 +235,68 @@ function normalizeGoalAnalysis(analysis, sourceText, cards) {
     && text(normalizedAnalysis.evidence?.target_phrase).includes(explicitService.phrase)
   ) {
     normalizedAnalysis.evidence.target_phrase = '';
+  }
+
+  if (normalizedAnalysis.action_source === 'inferred') {
+    normalizedAnalysis.evidence = {
+      ...(normalizedAnalysis.evidence || {}),
+      action_phrase: '',
+    };
+    const mentionedCardIds = new Set(cards
+      .filter((card) => sourceMentionsCard(sourceText, card))
+      .map((card) => card.entity_id));
+    normalizedAnalysis.target_entity_ids = normalizedAnalysis.target_entity_ids
+      .filter((entityId) => mentionedCardIds.has(entityId));
+    if (!mentionedCardIds.size) {
+      normalizedAnalysis.target_scope = 'unspecified';
+      normalizedAnalysis.target_hints = [];
+      normalizedAnalysis.target_entity_ids = [];
+      normalizedAnalysis.evidence.target_phrase = '';
+    }
+  }
+
+  const unsupportedExplicitClaim = normalizedAnalysis.action_source === 'explicit'
+    && !explicitService;
+  const unsupportedInference = normalizedAnalysis.action_source === 'inferred'
+    && (
+      normalizedAnalysis.goal_category !== 'sleep_preparation'
+      || !SLEEP_PREPARATION_RE.test(sourceText)
+    );
+  if (
+    normalizedAnalysis.status === 'ready'
+    && (unsupportedExplicitClaim || unsupportedInference)
+  ) {
+    const korean = /[가-힣]/u.test(sourceText);
+    normalizedAnalysis.status = 'needs_clarification';
+    normalizedAnalysis.primary_service = 'none';
+    normalizedAnalysis.requested_services = [];
+    normalizedAnalysis.action_source = 'unknown';
+    normalizedAnalysis.target_hints = [];
+    normalizedAnalysis.target_entity_ids = [];
+    normalizedAnalysis.questions = [korean
+      ? '조명을 켤까요, 끌까요?'
+      : 'Should the light turn on or off?'];
+    normalizedAnalysis.reason = korean
+      ? '요청 원문에서 실행할 조명 동작의 근거를 확인할 수 없다.'
+      : 'The user wording does not provide evidence for a specific lighting action.';
+  }
+
+  if (
+    normalizedAnalysis.status === 'ready'
+    && ['climate', 'security', 'media'].includes(normalizedAnalysis.goal_category)
+  ) {
+    const korean = /[가-힣]/u.test(sourceText);
+    normalizedAnalysis.status = 'unsupported';
+    normalizedAnalysis.home_supports_goal = false;
+    normalizedAnalysis.primary_service = 'none';
+    normalizedAnalysis.requested_services = [];
+    normalizedAnalysis.action_source = 'unknown';
+    normalizedAnalysis.target_hints = [];
+    normalizedAnalysis.target_entity_ids = [];
+    normalizedAnalysis.questions = [];
+    normalizedAnalysis.reason = korean
+      ? '현재 자동화 초안은 조명 켜기와 끄기만 지원한다.'
+      : 'The current automation draft supports only turning lights on or off.';
   }
   return normalizedAnalysis;
 }

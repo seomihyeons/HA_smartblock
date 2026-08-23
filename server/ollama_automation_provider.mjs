@@ -129,6 +129,13 @@ function positiveInteger(value, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function optionalBoolean(value) {
+  const normalized = text(value).toLocaleLowerCase();
+  if (normalized === 'true') return true;
+  if (normalized === 'false') return false;
+  return undefined;
+}
+
 function compactCard(card) {
   return {
     entity_id: text(card.entity_id),
@@ -234,6 +241,7 @@ export async function requestOllamaStructured({ schema, messages }, options = {}
   const model = text(env.OLLAMA_MODEL) || 'qwen3:4b';
   const timeoutMs = positiveInteger(env.LLM_REQUEST_TIMEOUT_MS, 120000);
   const keepAlive = text(env.OLLAMA_KEEP_ALIVE) || '30m';
+  const think = optionalBoolean(env.OLLAMA_THINK);
 
   const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/api/chat`, {
     method: 'POST',
@@ -241,6 +249,7 @@ export async function requestOllamaStructured({ schema, messages }, options = {}
     body: JSON.stringify({
       model,
       stream: false,
+      ...(think === undefined ? {} : { think }),
       keep_alive: keepAlive,
       format: schema,
       messages,

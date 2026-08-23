@@ -8,7 +8,7 @@ import { requestOllamaDraft } from './ollama_automation_provider.mjs';
 import { OLLAMA_DRAFT_RESPONSE_SCHEMA } from './ollama_automation_provider.mjs';
 import { validateJsonSchema } from './json_schema_validator.mjs';
 
-export const LLM_PIPELINE_VERSION = '0.3.0';
+export const LLM_PIPELINE_VERSION = '0.3.2';
 
 const TURN_ON_RE = /(켜|켜줘|turn\s+on|switch\s+on)/i;
 const MOTION_RE = /(움직임|움직|모션|motion|movement|presence)/i;
@@ -189,8 +189,10 @@ function tryExplicitManualLightFastPath(payload) {
   if (!target && ranked.length > 1 && ranked[0].score > ranked[1].score) target = ranked[0].card;
   if (!target && !ranked.length && supportedLights.length === 1) target = supportedLights[0];
   if (!target) {
-    if (!ranked.length) return null;
-    return confirmation('action', ranked);
+    const candidates = ranked.length
+      ? ranked
+      : supportedLights.map((card) => ({ card, score: 0 }));
+    return confirmation('action', candidates);
   }
 
   const automation = {
