@@ -1,0 +1,156 @@
+export const AUTOMATION_AB_DATASET_VERSION = '1.0.0';
+
+export const entityCards = [
+  {
+    entity_id: 'binary_sensor.entrance_motion',
+    friendly_name: '현관 움직임',
+    domain: 'binary_sensor',
+    state: 'off',
+    device_class: 'motion',
+    area: '현관',
+    supported_actions: [],
+  },
+  {
+    entity_id: 'binary_sensor.hallway_motion',
+    friendly_name: 'Hallway Motion',
+    domain: 'binary_sensor',
+    state: 'off',
+    device_class: 'motion',
+    area: 'Hallway',
+    supported_actions: [],
+  },
+  {
+    entity_id: 'binary_sensor.front_door',
+    friendly_name: '현관문',
+    domain: 'binary_sensor',
+    state: 'off',
+    device_class: 'door',
+    area: '현관',
+    supported_actions: [],
+  },
+  {
+    entity_id: 'light.living_room',
+    friendly_name: '거실 조명',
+    domain: 'light',
+    state: 'on',
+    area: '거실',
+    supported_actions: ['light.turn_on', 'light.turn_off'],
+  },
+  {
+    entity_id: 'light.living_floor_lamp',
+    friendly_name: '거실 플로어 램프',
+    domain: 'light',
+    state: 'off',
+    area: '거실',
+    supported_actions: ['light.turn_on', 'light.turn_off'],
+  },
+  {
+    entity_id: 'light.bedroom',
+    friendly_name: '침실 조명',
+    domain: 'light',
+    state: 'on',
+    area: '침실',
+    supported_actions: ['light.turn_on', 'light.turn_off'],
+  },
+  {
+    entity_id: 'light.kitchen',
+    friendly_name: 'Kitchen Light',
+    domain: 'light',
+    state: 'off',
+    area: 'Kitchen',
+    supported_actions: ['light.turn_on', 'light.turn_off'],
+  },
+];
+
+export const automationCases = [
+  {
+    id: 'ko_manual_specific_on',
+    category: 'manual_fast_path',
+    command: '침실 조명을 켜줘',
+    expected: {
+      statuses: ['success'],
+      service: 'light.turn_on',
+      action_entities: ['light.bedroom'],
+      trigger_entities: [],
+    },
+  },
+  {
+    id: 'en_manual_specific_off',
+    category: 'manual_fast_path',
+    command: 'Turn off the Kitchen Light',
+    expected: {
+      statuses: ['success'],
+      service: 'light.turn_off',
+      action_entities: ['light.kitchen'],
+      trigger_entities: [],
+    },
+  },
+  {
+    id: 'ko_motion_specific_on',
+    category: 'state_trigger',
+    command: '현관 움직임이 감지되면 침실 조명을 켜줘',
+    expected: {
+      statuses: ['success'],
+      service: 'light.turn_on',
+      action_entities: ['light.bedroom'],
+      trigger_entities: ['binary_sensor.entrance_motion'],
+    },
+  },
+  {
+    id: 'en_motion_specific_on',
+    category: 'state_trigger',
+    command: 'When Hallway Motion turns on, turn on the Kitchen Light',
+    expected: {
+      statuses: ['success'],
+      service: 'light.turn_on',
+      action_entities: ['light.kitchen'],
+      trigger_entities: ['binary_sensor.hallway_motion'],
+    },
+  },
+  {
+    id: 'ko_door_specific_off',
+    category: 'state_trigger',
+    command: '현관문이 열리면 거실 조명을 꺼줘',
+    expected: {
+      statuses: ['success'],
+      service: 'light.turn_off',
+      action_entities: ['light.living_room'],
+      trigger_entities: ['binary_sensor.front_door'],
+    },
+  },
+  {
+    id: 'ko_bedtime_inferred',
+    category: 'inferred_low_risk',
+    command: '잠들 준비를 해줘',
+    expected: {
+      statuses: ['success'],
+      service: 'light.turn_off',
+      action_entities: ['light.bedroom', 'light.living_room'],
+      trigger_entities: [],
+    },
+  },
+  {
+    id: 'ko_ambiguous_action',
+    category: 'ambiguity',
+    command: '거실 조명으로 뭔가 해줘',
+    expected: { statuses: ['needs_clarification', 'needs_confirmation'] },
+  },
+  {
+    id: 'en_ambiguous_target',
+    category: 'ambiguity',
+    command: 'Turn on a light',
+    expected: { statuses: ['needs_clarification', 'needs_confirmation'] },
+  },
+  {
+    id: 'ko_unsupported_climate',
+    category: 'unsupported',
+    command: '현관 움직임이 감지되면 에어컨을 켜줘',
+    expected: { statuses: ['unsupported', 'needs_clarification'] },
+  },
+  {
+    id: 'ko_unsupported_lock',
+    category: 'unsupported',
+    command: '외출할 때 현관문을 잠가줘',
+    expected: { statuses: ['unsupported', 'needs_clarification'] },
+  },
+];

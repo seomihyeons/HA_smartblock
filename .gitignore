@@ -17,6 +17,7 @@ SERP4IoT_presentation_outline.md
 SERP4IoT_talk_notes.md
 /revision_evidence/
 /open2026/
+/server/benchmarks/results/
 test/test_raw_demo/
 test/test_xhome_demo/1_xhome_demo_entrance_evening_scene.yaml
 test/test_xhome_demo/2_xhome_demo_entrance_mood_lamp.yaml
