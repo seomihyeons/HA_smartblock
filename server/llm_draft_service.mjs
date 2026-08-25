@@ -4,15 +4,20 @@ import {
   analyzeAutomationGoal,
   validateSemanticAlignment,
 } from './automation_goal_analyzer.mjs';
+import {
+  capabilityForService,
+  createCapabilityRegistry,
+  isServiceCompatibleWithEntity,
+  servicesForEntityDomain,
+} from './capability_registry.mjs';
 import { requestOllamaDraft } from './ollama_automation_provider.mjs';
 import { OLLAMA_DRAFT_RESPONSE_SCHEMA } from './ollama_automation_provider.mjs';
 import { validateJsonSchema } from './json_schema_validator.mjs';
 
-export const LLM_PIPELINE_VERSION = '0.3.2';
+export const LLM_PIPELINE_VERSION = '0.4.0';
 
 const TURN_ON_RE = /(켜|켜줘|turn\s+on|switch\s+on)/i;
 const MOTION_RE = /(움직임|움직|모션|motion|movement|presence)/i;
-const TRIGGER_LANGUAGE_RE = /\b(?:when|whenever|if|after|before|once)\b|(?:감지|움직임|열리|닫히).*(?:면|때)|(?:되면|할\s*때)/iu;
 
 function text(value) {
   return String(value ?? '').trim();
@@ -30,8 +35,23 @@ function uniqueStrings(values) {
   return [...new Set((values || []).map(text).filter(Boolean))];
 }
 
-export function buildEntityCards(states) {
+const SAFE_CAPABILITY_ATTRIBUTES = [
+  'supported_color_modes',
+  'hvac_modes',
+  'preset_modes',
+  'fan_modes',
+  'percentage_step',
+  'min_temp',
+  'max_temp',
+  'min_humidity',
+  'max_humidity',
+  'options',
+  'unit_of_measurement',
+];
+
+export function buildEntityCards(states, options = {}) {
   if (!Array.isArray(states)) return [];
+  const registry = options.registry || createCapabilityRegistry();
 
   return states.flatMap((state) => {
     if (!state || typeof state !== 'object') return [];
@@ -41,6 +61,12 @@ export function buildEntityCards(states) {
       ? state.attributes
       : {};
     const domain = entityId.split('.', 1)[0];
+
+    const capabilityAttributes = Object.fromEntries(
+      SAFE_CAPABILITY_ATTRIBUTES
+        .filter((key) => attributes[key] != null)
+        .map((key) => [key, attributes[key]]),
+    );
 
     return [{
       entity_id: entityId,
@@ -54,9 +80,8 @@ export function buildEntityCards(states) {
           ? attributes.supported_color_modes
           : []),
       ]),
-      supported_actions: domain === 'light'
-        ? ['light.turn_on', 'light.turn_off']
-        : [],
+      capability_attributes: capabilityAttributes,
+      supported_actions: servicesForEntityDomain(domain, registry),
     }];
   });
 }
@@ -133,154 +158,45 @@ function confirmation(role, candidates) {
   };
 }
 
-function explicitLightService(command) {
-  const onMatch = text(command).match(/(?:켜\s*(?:줘|줘요|주세요|라)?|turn\s+on|switch\s+on)/iu);
-  const offMatch = text(command).match(/(?:꺼\s*(?:줘|줘요|주세요|라)?|끄\s*(?:기|세요|라고|도록|자)?|turn\s+off|switch\s+off)/iu);
-  if (Boolean(onMatch) === Boolean(offMatch)) return null;
-  const match = onMatch || offMatch;
-  return {
-    service: onMatch ? 'light.turn_on' : 'light.turn_off',
-    phrase: match[0],
-  };
-}
-
-function explicitTargetScore(command, card) {
-  const source = normalized(command);
-  const entityId = normalized(card.entity_id);
-  const entityTail = normalized(text(card.entity_id).split('.').slice(1).join(' '));
-  const friendlyName = normalized(card.friendly_name);
-  const area = normalized(card.area);
-  let score = 0;
-  if (entityId && source.includes(entityId)) score += 100;
-  if (entityTail && source.includes(entityTail)) score += 80;
-  if (friendlyName && source.includes(friendlyName)) score += 60;
-  if (area && source.includes(area)) score += 40;
-  const ignored = /^(?:light|lights|lamp|lamps|불|불을|조명|조명을|켜줘|꺼줘|켜|꺼|끄|turn|switch|on|off)$/iu;
-  for (const field of [friendlyName, area, entityTail]) {
-    for (const token of field.split(' ').filter((item) => item.length > 1 && !ignored.test(item))) {
-      if (source.includes(token)) score += 5;
-    }
-  }
-  return score;
-}
-
-function tryExplicitManualLightFastPath(payload) {
-  const conversation = Array.isArray(payload.conversation) ? payload.conversation : [];
-  const command = conversation.length
-    ? conversation.filter((turn) => turn?.role === 'user').map((turn) => text(turn.content)).filter(Boolean).join('\n')
-    : text(payload.command);
-  const explicit = explicitLightService(command);
-  if (!explicit || TRIGGER_LANGUAGE_RE.test(command)) return null;
-
-  const supportedLights = (Array.isArray(payload.entity_cards) ? payload.entity_cards : [])
-    .filter((card) => card?.domain === 'light' && card.supported_actions?.includes(explicit.service));
-  if (!supportedLights.length) return null;
-
-  const selectedId = text(payload.selections?.action_entity_id);
-  let target = selectedId
-    ? supportedLights.find((card) => card.entity_id === selectedId)
-    : null;
-  const ranked = supportedLights
-    .map((card) => ({ card, score: explicitTargetScore(command, card) }))
-    .filter(({ score }) => score > 0)
-    .sort((a, b) => b.score - a.score || a.card.entity_id.localeCompare(b.card.entity_id));
-
-  if (!target && ranked.length === 1) target = ranked[0].card;
-  if (!target && ranked.length > 1 && ranked[0].score > ranked[1].score) target = ranked[0].card;
-  if (!target && !ranked.length && supportedLights.length === 1) target = supportedLights[0];
-  if (!target) {
-    const candidates = ranked.length
-      ? ranked
-      : supportedLights.map((card) => ({ card, score: 0 }));
-    return confirmation('action', candidates);
-  }
-
-  const automation = {
-    alias: `${target.friendly_name || target.entity_id} ${explicit.service === 'light.turn_on' ? 'on' : 'off'} · AI Draft`,
-    triggers: [],
-    conditions: [],
-    actions: [{
-      service: explicit.service,
-      target: { entity_id: [target.entity_id] },
-      data: {},
-    }],
-  };
-  const validation = validateDraft(automation, payload.entity_cards, {
-    allowed_services: [explicit.service],
-    allow_manual_trigger: true,
-  });
-  if (validation.errors.length) return null;
-
-  const goalAnalysis = {
-    status: 'ready',
-    goal_type: 'automation_creation',
-    goal_category: 'lighting',
-    home_supports_goal: true,
-    trigger_specified: false,
-    trigger_kind: 'none',
-    primary_service: explicit.service,
-    requested_services: [explicit.service],
-    action_source: 'explicit',
-    target_scope: 'specific',
-    target_hints: [],
-    target_entity_ids: [target.entity_id],
-    risk_level: 'low',
-    confidence: 100,
-    assumptions: [],
-    questions: [],
-    reason: 'A reversible manual lighting action and a unique grounded target were detected locally.',
-    evidence: { trigger_phrase: '', action_phrase: explicit.phrase, target_phrase: '' },
-    inferred_action: false,
-  };
-  return {
-    status: 'success',
-    provider: 'local-fast-path',
-    automation,
-    validation,
-    semantic_validation: { aligned: true, errors: [] },
-    selected_entities: { trigger: [], action: [target.entity_id] },
-    pipeline: {
-      stage: 'complete',
-      mode: 'explicit_manual_light_fast_path',
-      timings_ms: { goal_analysis: 0, planning: 0, total: 0 },
-      goal_analysis: goalAnalysis,
-      ollama_calls: [],
-    },
-  };
-}
-
 export function validateDraft(automation, cards, options = {}) {
   const schemaValidation = validateAutomationIr(automation);
   const errors = [...schemaValidation.errors];
-  const entityIds = new Set(cards.map((card) => card.entity_id));
+  const availableCards = Array.isArray(cards) ? cards : [];
+  const entityIds = new Set(availableCards.map((card) => card.entity_id));
   const triggers = Array.isArray(automation?.triggers) ? automation.triggers : [];
   const actions = Array.isArray(automation?.actions) ? automation.actions : [];
   const allowManualTrigger = options.allow_manual_trigger === true;
+  const registry = options.registry || createCapabilityRegistry();
 
-  if (triggers.length > 1 || (triggers.length === 0 && !allowManualTrigger)) {
-    errors.push('MVP requires one trigger, or no trigger for an explicitly manual draft.');
+  if (triggers.length > 4 || (triggers.length === 0 && !allowManualTrigger)) {
+    errors.push('A visual draft requires one to four triggers, or no trigger for an explicitly manual draft.');
   }
-  if (actions.length !== 1) {
-    errors.push('MVP requires exactly one action.');
-  }
-  if ((automation?.conditions || []).length !== 0) {
-    errors.push('MVP does not support conditions yet.');
+  if (actions.length < 1 || actions.length > 8) {
+    errors.push('A visual draft requires between one and eight actions.');
   }
 
-  if (triggers.length === 1) {
-    const triggerPlatform = triggers[0]?.platform || triggers[0]?.trigger;
-    if (triggerPlatform !== 'state') errors.push('MVP only supports state triggers.');
-    if (!Array.isArray(triggers[0]?.entity_id) || triggers[0].entity_id.length === 0) {
-      errors.push('State trigger entity_id must be a non-empty string array.');
+  const validateEntityArray = (value, path) => {
+    if (!Array.isArray(value) || !value.length) {
+      errors.push(`${path} must be a non-empty string array.`);
+      return [];
     }
-    if (triggers[0]?.from != null && triggers[0]?.from !== 'off') {
-      errors.push('MVP motion trigger from must be "off" when provided.');
+    for (const entityId of value) {
+      if (!entityIds.has(entityId)) errors.push(`Unknown entity at ${path}: ${entityId}`);
     }
-    if (triggers[0]?.to !== 'on') errors.push('MVP motion trigger requires to "on".');
+    return value;
+  };
 
-    const triggerEntityIds = Array.isArray(triggers[0]?.entity_id)
-      ? triggers[0].entity_id
-      : [triggers[0]?.entity_id].filter(Boolean);
+  for (const [index, trigger] of triggers.entries()) {
+    const kind = text(trigger?.platform || trigger?.trigger);
+    if (!registry.triggerKinds.includes(kind)) {
+      errors.push(`triggers[${index}] uses a trigger kind outside visual capabilities: ${kind || '<missing>'}.`);
+    }
+    const triggerEntityIds = Array.isArray(trigger?.entity_id) ? trigger.entity_id : [];
+    if (['state', 'numeric_state'].includes(kind) && !triggerEntityIds.length) {
+      errors.push(`triggers[${index}].entity_id must be a non-empty string array.`);
+    } else if (trigger?.entity_id != null && !Array.isArray(trigger.entity_id)) {
+      errors.push(`triggers[${index}].entity_id must be an array.`);
+    }
     for (const entityId of triggerEntityIds) {
       if (!entityIds.has(entityId)) errors.push(`Unknown trigger entity: ${entityId}`);
     }
@@ -288,33 +204,82 @@ export function validateDraft(automation, cards, options = {}) {
 
   const requestedServices = Array.isArray(options.allowed_services) && options.allowed_services.length
     ? new Set(options.allowed_services)
-    : new Set(['light.turn_on', 'light.turn_off']);
-  const cardsById = new Map(cards.map((card) => [card.entity_id, card]));
-  for (const [index, action] of actions.entries()) {
-    const service = text(action?.action || action?.service);
-    if (action?.action && action?.service && action.action !== action.service) {
-      errors.push(`actions[${index}] action and service must match.`);
+    : new Set(registry.services.map((service) => service.id));
+
+  const validateCondition = (condition, path) => {
+    if (typeof condition === 'string') return;
+    if (!condition || typeof condition !== 'object' || Array.isArray(condition)) {
+      errors.push(`${path} must be a condition object or template string.`);
+      return;
+    }
+    for (const logic of ['and', 'or', 'not']) {
+      if (Array.isArray(condition[logic])) {
+        condition[logic].forEach((child, childIndex) => validateCondition(child, `${path}.${logic}[${childIndex}]`));
+        return;
+      }
+    }
+    const kind = text(condition.condition);
+    if (!registry.conditionKinds.includes(kind)) {
+      errors.push(`${path} uses a condition kind outside visual capabilities: ${kind || '<missing>'}.`);
+    }
+    if (condition.entity_id != null) validateEntityArray(condition.entity_id, `${path}.entity_id`);
+    if (Array.isArray(condition.conditions)) {
+      condition.conditions.forEach((child, childIndex) => validateCondition(child, `${path}.conditions[${childIndex}]`));
+    }
+  };
+
+  (Array.isArray(automation?.conditions) ? automation.conditions : [])
+    .forEach((condition, index) => validateCondition(condition, `conditions[${index}]`));
+
+  const validateAction = (action, path) => {
+    if (!action || typeof action !== 'object' || Array.isArray(action)) {
+      errors.push(`${path} must be an action object.`);
+      return;
+    }
+    if (action.delay != null) return;
+    if (Array.isArray(action.choose)) {
+      for (const [choiceIndex, choice] of action.choose.entries()) {
+        (Array.isArray(choice?.conditions) ? choice.conditions : [])
+          .forEach((condition, conditionIndex) => validateCondition(
+            condition,
+            `${path}.choose[${choiceIndex}].conditions[${conditionIndex}]`,
+          ));
+        const sequence = Array.isArray(choice?.sequence?.items)
+          ? choice.sequence.items
+          : Array.isArray(choice?.sequence) ? choice.sequence : [];
+        sequence.forEach((child, childIndex) => validateAction(child, `${path}.choose[${choiceIndex}].sequence[${childIndex}]`));
+      }
+      const defaults = Array.isArray(action.default?.items)
+        ? action.default.items
+        : Array.isArray(action.default) ? action.default : [];
+      defaults.forEach((child, childIndex) => validateAction(child, `${path}.default[${childIndex}]`));
+      return;
+    }
+
+    const service = text(action.service || action.action);
+    if (action.action && action.service && action.action !== action.service) {
+      errors.push(`${path} action and service must match.`);
+    }
+    const capability = capabilityForService(service, registry);
+    if (!capability || capability.available_in_home === false) {
+      errors.push(`${path} uses a service outside visual capabilities: ${service || '<missing>'}.`);
+      return;
     }
     if (!requestedServices.has(service)) {
-      errors.push(`actions[${index}] uses a service outside the requested scope: ${service || '<missing>'}.`);
+      errors.push(`${path} uses a service outside the requested scope: ${service}.`);
     }
-    const targetEntityIds = Array.isArray(action?.target?.entity_id)
-      ? action.target.entity_id
-      : [action?.target?.entity_id].filter(Boolean);
-    if (!Array.isArray(action?.target?.entity_id) || targetEntityIds.length === 0) {
-      errors.push(`actions[${index}] target.entity_id must be a non-empty string array.`);
-    }
-    for (const entityId of targetEntityIds) {
-      if (!entityIds.has(entityId)) {
-        errors.push(`Unknown action entity: ${entityId}`);
-        continue;
-      }
-      const hints = cardsById.get(entityId)?.supported_actions || [];
-      if (!hints.includes(service)) {
-        errors.push(`Entity ${entityId} does not advertise service ${service}.`);
+    const targetValue = action?.target?.entity_id;
+    if (capability.target_required || targetValue != null) {
+      const targetEntityIds = validateEntityArray(targetValue, `${path}.target.entity_id`);
+      for (const entityId of targetEntityIds) {
+        if (entityIds.has(entityId) && !isServiceCompatibleWithEntity(service, entityId, registry)) {
+          errors.push(`${path} target ${entityId} is incompatible with ${service}.`);
+        }
       }
     }
-  }
+  };
+
+  actions.forEach((action, index) => validateAction(action, `actions[${index}]`));
 
   return {
     schema_valid: schemaValidation.valid,
@@ -415,8 +380,8 @@ export async function createOllamaAutomationDraft(payload = {}, options = {}) {
           automation: output.automation,
           validation,
           selected_entities: {
-            trigger: output.automation.triggers[0]?.entity_id || [],
-            action: output.automation.actions[0].target?.entity_id,
+            trigger: output.automation.triggers.flatMap((trigger) => trigger?.entity_id || []),
+            action: output.automation.actions.flatMap((action) => action?.target?.entity_id || []),
           },
           ollama_calls: ollamaCalls,
         };
@@ -446,26 +411,6 @@ export async function createAutomationDraft(payload = {}, options = {}) {
   }
   if (provider === 'ollama') {
     const pipelineStartedAt = Date.now();
-    const fastPath = text(env.LLM_ENABLE_FAST_PATH).toLocaleLowerCase() === 'false'
-      ? null
-      : tryExplicitManualLightFastPath(payload);
-    if (fastPath) {
-      const total = Date.now() - pipelineStartedAt;
-      if (fastPath.pipeline) {
-        fastPath.pipeline.timings_ms.total = total;
-        return fastPath;
-      }
-      return {
-        ...fastPath,
-        provider: 'local-fast-path',
-        pipeline: {
-          stage: 'confirmation',
-          mode: 'explicit_manual_light_fast_path',
-          timings_ms: { goal_analysis: 0, planning: 0, total },
-          ollama_calls: [],
-        },
-      };
-    }
     const goalStartedAt = Date.now();
     const goal = await analyzeAutomationGoal(payload, options);
     const goalAnalysisMs = Date.now() - goalStartedAt;
@@ -483,6 +428,41 @@ export async function createAutomationDraft(payload = {}, options = {}) {
       };
     }
 
+    if (payload.interaction_mode === 'auto' && goal.goal_analysis.goal_type === 'immediate_control') {
+      if (goal.goal_analysis.risk_level !== 'low') {
+        return {
+          status: 'unsupported',
+          provider: 'ollama',
+          model: goal.model,
+          reason: 'This capability is draft-only under the current safety policy.',
+          pipeline: {
+            stage: 'safety_policy',
+            timings_ms: { goal_analysis: goalAnalysisMs, total: Date.now() - pipelineStartedAt },
+            goal_analysis: goal.goal_analysis,
+            ollama_calls: goal.ollama_calls || [],
+          },
+        };
+      }
+      const service = goal.goal_analysis.primary_service;
+      const explicitTargets = goal.goal_analysis.target_entity_ids || [];
+      const compatibleTargets = (Array.isArray(payload.entity_cards) ? payload.entity_cards : [])
+        .filter((card) => card.supported_actions?.includes(service))
+        .map((card) => card.entity_id);
+      return {
+        status: 'control_intent',
+        provider: 'ollama',
+        model: goal.model,
+        service,
+        candidate_entity_ids: explicitTargets.length ? explicitTargets : compatibleTargets,
+        pipeline: {
+          stage: 'control_intent',
+          timings_ms: { goal_analysis: goalAnalysisMs, total: Date.now() - pipelineStartedAt },
+          goal_analysis: goal.goal_analysis,
+          ollama_calls: goal.ollama_calls || [],
+        },
+      };
+    }
+
     const conversation = Array.isArray(payload.conversation) ? payload.conversation : [];
     const combinedCommand = conversation.length
       ? conversation
@@ -491,71 +471,12 @@ export async function createAutomationDraft(payload = {}, options = {}) {
         .filter(Boolean)
         .join('\n')
       : payload.command;
-    if (goal.goal_analysis.inferred_action) {
-      const policyResult = applyConservativeDraftPolicy({
-        alias: `${text(combinedCommand)} · AI Draft`,
-        triggers: [],
-        conditions: [],
-        actions: [],
-      }, goal.goal_analysis, payload.entity_cards);
-      const validation = validateDraft(policyResult.automation, payload.entity_cards, {
-        allowed_services: goal.goal_analysis.requested_services,
-        allow_manual_trigger: true,
-      });
-      const semanticValidation = validateSemanticAlignment(
-        policyResult.automation,
-        goal.goal_analysis,
-        payload.entity_cards,
-      );
-      const timings = {
-        goal_analysis: goalAnalysisMs,
-        planning: 0,
-        total: Date.now() - pipelineStartedAt,
-      };
-      if (validation.errors.length || !semanticValidation.aligned) {
-        return {
-          status: 'unsupported',
-          provider: 'ollama',
-          model: goal.model,
-          reason: 'No draft can be produced from the currently supported low-risk actions.',
-          validation,
-          semantic_validation: semanticValidation,
-          pipeline: {
-            stage: 'policy_validation',
-            timings_ms: timings,
-            goal_analysis: goal.goal_analysis,
-            policy_notes: policyResult.notes,
-            ollama_calls: goal.ollama_calls || [],
-          },
-        };
-      }
-      return {
-        status: 'success',
-        provider: 'ollama',
-        model: goal.model,
-        automation: policyResult.automation,
-        validation,
-        semantic_validation: semanticValidation,
-        selected_entities: {
-          trigger: [],
-          action: policyResult.automation.actions.flatMap(
-            (action) => action.target?.entity_id || [],
-          ),
-        },
-        pipeline: {
-          stage: 'complete',
-          timings_ms: timings,
-          goal_analysis: goal.goal_analysis,
-          policy_notes: policyResult.notes,
-          ollama_calls: goal.ollama_calls || [],
-        },
-      };
-    }
     const planningStartedAt = Date.now();
     const result = await createOllamaAutomationDraft({
       ...payload,
       command: combinedCommand,
       goal_analysis: goal.goal_analysis,
+      retrieved_entity_cards: goal.retrieval?.cards,
     }, options);
     const planningMs = Date.now() - planningStartedAt;
     const timings = {
@@ -591,7 +512,7 @@ export async function createAutomationDraft(payload = {}, options = {}) {
         provider: 'ollama',
         model: result.model,
         reason: noInferredTargets
-          ? 'There are no supported lights currently on, so there is nothing to change.'
+          ? 'There are no compatible grounded targets for the inferred action.'
           : undefined,
         error: noInferredTargets ? undefined : 'The conservative draft policy produced an invalid draft.',
         validation: policyValidation,

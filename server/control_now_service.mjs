@@ -1,98 +1,35 @@
-import { randomUUID } from "node:crypto";
-
-const ALLOWED_SERVICES = new Set(["light.turn_on", "light.turn_off"]);
-const LIGHT_WORD_RE = /(?:\blights?\b|\blamps?\b|조명|전등|램프|불)/iu;
-const TURN_ON_RE = /(?:\bturn\s+on\b|\bswitch\s+on\b|\blights?\s+on\b|켜\s*(?:줘|주세요|줘요|라)?)/iu;
-const TURN_OFF_RE = /(?:\bturn\s+off\b|\bswitch\s+off\b|\blights?\s+off\b|꺼\s*(?:줘|주세요|줘요|라)?|끄\s*(?:어|어줘|세요|어주세요)?)/iu;
-const AUTOMATION_RE = /(?:\bwhen(?:ever)?\b|\bif\b|\bafter\b|\bbefore\b|\bschedule\b|\bautomat(?:e|ion)\b|자동화|예약|되면|할\s*때|감지.*(?:면|때))/iu;
-const LOCALIZED_ROOM_TERMS = [
-  { request: /거실/u, entity: /(?:living\s*room|livingroom|lounge)/u },
-  { request: /(?:주방|부엌)/u, entity: /kitchen/u },
-  { request: /(?:현관|입구)/u, entity: /(?:entrance|entry|foyer)/u },
-  { request: /(?:욕실|화장실)/u, entity: /(?:bath\s*room|bathroom|toilet)/u },
-  { request: /침실/u, entity: /(?:bed\s*room|bedroom)/u },
-  { request: /방/u, entity: /(?:^|\s)room(?:\s|$)/u },
-];
+import { randomUUID } from 'node:crypto';
+import { capabilityForService, isServiceCompatibleWithEntity } from './capability_registry.mjs';
 
 export class ControlNowError extends Error {
   constructor(code, message, statusCode = 400) {
     super(message);
-    this.name = "ControlNowError";
+    this.name = 'ControlNowError';
     this.code = code;
     this.statusCode = statusCode;
   }
 }
 
-function normalized(value) {
-  return String(value || "").normalize("NFKC").toLowerCase().replace(/[_-]+/g, " ").trim();
-}
-
-function allowedLights(cards) {
-  return (Array.isArray(cards) ? cards : []).filter((card) => {
-    const entityId = String(card?.entity_id || "");
-    const actions = Array.isArray(card?.supported_actions) ? card.supported_actions : [];
-    return card?.domain === "light"
-      && entityId.startsWith("light.")
-      && actions.some((action) => ALLOWED_SERVICES.has(action));
-  });
-}
-
-function parseExplicitCommand(command) {
-  const text = String(command || "").trim();
-  if (!text) throw new ControlNowError("missing_command", "Enter an explicit light control request.");
-  if (AUTOMATION_RE.test(text)) {
-    throw new ControlNowError("not_immediate", "Control now only accepts explicit immediate requests, not automation rules.");
-  }
-  const on = TURN_ON_RE.test(text);
-  const off = TURN_OFF_RE.test(text);
-  if (on === off) {
-    throw new ControlNowError("missing_explicit_action", "Explicitly ask to turn a light on or off.");
-  }
-  return { text, service: on ? "light.turn_on" : "light.turn_off" };
-}
-
-function scoreCard(command, card) {
-  const text = normalized(command);
-  const entityId = normalized(card.entity_id);
-  const objectId = normalized(String(card.entity_id).split(".").slice(1).join("."));
-  const name = normalized(card.friendly_name);
-  const area = normalized(card.area);
-  const entityText = `${entityId} ${objectId} ${name} ${area}`;
-  if (text.includes(entityId)) return 100;
-  if (objectId && text.includes(objectId)) return 80;
-  if (name && name.length > 1 && text.includes(name)) return 60;
-  if (area && area.length > 1 && text.includes(area)) return 40;
-  if (LOCALIZED_ROOM_TERMS.some(({ request, entity }) => request.test(text) && entity.test(entityText))) {
-    return 35;
-  }
-  return 0;
-}
-
-function candidatesFor(command, cards) {
-  const scored = cards.map((card) => ({ card, score: scoreCard(command, card) }));
-  const best = Math.max(0, ...scored.map(({ score }) => score));
-  if (best > 0) return scored.filter(({ score }) => score === best).map(({ card }) => card);
-  if (LIGHT_WORD_RE.test(command)) return cards;
-  return [];
-}
+const text = (value) => String(value ?? '').trim();
 
 function publicCandidate(card) {
   return {
     entity_id: card.entity_id,
     name: card.friendly_name || card.entity_id,
     area: card.area || null,
+    domain: card.domain,
   };
 }
 
 export function createControlNowService({
-  fetchEntityCards,
-  callLightService,
+  fetchCapabilityContext,
+  callService,
   now = () => Date.now(),
   createId = () => randomUUID(),
   ttlMs = 60_000,
 }) {
-  if (typeof fetchEntityCards !== "function" || typeof callLightService !== "function") {
-    throw new TypeError("Control now requires entity and service adapters");
+  if (typeof fetchCapabilityContext !== 'function' || typeof callService !== 'function') {
+    throw new TypeError('Control now requires capability-context and service-call adapters');
   }
   const pending = new Map();
 
@@ -103,75 +40,86 @@ export function createControlNowService({
     }
   }
 
-  async function preview({ command, selected_entity_id: selectedEntityId } = {}) {
+  async function preview({ service, candidate_entity_ids: candidateIds, selected_entity_id: selectedId } = {}) {
     prune();
-    const parsed = parseExplicitCommand(command);
-    const lights = allowedLights(await fetchEntityCards())
-      .filter((card) => card.supported_actions.includes(parsed.service));
-    if (!lights.length) {
-      throw new ControlNowError("no_supported_lights", "No compatible Home Assistant light entities are available.");
+    const requestedService = text(service);
+    if (!requestedService) throw new ControlNowError('missing_service', 'No grounded service was provided.');
+
+    const { entityCards, registry } = await fetchCapabilityContext();
+    const capability = capabilityForService(requestedService, registry);
+    if (!capability || capability.available_in_home === false) {
+      throw new ControlNowError('unsupported_service', 'The requested service is unavailable in this Home Assistant instance.');
+    }
+    if (capability.risk !== 'low' || capability.immediate_execution !== 'confirmation_required') {
+      throw new ControlNowError('draft_only_service', 'This service is draft-only under the current safety policy.');
+    }
+    if (!capability.target_required) {
+      throw new ControlNowError('targetless_control_not_enabled', 'Immediate execution currently requires a grounded entity target.');
     }
 
-    const candidates = candidatesFor(parsed.text, lights);
-    if (!candidates.length) {
-      throw new ControlNowError("unsupported_target", "Control now supports only a light that can be identified from Home Assistant.");
+    const allowedIds = new Set((Array.isArray(candidateIds) ? candidateIds : []).map(text).filter(Boolean));
+    const compatible = entityCards.filter((card) => (
+      (!allowedIds.size || allowedIds.has(card.entity_id))
+      && card.supported_actions?.includes(requestedService)
+      && isServiceCompatibleWithEntity(requestedService, card.entity_id, registry)
+    ));
+    if (!compatible.length) {
+      throw new ControlNowError('no_compatible_entity', 'No compatible grounded entity is available for this service.');
     }
 
-    let target;
-    if (selectedEntityId) {
-      target = candidates.find((card) => card.entity_id === selectedEntityId);
-      if (!target) {
-        throw new ControlNowError("invalid_selection", "The selected light is no longer an eligible candidate.");
-      }
-    } else if (candidates.length === 1) {
-      [target] = candidates;
-    } else {
+    const target = selectedId
+      ? compatible.find((card) => card.entity_id === text(selectedId))
+      : compatible.length === 1 ? compatible[0] : null;
+    if (selectedId && !target) {
+      throw new ControlNowError('invalid_selection', 'The selected entity is no longer an eligible candidate.');
+    }
+    if (!target) {
       return {
-        status: "needs_confirmation",
-        question: "Which Home Assistant light should be controlled?",
-        service: parsed.service,
-        candidates: candidates.map(publicCandidate),
+        status: 'needs_confirmation',
+        question: 'Which Home Assistant entity should be controlled?',
+        service: requestedService,
+        candidates: compatible.slice(0, 8).map(publicCandidate),
       };
     }
 
     const executionId = createId();
     pending.set(executionId, {
-      service: parsed.service,
+      service: requestedService,
       entityId: target.entity_id,
       expiresAt: now() + ttlMs,
       used: false,
     });
     return {
-      status: "ready_to_execute",
+      status: 'ready_to_execute',
       execution_id: executionId,
       expires_in_ms: ttlMs,
-      service: parsed.service,
+      service: requestedService,
+      risk: capability.risk,
       entity: publicCandidate(target),
     };
   }
 
   async function execute({ execution_id: executionId } = {}) {
-    const item = pending.get(String(executionId || ""));
-    if (!item) throw new ControlNowError("invalid_or_used_preview", "This preview is invalid, expired, or already used.", 409);
-    if (item.used || item.expiresAt <= now()) {
-      pending.delete(String(executionId));
-      throw new ControlNowError("invalid_or_used_preview", "This preview is invalid, expired, or already used.", 409);
+    const id = text(executionId);
+    const item = pending.get(id);
+    if (!item || item.used || item.expiresAt <= now()) {
+      pending.delete(id);
+      throw new ControlNowError('invalid_or_used_preview', 'This preview is invalid, expired, or already used.', 409);
     }
-
     item.used = true;
-    const lights = allowedLights(await fetchEntityCards());
-    const current = lights.find((card) => card.entity_id === item.entityId
-      && card.supported_actions.includes(item.service));
-    if (!current || !ALLOWED_SERVICES.has(item.service)) {
-      throw new ControlNowError("entity_revalidation_failed", "The light is no longer available for this action.", 409);
+
+    const { entityCards, registry } = await fetchCapabilityContext();
+    const capability = capabilityForService(item.service, registry);
+    const current = entityCards.find((card) => card.entity_id === item.entityId);
+    if (!capability || capability.available_in_home === false
+      || capability.risk !== 'low' || capability.immediate_execution !== 'confirmation_required'
+      || !current?.supported_actions?.includes(item.service)
+      || !isServiceCompatibleWithEntity(item.service, item.entityId, registry)) {
+      throw new ControlNowError('capability_revalidation_failed', 'The entity or service is no longer eligible for immediate execution.', 409);
     }
 
-    await callLightService({ service: item.service, entity_id: item.entityId });
-    return {
-      status: "success",
-      service: item.service,
-      entity: publicCandidate(current),
-    };
+    await callService({ service: item.service, entity_id: item.entityId });
+    return { status: 'success', service: item.service, entity: publicCandidate(current) };
   }
 
   return { preview, execute };

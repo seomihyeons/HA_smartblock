@@ -68,7 +68,7 @@ function ollamaResponse(output) {
   };
 }
 
-test('Ollama context keeps only entities compatible with the current MVP', () => {
+test('Ollama context keeps actionable and meaningful observable entities without debug-only values', () => {
   const selected = selectOllamaEntityContext('현관 움직임이면 거실 조명을 켜줘', cards, 10);
   assert.deepEqual(
     new Set(selected.map((card) => card.entity_id)),
@@ -114,7 +114,7 @@ test('Ollama provider repairs one hallucinated entity before accepting output', 
       calls += 1;
       const body = JSON.parse(request.body);
       if (calls === 2) {
-        assert.match(body.messages.at(-1).content, /Unknown action entity/);
+        assert.match(body.messages.at(-1).content, /Unknown entity at actions\[0\]\.target\.entity_id/);
       }
       return ollamaResponse({
         status: 'success',
@@ -128,7 +128,7 @@ test('Ollama provider repairs one hallucinated entity before accepting output', 
   assert.equal(result.automation.actions[0].target.entity_id[0], 'light.living_room');
 });
 
-test('Ollama provider rejects unsupported configuration fields through MVP validation', async () => {
+test('Ollama provider validates condition entity arrays before accepting a visual draft', async () => {
   const invalid = automation();
   invalid.conditions.push({ condition: 'state', entity_id: 'binary_sensor.entrance_motion' });
 
@@ -141,7 +141,7 @@ test('Ollama provider rejects unsupported configuration fields through MVP valid
   });
 
   assert.equal(result.status, 'failure');
-  assert.match(result.validation.errors.join('\n'), /conditions.*more than 0 items/i);
+  assert.match(result.validation.errors.join('\n'), /conditions\[0\]\.entity_id must be a non-empty string array/i);
 });
 
 test('Ollama provider rejects Home Assistant shorthand that bypasses Blockly target shape', async () => {
@@ -167,6 +167,6 @@ test('Ollama provider rejects Home Assistant shorthand that bypasses Blockly tar
   });
 
   assert.equal(result.status, 'failure');
-  assert.match(result.validation.errors.join('\n'), /triggers.*entity_id must be array/i);
-  assert.match(result.validation.errors.join('\n'), /required property 'target'/i);
+  assert.match(result.validation.errors.join('\n'), /triggers.*entity_id must be a non-empty string array/i);
+  assert.match(result.validation.errors.join('\n'), /actions\[0\]\.target\.entity_id must be a non-empty string array/i);
 });

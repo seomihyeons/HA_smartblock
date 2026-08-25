@@ -1,12 +1,15 @@
+import { rankEntitiesLexically, retrieveEntityContext } from './entity_retriever.mjs';
+import { scopeCapabilityContext } from './capability_registry.mjs';
+
 const ENTITY_ID_ARRAY_SCHEMA = {
   type: 'array',
   minItems: 1,
   items: { type: 'string' },
 };
 
-export const DRAFT_PROMPT_VERSION = '2026-08-18.1';
+export const DRAFT_PROMPT_VERSION = '2026-08-25.1';
 
-const MVP_AUTOMATION_SCHEMA = {
+const AUTOMATION_PLAN_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: ['triggers', 'conditions', 'actions'],
@@ -15,44 +18,29 @@ const MVP_AUTOMATION_SCHEMA = {
     triggers: {
       type: 'array',
       minItems: 0,
-      maxItems: 1,
+      maxItems: 4,
       items: {
         type: 'object',
-        additionalProperties: false,
-        required: ['platform', 'entity_id', 'to'],
-        properties: {
-          platform: { type: 'string', enum: ['state'] },
-          entity_id: ENTITY_ID_ARRAY_SCHEMA,
-          from: { type: 'string', enum: ['off'] },
-          to: { type: 'string', enum: ['on'] },
-        },
+        additionalProperties: true,
       },
     },
     conditions: {
       type: 'array',
-      maxItems: 0,
+      maxItems: 8,
+      items: {
+        anyOf: [
+          { type: 'object', additionalProperties: true },
+          { type: 'string' },
+        ],
+      },
     },
     actions: {
       type: 'array',
       minItems: 1,
-      maxItems: 1,
+      maxItems: 8,
       items: {
         type: 'object',
-        additionalProperties: false,
-        required: ['service', 'target', 'data'],
-        properties: {
-          service: { type: 'string', enum: ['light.turn_on', 'light.turn_off'] },
-          target: {
-            type: 'object',
-            additionalProperties: false,
-            required: ['entity_id'],
-            properties: { entity_id: ENTITY_ID_ARRAY_SCHEMA },
-          },
-          data: {
-            type: 'object',
-            additionalProperties: false,
-          },
-        },
+        additionalProperties: true,
       },
     },
   },
@@ -67,7 +55,7 @@ export const OLLAMA_DRAFT_RESPONSE_SCHEMA = {
       type: 'string',
       enum: ['success', 'needs_confirmation', 'unsupported'],
     },
-    automation: MVP_AUTOMATION_SCHEMA,
+    automation: AUTOMATION_PLAN_SCHEMA,
     role: {
       type: 'string',
       enum: ['trigger', 'action'],
@@ -104,20 +92,20 @@ Use the user's natural-language request and the entity candidates supplied by th
 Rules:
 1. Return no explanation, Markdown, or code fences.
 2. Copy every entity_id exactly from provided_context.entities.
-3. Use only services listed in provided_context.services.
+3. Use only service IDs listed in provided_context.capabilities.services.
 4. If required information is missing or candidates are materially ambiguous, do not guess; return needs_confirmation.
 5. Return unsupported for requests outside the supported scope.
 6. Never save, execute, or otherwise control Home Assistant.
 7. Never use a friendly_name as an entity_id.
 8. Never invent a device_id, area_id, attribute, or service_data value.
-9. The supported scope is a state trigger, or a manual draft with no trigger, plus lighting actions listed in goal_analysis.requested_services.
-10. conditions must be an empty array.
+9. The supported scope is exactly provided_context.capabilities. Do not use a trigger kind, condition kind, action structure, or service absent from that object.
+10. Generate only structures marked as native visual capabilities. Never assume that a raw-preserved structure is visually editable.
 11. On success, automation must contain triggers, conditions, and actions arrays.
-12. A trigger must have the form {"platform":"state","entity_id":["..."],"from":"off","to":"on"}.
-13. An action must have the form {"service":"light.turn_on or light.turn_off","target":{"entity_id":["..."]},"data":{}}.
+12. Use canonical Home Assistant IR spellings: platform for triggers, condition for conditions, and service for service-call actions.
+13. Every entity_id value must be a non-empty array, including trigger entity_id and action target.entity_id.
 14. If goal_analysis.trigger_specified is false, triggers must be empty. Never invent a trigger.
-15. If goal_analysis.inferred_action is true, follow its assumptions, select the smallest sufficient device set, and target only lights whose state is on for light.turn_off.
-16. Never place entity_id at the top level of an action.
+15. If goal_analysis.inferred_action is true, follow its assumptions and select the smallest sufficient compatible entity set.
+16. Never place entity_id at the top level of a service action; use target.entity_id.
 17. Write user-facing question and reason values in the language used by the user.`;
 
 function text(value) {
@@ -136,65 +124,36 @@ function optionalBoolean(value) {
   return undefined;
 }
 
-function compactCard(card) {
-  return {
-    entity_id: text(card.entity_id),
-    friendly_name: text(card.friendly_name) || text(card.entity_id),
-    domain: text(card.domain),
-    state: card.state ?? null,
-    device_class: text(card.device_class) || null,
-    area: text(card.area) || null,
-    capabilities: Array.isArray(card.capabilities) ? card.capabilities : [],
-    supported_actions: Array.isArray(card.supported_actions) ? card.supported_actions : [],
-  };
-}
-
-function relevanceScore(command, card) {
-  const query = text(command).toLocaleLowerCase();
-  const fields = [card.entity_id, card.friendly_name, card.area, card.device_class]
-    .map((value) => text(value).toLocaleLowerCase())
-    .filter(Boolean);
-  let score = 0;
-  for (const field of fields) {
-    if (query.includes(field)) score += 10;
-    for (const token of field.split(/[\s_.-]+/).filter((item) => item.length > 1)) {
-      if (query.includes(token)) score += 1;
-    }
-  }
-  return score;
-}
-
 export function selectOllamaEntityContext(command, cards, maxCards = 80) {
-  const compatible = (Array.isArray(cards) ? cards : [])
-    .filter((card) => card?.domain === 'binary_sensor' || card?.domain === 'light')
-    .map((card) => ({ card: compactCard(card), score: relevanceScore(command, card) }));
-
-  const perDomainLimit = Math.max(1, Math.floor(maxCards / 2));
-  const selectDomain = (domain) => compatible
-    .filter(({ card }) => card.domain === domain)
-    .sort((a, b) => b.score - a.score || a.card.entity_id.localeCompare(b.card.entity_id))
-    .slice(0, perDomainLimit)
-    .map(({ card }) => card);
-
-  return [
-    ...selectDomain('binary_sensor'),
-    ...selectDomain('light'),
-  ].slice(0, maxCards);
+  return rankEntitiesLexically(command, cards).slice(0, maxCards).map(({ card }) => card);
 }
 
-export function buildOllamaMessages({ command, entity_cards, selections, goal_analysis, repair }) {
+export function buildOllamaMessages({ command, entity_cards, selections, goal_analysis, capability_context, repair }) {
   const goalAnalysis = goal_analysis || null;
   const requestedServices = Array.isArray(goalAnalysis?.requested_services)
     ? goalAnalysis.requested_services
-    : ['light.turn_on'];
+    : [...new Set((entity_cards || []).flatMap((card) => card.supported_actions || []))];
+  const scopedCapabilities = capability_context
+    ? scopeCapabilityContext(capability_context, entity_cards)
+    : null;
+  if (scopedCapabilities && requestedServices.length) {
+    const requestedSet = new Set(requestedServices);
+    scopedCapabilities.services = scopedCapabilities.services.filter((service) => (
+      requestedSet.has(typeof service === 'string' ? service : service.id)
+    ));
+  }
   const context = {
     request: text(command),
     selected_entities: selections || {},
     goal_analysis: goalAnalysis,
     provided_context: {
       entities: entity_cards,
-      services: requestedServices,
-      supported_trigger_platforms: ['state'],
+      capabilities: scopedCapabilities || {
+        services: requestedServices.map((id) => ({ id })),
+        trigger_kinds: ['state'],
+        condition_kinds: [],
+        action_structures: ['service'],
+      },
     },
   };
   const messages = [
@@ -213,17 +172,23 @@ export function buildOllamaMessages({ command, entity_cards, selections, goal_an
 
 export async function requestOllamaDraft(payload, options = {}) {
   const env = options.env || process.env;
-  const maxCards = positiveInteger(env.LLM_MAX_ENTITY_CARDS, 32);
-  const entityCards = selectOllamaEntityContext(
-    payload.command,
-    payload.entity_cards,
-    maxCards,
-  );
+  const maxCards = positiveInteger(env.LLM_MAX_ENTITY_CARDS, 16);
+  const reusedCards = Array.isArray(payload.retrieved_entity_cards)
+    ? payload.retrieved_entity_cards.slice(0, maxCards)
+    : null;
+  const retrieval = reusedCards
+    ? { cards: reusedCards, method: 'reused_goal_context', fallback: false }
+    : await retrieveEntityContext(payload.command, payload.entity_cards, {
+      ...options,
+      maxCards,
+    });
+  const entityCards = retrieval.cards;
   const messages = buildOllamaMessages({
     command: payload.command,
     entity_cards: entityCards,
     selections: payload.selections,
     goal_analysis: payload.goal_analysis,
+    capability_context: payload.capability_context,
     repair: options.repair,
   });
 
@@ -231,7 +196,7 @@ export async function requestOllamaDraft(payload, options = {}) {
     schema: OLLAMA_DRAFT_RESPONSE_SCHEMA,
     messages,
   }, options);
-  return { ...response, entity_cards: entityCards };
+  return { ...response, entity_cards: entityCards, retrieval };
 }
 
 export async function requestOllamaStructured({ schema, messages }, options = {}) {

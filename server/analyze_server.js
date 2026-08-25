@@ -11,6 +11,10 @@ import { GOAL_PROMPT_VERSION } from "./automation_goal_analyzer.mjs";
 import { DRAFT_PROMPT_VERSION } from "./ollama_automation_provider.mjs";
 import { ControlNowError, createControlNowService } from "./control_now_service.mjs";
 import { createAssistantRequestRouter } from "./assistant_request_router.mjs";
+import {
+    createCapabilityRegistry,
+    publicCapabilityContext,
+} from "./capability_registry.mjs";
 
 dotenv.config();
 
@@ -70,18 +74,54 @@ async function fetchHomeAssistantStates() {
     return states;
 }
 
-async function callHomeAssistantLightService({ service, entity_id }) {
+async function fetchHomeAssistantServices() {
     const haBase = buildHaBaseUrl();
     const haToken = process.env.HA_TOKEN || "";
     if (!haBase || !haToken) {
         throw new Error("Missing HA_BASE_URL(or HA_IP/HA_PORT) or HA_TOKEN in server .env");
     }
-    if (!new Set(["light.turn_on", "light.turn_off"]).has(service)
-        || !String(entity_id || "").startsWith("light.")) {
-        throw new Error("Rejected unsupported Home Assistant service request");
+
+    const response = await fetch(`${haBase.replace(/\/$/, "")}/api/services`, {
+        headers: {
+            Authorization: `Bearer ${haToken}`,
+            "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) {
+        throw new Error(`Home Assistant services request failed: ${response.status}`);
     }
-    const serviceName = service.split(".")[1];
-    const response = await fetch(`${haBase.replace(/\/$/, "")}/api/services/light/${serviceName}`, {
+    const services = await response.json();
+    if (!Array.isArray(services)) {
+        throw new Error("Home Assistant services response was not an array");
+    }
+    return services;
+}
+
+async function loadHomeCapabilityContext() {
+    const [states, services] = await Promise.all([
+        fetchHomeAssistantStates(),
+        fetchHomeAssistantServices(),
+    ]);
+    const registry = createCapabilityRegistry({ serviceCatalog: services });
+    return {
+        entityCards: buildEntityCards(states, { registry }),
+        capabilityContext: publicCapabilityContext(registry),
+        registry,
+    };
+}
+
+async function callHomeAssistantService({ service, entity_id }) {
+    const haBase = buildHaBaseUrl();
+    const haToken = process.env.HA_TOKEN || "";
+    if (!haBase || !haToken) {
+        throw new Error("Missing HA_BASE_URL(or HA_IP/HA_PORT) or HA_TOKEN in server .env");
+    }
+    const [domain, serviceName, extra] = String(service || "").split(".");
+    if (!domain || !serviceName || extra || !String(entity_id || "").startsWith(`${domain}.`)) {
+        throw new Error("Rejected malformed Home Assistant service request");
+    }
+    const response = await fetch(`${haBase.replace(/\/$/, "")}/api/services/${domain}/${serviceName}`, {
         method: "POST",
         headers: {
             Authorization: `Bearer ${haToken}`,
@@ -96,18 +136,26 @@ async function callHomeAssistantLightService({ service, entity_id }) {
 }
 
 const controlNow = createControlNowService({
-    fetchEntityCards: async () => buildEntityCards(await fetchHomeAssistantStates()),
-    callLightService: callHomeAssistantLightService,
+    fetchCapabilityContext: loadHomeCapabilityContext,
+    callService: callHomeAssistantService,
 });
 
 async function createDraftResponse(body = {}) {
     const suppliedCards = Array.isArray(body.entity_cards) ? body.entity_cards : null;
-    const entityCards = suppliedCards || buildEntityCards(await fetchHomeAssistantStates());
+    const homeContext = suppliedCards
+        ? {
+            entityCards: suppliedCards,
+            capabilityContext: publicCapabilityContext(createCapabilityRegistry()),
+        }
+        : await loadHomeCapabilityContext();
+    const entityCards = homeContext.entityCards;
     const result = await createAutomationDraft({
         command: body.command,
         conversation: body.conversation,
         selections: body.selections,
+        interaction_mode: body.interaction_mode || "automation",
         entity_cards: entityCards,
+        capability_context: homeContext.capabilityContext,
     });
     const pipeline = result?.pipeline || {};
     console.info("[llm-draft]", JSON.stringify({
@@ -127,6 +175,8 @@ async function createDraftResponse(body = {}) {
         context: {
             source: suppliedCards ? "request" : "live_ha",
             entity_count: entityCards.length,
+            service_count: homeContext.capabilityContext.services.length,
+            capability_registry_version: homeContext.capabilityContext.registry_version,
         },
     };
 }
@@ -185,7 +235,8 @@ app.post("/api/control-now/preview", async (req, res) => {
     if (!guardLocal(req, res)) return;
     try {
         return res.json(await controlNow.preview({
-            command: req.body?.command,
+            service: req.body?.service,
+            candidate_entity_ids: req.body?.candidate_entity_ids,
             selected_entity_id: req.body?.selected_entity_id,
         }));
     } catch (error) {

@@ -43,6 +43,25 @@ test('buildEntityCards keeps a compact allowlisted state representation', () => 
   assert.equal(Object.hasOwn(cards[0], 'access_token'), false);
 });
 
+test('buildEntityCards derives actions for non-light domains from the shared capability registry', () => {
+  const cards = buildEntityCards([{
+    entity_id: 'climate.living_room',
+    state: 'cool',
+    attributes: {
+      friendly_name: 'Living Room Thermostat',
+      min_temp: 7,
+      max_temp: 35,
+      hvac_modes: ['off', 'heat', 'cool'],
+      access_token: 'must-not-leak',
+    },
+  }]);
+
+  assert.ok(cards[0].supported_actions.includes('climate.set_temperature'));
+  assert.deepEqual(cards[0].capability_attributes.hvac_modes, ['off', 'heat', 'cool']);
+  assert.equal(cards[0].capability_attributes.min_temp, 7);
+  assert.equal(Object.hasOwn(cards[0].capability_attributes, 'access_token'), false);
+});
+
 test('fake provider creates a grounded motion-to-light draft', () => {
   const result = createFakeAutomationDraft({
     command: '현관 움직임이 감지되면 거실 무드램프를 켜줘',
@@ -80,7 +99,7 @@ test('validator rejects an entity outside the supplied context', () => {
   }, baseCards);
 
   assert.equal(validation.grounded, false);
-  assert.match(validation.errors.join('\n'), /Unknown action entity/);
+  assert.match(validation.errors.join('\n'), /Unknown entity at actions\[0\]\.target\.entity_id/);
 });
 
 test('validator applies the shared automation IR schema first', () => {
@@ -93,6 +112,57 @@ test('validator applies the shared automation IR schema first', () => {
   assert.equal(validation.schema_valid, false);
   assert.equal(validation.schema_version, 1);
   assert.match(validation.errors.join('\n'), /triggers must be an array/);
+});
+
+test('validator accepts multi-domain visual IR without domain-specific routing', () => {
+  const cards = [
+    ...baseCards,
+    {
+      entity_id: 'switch.coffee_maker',
+      friendly_name: 'Coffee Maker',
+      domain: 'switch',
+      supported_actions: ['switch.turn_on', 'switch.turn_off'],
+    },
+    {
+      entity_id: 'climate.bedroom',
+      friendly_name: 'Bedroom Thermostat',
+      domain: 'climate',
+      supported_actions: ['climate.set_temperature'],
+    },
+  ];
+  const validation = validateDraft({
+    alias: 'Morning preparation',
+    triggers: [{ platform: 'time', at: '07:00:00' }],
+    conditions: [{
+      condition: 'state',
+      entity_id: ['binary_sensor.entrance_motion'],
+      state: 'off',
+    }],
+    actions: [
+      { service: 'switch.turn_on', target: { entity_id: ['switch.coffee_maker'] }, data: {} },
+      { delay: '00:00:05' },
+      {
+        choose: [{
+          conditions: [{
+            condition: 'state',
+            entity_id: ['binary_sensor.entrance_motion'],
+            state: 'off',
+          }],
+          sequence: [{
+            service: 'climate.set_temperature',
+            target: { entity_id: ['climate.bedroom'] },
+            data: { temperature: 22 },
+          }],
+        }],
+        default: [],
+      },
+    ],
+  }, cards, {
+    allowed_services: ['switch.turn_on', 'climate.set_temperature'],
+  });
+
+  assert.deepEqual(validation.errors, []);
+  assert.equal(validation.blockly_supported, true);
 });
 
 test('fake provider rejects requests outside the MVP scope', () => {

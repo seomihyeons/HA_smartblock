@@ -51,7 +51,7 @@ Raw fallback is a preservation mechanism, not a claim that the syntax has full v
 
 ## LLM boundary
 
-LLM drafts must satisfy the same top-level schema before entity grounding and MVP capability checks run. Schema validity alone never authorizes saving an automation or calling a Home Assistant action.
+LLM drafts must satisfy the same top-level schema before capability-registry, entity-grounding, service-compatibility, visual-support, and semantic-alignment checks run. Schema validity alone never authorizes saving an automation or calling a Home Assistant action.
 
 ## Compatibility rules
 

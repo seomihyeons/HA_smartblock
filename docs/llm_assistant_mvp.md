@@ -1,123 +1,162 @@
-# AI Automation Assistant MVP
+# Capability-driven AI Automation Assistant
 
-This branch contains the first reviewable vertical slice for the competition feature.
+## Scope
 
-## Current flow
+The assistant is a guarded natural-language interface over HA-SmartBlock's existing visual automation capabilities. It is not a general Home Assistant agent and does not claim support for every Home Assistant syntax form.
 
-1. Open the `🗨︎` floating button.
-2. Enter a motion-to-light automation request.
-3. The analyzer server reads the current Home Assistant states.
-4. Ollama first classifies the goal, task type, trigger evidence, requested service, and home feasibility.
-5. Low-risk abstract requests produce a conservative manual-run draft with visible assumptions.
-6. Only a material ambiguity that cannot be resolved from context stops at one clarification question.
-7. Only a ready goal is passed to the structured automation planner.
-8. The server validates schema, entity grounding, advertised services, Blockly capability, and semantic alignment.
-9. The user explicitly imports the validated draft into Blockly.
-10. The optional conflict action compares the draft with editable, enabled Home Assistant automations.
+The capability boundary is derived from one registry built from `src/data/options.js`, the normalized automation IR, Blockly-native trigger/condition/action structures, and the live Home Assistant `/api/services` catalog. A semantic category such as `lighting`, `sleep_preparation`, or `security` is descriptive metadata only; it never grants syntax support or execution permission.
 
-The MVP does not save an automation or call a Home Assistant action. Home Assistant access in this flow is read-only.
+Pipeline version: `0.4.0`.
 
-## Supported request shape
+## Why this architecture
 
-The deterministic fake provider intentionally supports one narrow scenario:
+An LLM is useful for mapping multilingual and paraphrased requests to intent, but it must not be the authority for device existence, service support, risk, or execution. The system therefore separates probabilistic interpretation from deterministic enforcement:
 
 ```text
-motion state trigger -> light.turn_on action
+User message (Korean or English)
+  -> live HA states + services
+  -> EntityCard construction + capability registry
+  -> lexical or hybrid entity retrieval
+  -> LLM goal analysis (structured JSON)
+  -> local evidence, capability, grounding, compatibility, and risk checks
+  -> branch
+       automation_creation -> LLM IR planning -> schema/grounding/semantic checks
+                           -> user imports blocks -> optional Push to HA
+       immediate_control   -> low-risk policy -> preview -> explicit Execute
+                           -> live revalidation -> one-time HA service call
 ```
 
-Example:
+This follows Home Assistant's own separation of triggers, conditions, and actions and uses the documented REST endpoints for states, services, and service calls:
 
-```text
-현관 움직임이 감지되면 거실 무드램프를 켜줘
-```
+- [Home Assistant automation basics](https://www.home-assistant.io/docs/automation/basics/)
+- [Home Assistant REST API](https://developers.home-assistant.io/docs/api/rest/)
 
-The Ollama research pipeline currently supports at most one state trigger, or a trigger-free manual draft, followed by exactly one `light.turn_on` or `light.turn_off` action. One action may target multiple grounded entities. The assistant context already establishes that the output is an automation draft, so it does not ask whether the user wanted immediate control. Missing triggers become manual-run drafts. Low-risk inferred actions are shown as assumptions, while genuinely blocking ambiguity produces at most one question per turn.
+## EntityCard and retrieval
 
-For a low-risk inferred `light.turn_off` goal, the LLM classifies the goal and primary service, while deterministic policy code constructs the grounded draft. It prefers lights currently on; if none are on, it creates a reusable all-supported-lights draft and records that assumption. This path skips the second planning-model call.
+An EntityCard is this project's compact, allowlisted representation of a Home Assistant entity. It contains the entity ID, display name, domain, state, device class, area when available, safe capability attributes, and services derived from the registry. Arbitrary attributes and credentials are not copied.
 
-Ambiguous entity candidates produce a confirmation response. Requests outside the supported trigger/action syntax produce an `unsupported` response. Both goal-analysis and draft responses are validated locally with JSON Schema rather than trusting Ollama's response-format constraint. Explicit/inferred action consistency, exact evidence spans, target hints, entity grounding, advertised services, Blockly capability, and analyzed intent are checked before a draft is shown. Each model stage permits at most one repair attempt.
+The retrieval interface supports two modes:
 
-The current research artifact versions are `pipeline 0.3.2`, `goal prompt 2026-08-16.2`, and `draft prompt 2026-08-16.1`. Every API response includes these values under `system` so that a running server can be distinguished from stale code.
+- `lexical`: deterministic field matching with inverse-document-frequency weighting; no extra model is needed.
+- `hybrid`: lexical ranking plus multilingual embedding similarity, fused with Reciprocal Rank Fusion (RRF). If embeddings fail or the model is absent, it falls back to lexical ranking instead of failing the assistant request.
 
-Pipeline 0.3.2 also repairs explicit state-trigger metadata deterministically when the request contains both a conditional phrase and a known EntityCard. This does not select a new entity or bypass planning validation; it prevents a small model's inconsistent `trigger_specified`, `trigger_kind`, and evidence fields from rejecting an otherwise explicit request. Inferred target IDs are retained only when the corresponding EntityCard is mentioned in the request.
+There is no Korean-to-English room dictionary or list of domain-specific room names. Hybrid retrieval is designed to handle requests such as Korean text against English Home Assistant entity names. The optional local embedding model is `qwen3-embedding:0.6b` through Ollama. RRF is used because lexical and cosine scores are on unrelated scales; it combines rank positions rather than pretending their raw scores are comparable.
 
-The running configuration can be checked without invoking a model:
+References:
 
-```text
-GET /api/llm/status
-```
+- [Qwen3 Embedding](https://github.com/QwenLM/Qwen3-Embedding)
+- [Ollama qwen3-embedding](https://ollama.com/library/qwen3-embedding)
+- [Reciprocal Rank Fusion](https://cormack.uwaterloo.ca/cormacksigir09-rrf.pdf)
 
-## Research pipeline boundary
+## Capability and category rules
 
-The implemented stages adapt the public Sasha/SAGE design ideas without copying their runtime:
+The supported service list is produced from Blockly's domain specification and intersected with the live Home Assistant service catalog. The same registry supplies:
 
-```text
-Goal analysis and feasibility
-  -> clarification when incomplete
-  -> grounded capability context
-  -> structured planning
-  -> deterministic semantic feedback
-  -> Blockly preview and conflict analysis
-```
+- native visual trigger, condition, and action-structure support;
+- entity/service domain compatibility;
+- whether an entity target is required;
+- low, medium, or high risk;
+- whether immediate execution is permitted after confirmation or is draft-only.
 
-This is not yet a full Sasha or SAGE reproduction. Entity/device/area registry joins, embedding retrieval, broader Home Assistant syntax, benchmark scoring, and execution/postcondition verification remain separate work. The application remains preview-only and never calls a Home Assistant service from the assistant flow.
+Adding a service to the shared visual domain specification therefore makes it visible to EntityCard generation, prompting, validation, and risk policy through one capability path. A new Blockly structure still requires an importer/generator implementation and explicit registration; the LLM cannot invent that support.
 
-## Run locally
+`goal_category` is free descriptive text used for reporting and research analysis. Support decisions use exact trigger kinds, condition kinds, action structures, service IDs, entity IDs, and risk metadata. This avoids the previous failure where a request could be rejected merely because a small model assigned the wrong broad category.
 
-Start the analyzer and draft API:
+## LLM calls
+
+Normal automation creation uses two structured calls:
+
+1. goal analysis: intent type, evidence spans, requested services, targets, ambiguity, and assumptions;
+2. automation planning: normalized Home Assistant automation IR.
+
+Each stage allows at most one repair call if local schema validation fails, so the worst case is four chat calls. A direct immediate-control request uses only goal analysis, then deterministic preview and execution policy; it does not call the planning model. Hybrid retrieval additionally calls the local embedding endpoint, which is not a generative LLM call.
+
+Both model stages use `temperature: 0`, a fixed seed, JSON Schema response formatting, and local validation. Korean and English are accepted as user input; the system prompts and schema terminology remain English for reproducibility.
+
+## Safety boundary
+
+- Entity IDs must exist in the supplied EntityCards.
+- Service IDs must exist in the live capability context.
+- Target domains must be compatible with the service.
+- Explicit evidence must be copied from the user's message.
+- Vague action wording is clarified instead of mapped to an arbitrary service.
+- Inferred actions must be low risk and list their assumptions.
+- Medium/high-risk immediate requests are draft-only.
+- Immediate execution always requires a visible preview and an explicit `Execute` click.
+- Preview tokens are single-use, expire after 60 seconds, and are stored only in server memory.
+- The server fetches current capabilities again immediately before execution.
+- Automation drafts are not saved until the user separately chooses `Push to HA`.
+
+## Current native visual scope
+
+The registry currently advertises the Blockly-native structures already present in this repository:
+
+- triggers: state, numeric state, time, time pattern, sun, Home Assistant lifecycle, event, MQTT, template;
+- conditions: state, numeric state, time, sun, template, and/or/not;
+- action structures: service call, delay, choose;
+- services: domains and methods declared by the shared Blockly domain specification and available in the connected Home Assistant instance.
+
+Unknown YAML remains preservable through raw blocks, but raw preservation is not presented to the LLM as native visual editability.
+
+## Run
 
 ```powershell
 node server\analyze_server.js
 ```
 
-Start the web application in a second terminal:
+In a second terminal:
 
 ```powershell
 npm start
 ```
 
-The root `.env` must contain the existing Home Assistant connection settings used by the project. Tokens are never included in the draft prompt or response.
-
-The deterministic provider remains the default:
-
-```dotenv
-LLM_PROVIDER=fake
-```
-
-To use a local Ollama model:
-
-```powershell
-ollama pull qwen3:4b-q4_K_M
-```
+Recommended local configuration:
 
 ```dotenv
 LLM_PROVIDER=ollama
-OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=qwen3:4b-q4_K_M
 OLLAMA_THINK=false
 OLLAMA_SEED=42
-OLLAMA_KEEP_ALIVE=30m
-LLM_REQUEST_TIMEOUT_MS=120000
-LLM_MAX_ENTITY_CARDS=32
+LLM_ENTITY_RETRIEVAL=lexical
 ```
 
-The server calls Ollama's local `/api/chat` endpoint with `temperature: 0` and a JSON Schema response format. It sends only the natural-language request, an optional entity selection, compact EntityCards, and the supported service list.
-
-## Verify
+For multilingual hybrid retrieval:
 
 ```powershell
-npm run test:llm
+ollama pull qwen3-embedding:0.6b
+```
+
+```dotenv
+LLM_ENTITY_RETRIEVAL=hybrid
+OLLAMA_EMBED_MODEL=qwen3-embedding:0.6b
+```
+
+## Known limitations
+
+- Area information is used when present, but a complete entity/device/area-registry join is not implemented yet.
+- Immediate execution currently sends only an entity target and no arbitrary service data.
+- Medium/high-risk services remain draft-only even when Home Assistant exposes them.
+- Lexical retrieval alone cannot reliably bridge unrelated Korean and English names; hybrid mode is intended for that case.
+- The existing 861-case YAML/Blockly corpus measures conversion compatibility, not full natural-language intent coverage. A separate multi-domain LLM evaluation set is still required.
+- The deterministic `fake` provider remains only as a narrow test fixture; the competition assistant uses Ollama.
+- On the tested Intel Core i5-1340P CPU-only Windows host, one live Korean automation request took 175.3 seconds end-to-end even after context retrieval. The output was correct and required no repair, but this latency is not yet an acceptable interactive target.
+
+## Live verification record
+
+The capability-driven pipeline was checked non-destructively against the connected Home Assistant instance on 2026-08-25:
+
+- 90 states and 42 service domains loaded successfully;
+- Korean request with English entity names retrieved `binary_sensor.pir_entrance` and `light.livingroom_light` through hybrid retrieval;
+- generated result: state trigger -> `light.turn_on` -> `light.livingroom_light`;
+- local validation errors: 0;
+- generative calls: 2, repairs: 0;
+- total latency: 175,298 ms;
+- no automation save, Home Assistant service call, or device execution was performed.
+
+## Verification
+
+```powershell
+npm test
 npm run build
 npm audit --omit=dev
 ```
-
-## Deliberately not implemented yet
-
-- entity/device/area registry joins
-- embedding retrieval
-- OpenAI or another hosted model provider
-- automation save or activation
-- direct device control
-- add-on source parity
-
-These are staged after review of the interaction and Blockly import behavior.

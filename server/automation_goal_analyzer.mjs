@@ -1,10 +1,11 @@
 import {
   requestOllamaStructured,
-  selectOllamaEntityContext,
 } from './ollama_automation_provider.mjs';
+import { retrieveEntityContext } from './entity_retriever.mjs';
+import { scopeCapabilityContext } from './capability_registry.mjs';
 import { validateJsonSchema } from './json_schema_validator.mjs';
 
-export const GOAL_PROMPT_VERSION = '2026-08-16.2';
+export const GOAL_PROMPT_VERSION = '2026-08-25.1';
 
 export const GOAL_ANALYSIS_SCHEMA = {
   type: 'object',
@@ -37,24 +38,22 @@ export const GOAL_ANALYSIS_SCHEMA = {
     },
     goal_category: {
       type: 'string',
-      enum: ['lighting', 'sleep_preparation', 'security', 'climate', 'media', 'other'],
     },
     home_supports_goal: { type: 'boolean' },
     trigger_specified: { type: 'boolean' },
-    trigger_kind: { type: 'string', enum: ['state', 'time', 'event', 'none', 'unknown'] },
+    trigger_kind: { type: 'string' },
     primary_service: {
       type: 'string',
-      enum: ['light.turn_on', 'light.turn_off', 'none'],
     },
     requested_services: {
       type: 'array',
-      items: { type: 'string', enum: ['light.turn_on', 'light.turn_off'] },
+      items: { type: 'string' },
     },
     action_source: { type: 'string', enum: ['explicit', 'inferred', 'unknown'] },
     target_scope: { type: 'string', enum: ['specific', 'all', 'unspecified'] },
     target_hints: { type: 'array', items: { type: 'string' } },
     target_entity_ids: { type: 'array', items: { type: 'string' }, maxItems: 8 },
-    risk_level: { type: 'string', enum: ['low', 'high'] },
+    risk_level: { type: 'string', enum: ['low', 'medium', 'high'] },
     confidence: { type: 'integer', minimum: 0, maximum: 100 },
     assumptions: { type: 'array', items: { type: 'string' }, maxItems: 3 },
     questions: { type: 'array', items: { type: 'string' }, maxItems: 1 },
@@ -75,19 +74,19 @@ export const GOAL_ANALYSIS_SCHEMA = {
 const GOAL_ANALYZER_PROMPT = `You analyze a user's goal for a Home Assistant automation. Do not generate automation JSON. Determine only whether the goal is sufficiently clear and feasible in the supplied home context.
 
 Rules:
-1. This interface creates automation drafts. Even if the user phrases the request as an immediate command, classify it as goal_type=automation_creation. Never execute it.
+1. interaction_mode=automation always means goal_type=automation_creation. In interaction_mode=auto, a direct action with no trigger is immediate_control; a conditional, scheduled, or explicitly requested rule is automation_creation. You only classify intent and never execute it.
 2. If no trigger is stated, do not ask for one. Set trigger_specified=false and trigger_kind=none, and plan a manually runnable draft.
-3. For a low-risk, reversible lighting draft, you may infer the smallest common-sense plan from an abstract goal. Record every inference in assumptions.
-4. For example, sleep preparation may suggest the minimal draft of turning off currently-on general lights. Do not turn on new lights or add unstated high-risk actions.
+3. Use only capabilities and entity actions supplied in home_context. Capability support is determined by service and structure, not by a broad semantic category.
+4. For a low-risk, reversible draft, you may infer the smallest common-sense plan from an abstract goal. Record every inference in assumptions. Never infer a medium- or high-risk action.
 5. Set action_source=explicit only when the conversation directly states the action, and copy the exact action wording into evidence.action_phrase. Set action_source=inferred only when the action is inferred, leave evidence.action_phrase empty, and state the rationale in assumptions.
-6. The supported planning scope is a state trigger, a manually runnable draft, and light.turn_on/light.turn_off. Return unsupported for other capabilities.
+6. The supported planning scope is exactly home_context.capabilities. Return unsupported only when the required trigger, condition, action structure, or service is absent from that context.
 7. Assess feasibility only from the provided entities and supported_actions.
 8. Every non-empty evidence value and every target_hints item must be an exact contiguous substring of conversation. Use an empty string when no such evidence exists.
 9. Ask at most one question, and only when the uncertainty would materially change the plan.
-10. Return ready for a low-risk draft. For inferred security, lock, or other high-risk actions, return needs_clarification or unsupported.
-11. Choose the smallest sufficient device set. For an inferred light.turn_off action, prefer lights whose current state is on. If none are on, explicitly record an assumption before selecting all supported lights for a reusable draft.
-12. goal_category=sleep_preparation covers goals such as preparing for bed or sleep that may involve multiple device actions.
-13. primary_service is the single most important action. When status=ready, it must not be none and the same value must appear in requested_services.
+10. Return ready for an explicit supported action. For every inferred medium- or high-risk action, return needs_clarification or unsupported.
+11. Choose the smallest sufficient device set. Prefer entities whose advertised actions contain the selected service.
+12. goal_category is a descriptive scenario or domain label only. It never decides capability support or execution permission.
+13. primary_service is the single most important action and must be copied exactly from home_context.capabilities.services. When status=ready, it must not be none and the same value must appear in requested_services.
 14. confidence is an integer percentage from 0 to 100. Use 70 or higher only for high confidence.
 15. Set target_scope=specific when the user identifies a room or device, all only when the user explicitly requests all matching devices, and unspecified when no target is stated. For specific targets, copy exact target wording into target_hints and evidence.target_phrase, and put only matching IDs from home_context.entities into target_entity_ids. Never invent an entity ID.
 16. When status=needs_clarification, leave unconfirmed requested_services, target_hints, and target_entity_ids empty and use action_source=unknown.
@@ -113,62 +112,19 @@ function phraseAppears(phrase, source) {
   return Boolean(value) && text(source).toLocaleLowerCase().includes(value);
 }
 
-const EXPLICIT_SERVICE_PATTERNS = [
-  {
-    service: 'light.turn_on',
-    pattern: /(?:켜\s*(?:줘|줘요|주세요|라|기)|turn\s+on|switch\s+on)/giu,
-  },
-  {
-    service: 'light.turn_off',
-    pattern: /(?:꺼\s*(?:줘|줘요|주세요|라|기)|끄\s*(?:기|세요|라고|도록|자)?|turn\s+off|switch\s+off)/giu,
-  },
-];
+const VAGUE_ACTION_EVIDENCE_RE = /(?:뭔가|무언가|아무거나|알아서|something|anything|whatever)/iu;
+const CONDITIONAL_TRIGGER_RE = /^\s*(?:when(?:ever)?|if|after|before|once|every|at\b)|(?:면|때|후|전|마다|시에)(?:\s|,|$)/iu;
+const TIME_TRIGGER_RE = /(?:\b(?:at|every)\s+\d|\b(?:daily|weekly)\b|\d{1,2}(?::\d{2})?\s*(?:am|pm)|\d{1,2}\s*시|매일|매주|마다)/iu;
+const ALL_SCOPE_RE = /(?:\ball\b|\bevery\b|모든|전부|전체|모두|다\s*(?:켜|꺼|끄|닫|열))/iu;
+const MULTI_TARGET_RE = /(?:\band\b|\s및\s|와\s|과\s|,)/iu;
 
-const SLEEP_PREPARATION_RE = /(?:잠들|잠자|취침|수면|잘\s*준비|자러|bedtime|sleep|go(?:ing)?\s+to\s+bed|prepar(?:e|ing)\s+for\s+bed)/iu;
-const EXPLICIT_LIGHT_TARGET_RE = /(?:조명|불|램프|light|lamp)/iu;
-
-function detectExplicitService(source) {
-  const matches = [];
-  for (const { service, pattern } of EXPLICIT_SERVICE_PATTERNS) {
-    pattern.lastIndex = 0;
-    for (const match of text(source).matchAll(pattern)) {
-      matches.push({ service, phrase: match[0], index: match.index || 0 });
-    }
-  }
-  return matches.sort((a, b) => b.index - a.index)[0] || null;
-}
-
-function detectExplicitStateTrigger(source, cards = []) {
+function triggerClause(source) {
   const value = text(source);
-  const koreanConditional = value.match(/^(.+?(?:면|때|경우|후))(?:\s|,)/u);
-  const englishConditional = value.match(
-    /^\s*((?:when|if|after|once)\b.+?)(?:,|\bthen\b)/iu,
-  );
-  const phrase = text(koreanConditional?.[1] || englishConditional?.[1]);
+  const english = value.match(/^\s*((?:when(?:ever)?|if|after|before|once|every|at\b).+?)(?:,|\bthen\b)/iu);
+  const korean = value.match(/^\s*(.+?(?:면|때|후|전|마다|시에))(?:\s|,)/u);
+  const phrase = text(english?.[1] || korean?.[1]);
   if (!phrase) return null;
-
-  const normalizedPhrase = normalized(phrase);
-  const referencesKnownEntity = cards.some((card) => [
-    card?.entity_id,
-    card?.friendly_name,
-    card?.area,
-  ].map(normalized).filter(Boolean).some(
-    (candidate) => normalizedPhrase.includes(candidate) || candidate.includes(normalizedPhrase),
-  ));
-  const describesMotionState = /(?:움직임|동작|모션|재실|감지|motion|movement|presence|occupancy)/iu
-    .test(phrase);
-  const hasMotionEntity = cards.some((card) => (
-    card?.domain === 'binary_sensor'
-    && (
-      ['motion', 'occupancy', 'presence'].includes(normalized(card?.device_class))
-      || /(?:pir|motion|movement|presence|occupancy)/iu.test(
-        `${text(card?.entity_id)} ${text(card?.friendly_name)}`,
-      )
-    )
-  ));
-  return referencesKnownEntity || (describesMotionState && hasMotionEntity)
-    ? { kind: 'state', phrase }
-    : null;
+  return { phrase, kind: TIME_TRIGGER_RE.test(phrase) ? 'time' : 'state' };
 }
 
 function normalized(value) {
@@ -208,23 +164,7 @@ function normalizeGoalAnalysis(analysis, sourceText, cards) {
   const normalizedAnalysis = typeof structuredClone === 'function'
     ? structuredClone(analysis)
     : JSON.parse(JSON.stringify(analysis));
-  const explicitService = detectExplicitService(sourceText);
-  const explicitTrigger = detectExplicitStateTrigger(sourceText, cards);
-  if (
-    explicitService
-    && normalizedAnalysis.primary_service === explicitService.service
-    && Array.isArray(normalizedAnalysis.requested_services)
-    && normalizedAnalysis.requested_services.includes(explicitService.service)
-  ) {
-    normalizedAnalysis.action_source = 'explicit';
-    normalizedAnalysis.evidence = {
-      ...(normalizedAnalysis.evidence || {}),
-      action_phrase: explicitService.phrase,
-    };
-  }
-  if (normalizedAnalysis.trigger_specified === false && normalizedAnalysis.evidence) {
-    normalizedAnalysis.evidence.trigger_phrase = '';
-  }
+  const explicitTrigger = triggerClause(sourceText);
   if (normalizedAnalysis.status === 'ready' && explicitTrigger) {
     normalizedAnalysis.trigger_specified = true;
     normalizedAnalysis.trigger_kind = explicitTrigger.kind;
@@ -232,6 +172,9 @@ function normalizeGoalAnalysis(analysis, sourceText, cards) {
       ...(normalizedAnalysis.evidence || {}),
       trigger_phrase: explicitTrigger.phrase,
     };
+  }
+  if (normalizedAnalysis.trigger_specified === false && normalizedAnalysis.evidence) {
+    normalizedAnalysis.evidence.trigger_phrase = '';
   }
 
   const cardIds = new Set((cards || []).map((card) => card.entity_id));
@@ -244,48 +187,20 @@ function normalizeGoalAnalysis(analysis, sourceText, cards) {
     normalizedAnalysis.evidence.target_phrase = '';
   }
   normalizedAnalysis.target_entity_ids = [...new Set(targetIds)];
-  const targetHints = [
-    ...(Array.isArray(normalizedAnalysis.target_hints)
-      ? normalizedAnalysis.target_hints
-      : []),
-    targetPhrase,
-  ].map(text).filter(Boolean);
-  const groundedExplicitLightAction = Boolean(
-    explicitService
-    && EXPLICIT_LIGHT_TARGET_RE.test(sourceText)
-    && cards.some((card) => (
-      card?.domain === 'light'
-      && Array.isArray(card.supported_actions)
-      && card.supported_actions.includes(explicitService.service)
-      && (
-        normalizedAnalysis.target_entity_ids.includes(card.entity_id)
-        || cardMatchesTargetHints(card, targetHints)
-      )
-    )),
-  );
+
+  const requestedService = text(normalizedAnalysis.primary_service);
+  const targetPhraseForGrounding = text(normalizedAnalysis.evidence?.target_phrase);
   if (
     normalizedAnalysis.status === 'ready'
-    && groundedExplicitLightAction
+    && targetPhraseForGrounding
+    && !ALL_SCOPE_RE.test(targetPhraseForGrounding)
   ) {
-    normalizedAnalysis.goal_category = 'lighting';
-    normalizedAnalysis.home_supports_goal = true;
-    normalizedAnalysis.primary_service = explicitService.service;
-    normalizedAnalysis.requested_services = [explicitService.service];
-    normalizedAnalysis.action_source = 'explicit';
     normalizedAnalysis.target_scope = 'specific';
-    normalizedAnalysis.evidence = {
-      ...(normalizedAnalysis.evidence || {}),
-      action_phrase: explicitService.phrase,
-    };
+    if (!MULTI_TARGET_RE.test(targetPhraseForGrounding)) {
+      const bestCompatible = cards.find((card) => card?.supported_actions?.includes(requestedService));
+      if (bestCompatible) normalizedAnalysis.target_entity_ids = [bestCompatible.entity_id];
+    }
   }
-  if (
-    normalizedAnalysis.target_entity_ids.length
-    && explicitService
-    && text(normalizedAnalysis.evidence?.target_phrase).includes(explicitService.phrase)
-  ) {
-    normalizedAnalysis.evidence.target_phrase = '';
-  }
-
   if (normalizedAnalysis.action_source === 'inferred') {
     normalizedAnalysis.evidence = {
       ...(normalizedAnalysis.evidence || {}),
@@ -305,15 +220,13 @@ function normalizeGoalAnalysis(analysis, sourceText, cards) {
   }
 
   const unsupportedExplicitClaim = normalizedAnalysis.action_source === 'explicit'
-    && !explicitService;
-  const unsupportedInference = normalizedAnalysis.action_source === 'inferred'
     && (
-      normalizedAnalysis.goal_category !== 'sleep_preparation'
-      || !SLEEP_PREPARATION_RE.test(sourceText)
+      !text(normalizedAnalysis.evidence?.action_phrase)
+      || VAGUE_ACTION_EVIDENCE_RE.test(normalizedAnalysis.evidence.action_phrase)
     );
   if (
     normalizedAnalysis.status === 'ready'
-    && (unsupportedExplicitClaim || unsupportedInference)
+    && unsupportedExplicitClaim
   ) {
     const korean = /[가-힣]/u.test(sourceText);
     normalizedAnalysis.status = 'needs_clarification';
@@ -323,30 +236,13 @@ function normalizeGoalAnalysis(analysis, sourceText, cards) {
     normalizedAnalysis.target_hints = [];
     normalizedAnalysis.target_entity_ids = [];
     normalizedAnalysis.questions = [korean
-      ? '조명을 켤까요, 끌까요?'
-      : 'Should the light turn on or off?'];
+      ? '어떤 동작을 수행해야 하는지 구체적으로 알려주세요.'
+      : 'Which specific action should be performed?'];
     normalizedAnalysis.reason = korean
-      ? '요청 원문에서 실행할 조명 동작의 근거를 확인할 수 없다.'
-      : 'The user wording does not provide evidence for a specific lighting action.';
+      ? '요청 원문에서 실행할 동작의 근거를 확인할 수 없다.'
+      : 'The user wording does not provide evidence for a specific action.';
   }
 
-  if (
-    normalizedAnalysis.status === 'ready'
-    && ['climate', 'security', 'media'].includes(normalizedAnalysis.goal_category)
-  ) {
-    const korean = /[가-힣]/u.test(sourceText);
-    normalizedAnalysis.status = 'unsupported';
-    normalizedAnalysis.home_supports_goal = false;
-    normalizedAnalysis.primary_service = 'none';
-    normalizedAnalysis.requested_services = [];
-    normalizedAnalysis.action_source = 'unknown';
-    normalizedAnalysis.target_hints = [];
-    normalizedAnalysis.target_entity_ids = [];
-    normalizedAnalysis.questions = [];
-    normalizedAnalysis.reason = korean
-      ? '현재 자동화 초안은 조명 켜기와 끄기만 지원한다.'
-      : 'The current automation draft supports only turning lights on or off.';
-  }
   return normalizedAnalysis;
 }
 
@@ -396,8 +292,14 @@ export function validateGoalAnalysis(analysis, sourceText, cards = []) {
     if (analysis.trigger_specified !== (analysis.trigger_kind !== 'none')) {
       errors.push('trigger_specified and trigger_kind are inconsistent.');
     }
-    if (analysis.trigger_kind === 'state' && !phraseAppears(evidence.trigger_phrase, source)) {
-      errors.push('A state trigger requires exact trigger evidence from the user conversation.');
+    if (CONDITIONAL_TRIGGER_RE.test(source) && !analysis.trigger_specified) {
+      errors.push('The request contains an explicit conditional or scheduled trigger clause, but the analysis omitted it.');
+    }
+    if (analysis.target_scope === 'all' && !ALL_SCOPE_RE.test(source)) {
+      errors.push('target_scope=all requires an explicit universal quantifier in the user conversation.');
+    }
+    if (analysis.trigger_kind !== 'none' && !phraseAppears(evidence.trigger_phrase, source)) {
+      errors.push('A specified trigger requires exact trigger evidence from the user conversation.');
     }
     if (
       analysis.target_scope === 'specific'
@@ -408,17 +310,7 @@ export function validateGoalAnalysis(analysis, sourceText, cards = []) {
     }
   }
 
-  const explicitService = detectExplicitService(source);
-  if (analysis.status === 'ready' && explicitService) {
-    if (analysis.primary_service !== explicitService.service) {
-      errors.push(`Explicit user wording indicates ${explicitService.service}, not ${analysis.primary_service}.`);
-    }
-    if (analysis.action_source !== 'explicit') {
-      errors.push('Explicit service wording cannot be classified as an inferred action.');
-    }
-  }
-
-  return { valid: errors.length === 0, errors, explicit_service: explicitService };
+  return { valid: errors.length === 0, errors };
 }
 
 function clarification(analysis, fallbackQuestion) {
@@ -449,20 +341,37 @@ export async function analyzeAutomationGoal(payload = {}, options = {}) {
   const configuredMaxCards = Number.parseInt(String(env.LLM_MAX_ENTITY_CARDS || ''), 10);
   const maxCards = Number.isFinite(configuredMaxCards) && configuredMaxCards > 0
     ? configuredMaxCards
-    : 32;
-  const entityCards = selectOllamaEntityContext(sourceText, payload.entity_cards, maxCards);
+    : 16;
+  const retrieval = await retrieveEntityContext(sourceText, payload.entity_cards, {
+    ...options,
+    maxCards,
+  });
+  const entityCards = retrieval.cards;
+  const capabilityContext = payload.capability_context || {
+    trigger_kinds: ['state'],
+    condition_kinds: [],
+    action_structures: ['service'],
+    services: [...new Set(entityCards.flatMap((card) => card.supported_actions || []))]
+      .map((id) => ({ id, risk: 'low' })),
+  };
+  const promptCapabilityContext = scopeCapabilityContext(capabilityContext, entityCards);
+  promptCapabilityContext.services = promptCapabilityContext.services.map((service) => ({
+    id: typeof service === 'string' ? service : service.id,
+    risk: typeof service === 'string' ? 'high' : service.risk,
+    target_required: typeof service === 'string' ? true : service.target_required,
+  }));
   const messages = [
     { role: 'system', content: GOAL_ANALYZER_PROMPT },
     {
       role: 'user',
       content: JSON.stringify({
+        interaction_mode: payload.interaction_mode || 'automation',
         conversation: Array.isArray(payload.conversation) && payload.conversation.length
           ? payload.conversation
           : [{ role: 'user', content: text(payload.command) }],
         home_context: {
           entities: entityCards,
-          supported_trigger_kinds: ['state'],
-          supported_services: ['light.turn_on', 'light.turn_off'],
+          capabilities: promptCapabilityContext,
         },
       }),
     },
@@ -481,6 +390,7 @@ export async function analyzeAutomationGoal(payload = {}, options = {}) {
       stage: 'goal_analysis',
       attempt: attempt + 1,
       context_entities: entityCards.length,
+      retrieval_method: retrieval.method,
       ...response.performance,
     });
     analysis = normalizeGoalAnalysis(response.output, sourceText, entityCards);
@@ -522,18 +432,16 @@ export async function analyzeAutomationGoal(payload = {}, options = {}) {
   if (analysis.status === 'needs_clarification') {
     return { ...clarification(analysis, 'Describe the desired action and what should start the automation.'), model: response.model, ollama_calls: ollamaCalls };
   }
-  if (analysis.trigger_kind !== 'state' && analysis.trigger_kind !== 'none') {
-    const question = analysis.trigger_kind === 'time'
-      ? 'Time triggers are not supported yet. Should I create a manually runnable draft instead?'
-      : 'Should I use a supported state trigger or create a manually runnable draft?';
-    return { ...clarification(analysis, question), model: response.model, ollama_calls: ollamaCalls };
+  const supportedTriggerKinds = new Set(capabilityContext.trigger_kinds || []);
+  if (analysis.trigger_kind !== 'none' && !supportedTriggerKinds.has(analysis.trigger_kind)) {
+    return { ...clarification(analysis, 'Which supported trigger should start this automation?'), model: response.model, ollama_calls: ollamaCalls };
   }
   const services = Array.isArray(analysis.requested_services)
     ? [...new Set(analysis.requested_services.map(text).filter(Boolean))]
     : [];
   if (!services.length) {
     return {
-      ...clarification(analysis, 'Should the lights turn on or off for this goal?'),
+      ...clarification(analysis, 'Which supported action should this automation perform?'),
       model: response.model,
       ollama_calls: ollamaCalls,
     };
@@ -544,24 +452,46 @@ export async function analyzeAutomationGoal(payload = {}, options = {}) {
     : [];
   if (!actionIsExplicit && (analysis.risk_level !== 'low' || !assumptions.length)) {
     return {
-      ...clarification(analysis, 'Which lighting action should replace the inferred action?'),
+      ...clarification(analysis, 'Which explicit action should replace this unsafe inference?'),
       model: response.model,
       ollama_calls: ollamaCalls,
     };
   }
-  if (analysis.trigger_kind === 'state' && !phraseAppears(analysis.evidence?.trigger_phrase, sourceText)) {
+  if (analysis.trigger_kind !== 'none' && !phraseAppears(analysis.evidence?.trigger_phrase, sourceText)) {
     return { ...clarification(analysis, 'Which entity state change should be used as the trigger?'), model: response.model, ollama_calls: ollamaCalls };
   }
-  const supported = services.every((service) => entityCards.some(
-    (card) => Array.isArray(card.supported_actions) && card.supported_actions.includes(service),
-  ));
-  if (!analysis.home_supports_goal || !supported) {
+  const capabilityServiceIds = new Set((capabilityContext.services || [])
+    .map((service) => typeof service === 'string' ? service : service?.id)
+    .map(text)
+    .filter(Boolean));
+  const serviceCapabilities = new Map((capabilityContext.services || [])
+    .map((service) => typeof service === 'string' ? { id: service, risk: 'low' } : service)
+    .filter((service) => text(service?.id))
+    .map((service) => [text(service.id), service]));
+  const riskRank = { low: 0, medium: 1, high: 2 };
+  const effectiveRisk = services.reduce((highest, service) => {
+    const risk = text(serviceCapabilities.get(service)?.risk) || 'high';
+    return riskRank[risk] > riskRank[highest] ? risk : highest;
+  }, 'low');
+  const supported = services.every((service) => capabilityServiceIds.has(service));
+  const targetsCompatible = (analysis.target_entity_ids || []).every((entityId) => {
+    const card = entityCards.find((candidate) => candidate.entity_id === entityId);
+    return card && services.some((service) => card.supported_actions?.includes(service));
+  });
+  if (!analysis.home_supports_goal || !supported || !targetsCompatible) {
     return {
       status: 'unsupported',
       provider: 'ollama',
       model: response.model,
       reason: 'This goal cannot be planned with the available Home Assistant entities and supported services.',
       goal_analysis: analysis,
+      ollama_calls: ollamaCalls,
+    };
+  }
+  if (!actionIsExplicit && effectiveRisk !== 'low') {
+    return {
+      ...clarification(analysis, 'Please state the requested action explicitly because it is not classified as low risk.'),
+      model: response.model,
       ollama_calls: ollamaCalls,
     };
   }
@@ -573,11 +503,13 @@ export async function analyzeAutomationGoal(payload = {}, options = {}) {
     ollama_calls: ollamaCalls,
     goal_analysis: {
       ...analysis,
-      goal_type: 'automation_creation',
+      goal_type: analysis.goal_type,
       requested_services: services,
+      risk_level: effectiveRisk,
       assumptions,
       inferred_action: !actionIsExplicit,
     },
+    retrieval,
   };
 }
 
@@ -628,33 +560,20 @@ export function applyConservativeDraftPolicy(automation, analysis, cards = []) {
   }
 
   if (analysis?.inferred_action) {
-    const services = [...new Set(analysis.requested_services || [])];
-    const inferredActions = [];
-    for (const service of services) {
-      if (service !== 'light.turn_off') continue;
-      let eligibleTargets = cards
-        .filter((card) => card?.domain === 'light')
-        .filter((card) => Array.isArray(card.supported_actions) && card.supported_actions.includes(service))
-        .filter((card) => Boolean(card.entity_id));
-      if (analysis.target_scope === 'specific') {
-        eligibleTargets = eligibleTargets.filter(
-          (card) => cardMatchesAnalysisTarget(card, analysis),
-        );
-      }
-      const currentlyOnTargets = eligibleTargets.filter((card) => card.state === 'on');
-      const targets = (currentlyOnTargets.length ? currentlyOnTargets : eligibleTargets)
-        .map((card) => card.entity_id);
-      if (!targets.length) continue;
-      inferredActions.push({
-        service,
-        target: { entity_id: targets },
-        data: {},
+    const allowedServices = new Set(analysis.requested_services || []);
+    const cardsById = new Map(cards.map((card) => [card.entity_id, card]));
+    draft.actions = (Array.isArray(draft.actions) ? draft.actions : []).filter((action) => {
+      const service = text(action?.service || action?.action);
+      if (!allowedServices.has(service)) return false;
+      const targets = Array.isArray(action?.target?.entity_id) ? action.target.entity_id : [];
+      const compatible = targets.every((entityId) => {
+        const card = cardsById.get(entityId);
+        return card?.supported_actions?.includes(service)
+          && (analysis.target_scope !== 'specific' || cardMatchesAnalysisTarget(card, analysis));
       });
-      notes.push(currentlyOnTargets.length
-        ? `Limited the inferred light-off action to ${targets.length} currently-on light(s).`
-        : `No lights are currently on; assumed all ${targets.length} supported light(s) for a reusable draft.`);
-    }
-    draft.actions = inferredActions;
+      return compatible;
+    });
+    notes.push('Restricted inferred actions to analyzed services and compatible grounded entities.');
   }
 
   return { automation: draft, notes };

@@ -1,130 +1,90 @@
-import assert from "node:assert/strict";
-import test from "node:test";
-import { createControlNowService } from "../control_now_service.mjs";
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { createCapabilityRegistry } from '../capability_registry.mjs';
+import { createControlNowService } from '../control_now_service.mjs';
 
-const lights = [
-  {
-    entity_id: "light.kitchen_ceiling",
-    friendly_name: "Kitchen Ceiling",
-    area: "Kitchen",
-    domain: "light",
-    supported_actions: ["light.turn_on", "light.turn_off"],
-  },
-  {
-    entity_id: "light.kitchen_counter",
-    friendly_name: "Kitchen Counter",
-    area: "Kitchen",
-    domain: "light",
-    supported_actions: ["light.turn_on", "light.turn_off"],
-  },
-  {
-    entity_id: "light.livingroom_light",
-    friendly_name: "Livingroom Light",
-    area: "Living Room",
-    domain: "light",
-    supported_actions: ["light.turn_on", "light.turn_off"],
-  },
-  {
-    entity_id: "switch.fan",
-    friendly_name: "Fan",
-    area: "Kitchen",
-    domain: "switch",
-    supported_actions: [],
-  },
+const entities = [
+  { entity_id: 'light.kitchen', friendly_name: 'Kitchen Light', domain: 'light', supported_actions: ['light.turn_on', 'light.turn_off'] },
+  { entity_id: 'switch.coffee', friendly_name: 'Coffee Maker', domain: 'switch', supported_actions: ['switch.turn_on', 'switch.turn_off'] },
+  { entity_id: 'switch.fan', friendly_name: 'Fan', domain: 'switch', supported_actions: ['switch.turn_on', 'switch.turn_off'] },
+  { entity_id: 'climate.bedroom', friendly_name: 'Thermostat', domain: 'climate', supported_actions: ['climate.set_temperature'] },
 ];
 
 function fixture(overrides = {}) {
   const calls = [];
-  let time = 1000;
-  let cards = structuredClone(lights);
+  let time = 1_000;
+  let cards = structuredClone(entities);
+  const registry = createCapabilityRegistry();
   const service = createControlNowService({
-    fetchEntityCards: async () => cards,
-    callLightService: async (request) => { calls.push(request); },
-    createId: () => "preview-1",
+    fetchCapabilityContext: async () => ({ entityCards: cards, registry }),
+    callService: async (request) => { calls.push(request); },
+    createId: () => 'preview-1',
     now: () => time,
     ...overrides,
   });
-  return {
-    service,
-    calls,
-    setCards(value) { cards = value; },
-    advance(ms) { time += ms; },
-  };
+  return { service, calls, setCards(value) { cards = value; }, advance(ms) { time += ms; } };
 }
 
-test("previews and executes one explicit light action exactly once", async () => {
+test('previews and executes any registry-approved low-risk domain exactly once', async () => {
   const f = fixture();
-  const preview = await f.service.preview({ command: "Turn on Kitchen Ceiling" });
-  assert.equal(preview.status, "ready_to_execute");
-  assert.equal(preview.service, "light.turn_on");
-  assert.equal(preview.entity.entity_id, "light.kitchen_ceiling");
-
+  const preview = await f.service.preview({
+    service: 'switch.turn_on',
+    candidate_entity_ids: ['switch.coffee'],
+  });
+  assert.equal(preview.status, 'ready_to_execute');
+  assert.equal(preview.entity.entity_id, 'switch.coffee');
   const result = await f.service.execute({ execution_id: preview.execution_id });
-  assert.equal(result.status, "success");
-  assert.deepEqual(f.calls, [{ service: "light.turn_on", entity_id: "light.kitchen_ceiling" }]);
-  await assert.rejects(
-    f.service.execute({ execution_id: preview.execution_id }),
-    (error) => error.code === "invalid_or_used_preview" && error.statusCode === 409,
-  );
+  assert.equal(result.status, 'success');
+  assert.deepEqual(f.calls, [{ service: 'switch.turn_on', entity_id: 'switch.coffee' }]);
+  await assert.rejects(f.service.execute({ execution_id: preview.execution_id }), /invalid, expired, or already used/);
 });
 
-test("requires candidate selection for an ambiguous light target", async () => {
+test('requires selection when grounded candidates remain ambiguous', async () => {
   const f = fixture();
-  const ambiguous = await f.service.preview({ command: "Kitchen lights off" });
-  assert.equal(ambiguous.status, "needs_confirmation");
-  assert.deepEqual(
-    ambiguous.candidates.map(({ entity_id }) => entity_id),
-    ["light.kitchen_ceiling", "light.kitchen_counter"],
-  );
-
+  const preview = await f.service.preview({
+    service: 'switch.turn_off',
+    candidate_entity_ids: ['switch.coffee', 'switch.fan'],
+  });
+  assert.equal(preview.status, 'needs_confirmation');
+  assert.equal(preview.candidates.length, 2);
   const selected = await f.service.preview({
-    command: "Kitchen lights off",
-    selected_entity_id: "light.kitchen_counter",
+    service: 'switch.turn_off',
+    candidate_entity_ids: ['switch.coffee', 'switch.fan'],
+    selected_entity_id: 'switch.fan',
   });
-  assert.equal(selected.status, "ready_to_execute");
-  assert.equal(selected.entity.entity_id, "light.kitchen_counter");
-  assert.equal(selected.service, "light.turn_off");
+  assert.equal(selected.entity.entity_id, 'switch.fan');
 });
 
-test("grounds a Korean room name against an English Home Assistant entity", async () => {
+test('rejects medium-risk, incompatible, and forged requests', async () => {
   const f = fixture();
-  const preview = await f.service.preview({ command: "거실 불을 켜줘" });
-  assert.equal(preview.status, "ready_to_execute");
-  assert.equal(preview.service, "light.turn_on");
-  assert.equal(preview.entity.entity_id, "light.livingroom_light");
-});
-
-test("rejects inferred, conditional, non-light, and forged selections", async () => {
-  const f = fixture();
-  await assert.rejects(f.service.preview({ command: "Make it comfortable" }), /Explicitly ask/);
-  await assert.rejects(f.service.preview({ command: "When I arrive, turn on the light" }), /immediate/);
-  await assert.rejects(f.service.preview({ command: "Turn on the fan" }), /supports only a light/);
   await assert.rejects(
-    f.service.preview({ command: "Turn on the lights", selected_entity_id: "light.not_in_ha" }),
-    /no longer an eligible candidate/,
+    f.service.preview({ service: 'climate.set_temperature', candidate_entity_ids: ['climate.bedroom'] }),
+    (error) => error.code === 'draft_only_service',
   );
-  assert.equal(f.calls.length, 0);
+  await assert.rejects(
+    f.service.preview({ service: 'light.turn_on', candidate_entity_ids: ['switch.coffee'] }),
+    (error) => error.code === 'no_compatible_entity',
+  );
+  await assert.rejects(
+    f.service.preview({ service: 'switch.turn_on', candidate_entity_ids: ['switch.coffee'], selected_entity_id: 'switch.forged' }),
+    (error) => error.code === 'invalid_selection',
+  );
 });
 
-test("revalidates the entity against current Home Assistant cards before execution", async () => {
+test('revalidates capability and entity immediately before execution', async () => {
   const f = fixture();
-  const preview = await f.service.preview({ command: "Turn off Kitchen Ceiling" });
-  f.setCards(lights.filter(({ entity_id }) => entity_id !== "light.kitchen_ceiling"));
+  const preview = await f.service.preview({ service: 'light.turn_off', candidate_entity_ids: ['light.kitchen'] });
+  f.setCards(entities.filter(({ entity_id }) => entity_id !== 'light.kitchen'));
   await assert.rejects(
     f.service.execute({ execution_id: preview.execution_id }),
-    (error) => error.code === "entity_revalidation_failed",
+    (error) => error.code === 'capability_revalidation_failed',
   );
   assert.equal(f.calls.length, 0);
 });
 
-test("surfaces Home Assistant service failures without allowing a retry", async () => {
-  const f = fixture({
-    callLightService: async () => { throw new Error("Home Assistant service request failed: 500"); },
-  });
-  const preview = await f.service.preview({ command: "Turn on Kitchen Ceiling" });
+test('service failure consumes the one-time preview', async () => {
+  const f = fixture({ callService: async () => { throw new Error('Home Assistant service request failed: 500'); } });
+  const preview = await f.service.preview({ service: 'light.turn_on', candidate_entity_ids: ['light.kitchen'] });
   await assert.rejects(f.service.execute({ execution_id: preview.execution_id }), /failed: 500/);
-  await assert.rejects(
-    f.service.execute({ execution_id: preview.execution_id }),
-    (error) => error.code === "invalid_or_used_preview",
-  );
+  await assert.rejects(f.service.execute({ execution_id: preview.execution_id }), /invalid, expired, or already used/);
 });

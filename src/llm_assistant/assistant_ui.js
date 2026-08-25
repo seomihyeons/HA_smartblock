@@ -66,14 +66,14 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     section.appendChild(createElement(
       'p',
       '',
-      'Describe an automation or ask to control a light. The assistant selects the safe workflow from your request.',
+      'Describe an automation or request a supported device action. The assistant selects the safe workflow from your request.',
     ));
     const example = createElement('div', 'ai-welcome-example');
     example.appendChild(createElement('span', '', 'Examples'));
     example.appendChild(createElement(
       'code',
       '',
-      'When entrance motion is detected, turn on the living room light. · Turn off the kitchen light.',
+      'When entrance motion is detected, turn on the living room light. · Turn on the coffee maker.',
     ));
     section.appendChild(example);
     section.appendChild(createElement(
@@ -147,8 +147,8 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     ];
     if (assumptions.length) {
       const goalAnalysis = result.pipeline?.goal_analysis || {};
-      const noteLabel = goalAnalysis.inferred_action && goalAnalysis.goal_category === 'sleep_preparation'
-        ? 'Conservative Policy Gate · sleep_preparation'
+      const noteLabel = goalAnalysis.inferred_action
+        ? `Conservative Policy Gate · ${goalAnalysis.goal_category || 'inferred_goal'}`
         : 'Draft notes';
       card.appendChild(createElement(
         'div',
@@ -194,7 +194,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     button.disabled = true;
     sendButton.disabled = true;
     input.disabled = true;
-    setStatus(status, 'running', 'Revalidating light with Home Assistant...');
+    setStatus(status, 'running', 'Revalidating capability with Home Assistant...');
     try {
       const response = await fetch('/api/control-now/execute', {
         method: 'POST',
@@ -206,7 +206,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       appendMessage('assistant', `Executed once · ${result.service} · ${result.entity?.entity_id}`);
       setStatus(status, 'done', 'Executed once · Home Assistant confirmed the request');
     } catch (error) {
-      appendMessage('assistant', `The light was not confirmed as controlled.\n${error?.message || error}`, 'ai-message-error');
+      appendMessage('assistant', `The device action was not confirmed.\n${error?.message || error}`, 'ai-message-error');
       setStatus(status, 'error', 'Execution failed · Create a new preview before retrying');
     } finally {
       busy = false;
