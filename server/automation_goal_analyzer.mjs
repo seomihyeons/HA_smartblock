@@ -125,6 +125,7 @@ const EXPLICIT_SERVICE_PATTERNS = [
 ];
 
 const SLEEP_PREPARATION_RE = /(?:잠들|잠자|취침|수면|잘\s*준비|자러|bedtime|sleep|go(?:ing)?\s+to\s+bed|prepar(?:e|ing)\s+for\s+bed)/iu;
+const EXPLICIT_LIGHT_TARGET_RE = /(?:조명|불|램프|light|lamp)/iu;
 
 function detectExplicitService(source) {
   const matches = [];
@@ -150,10 +151,24 @@ function detectExplicitStateTrigger(source, cards = []) {
   const referencesKnownEntity = cards.some((card) => [
     card?.entity_id,
     card?.friendly_name,
+    card?.area,
   ].map(normalized).filter(Boolean).some(
     (candidate) => normalizedPhrase.includes(candidate) || candidate.includes(normalizedPhrase),
   ));
-  return referencesKnownEntity ? { kind: 'state', phrase } : null;
+  const describesMotionState = /(?:움직임|동작|모션|재실|감지|motion|movement|presence|occupancy)/iu
+    .test(phrase);
+  const hasMotionEntity = cards.some((card) => (
+    card?.domain === 'binary_sensor'
+    && (
+      ['motion', 'occupancy', 'presence'].includes(normalized(card?.device_class))
+      || /(?:pir|motion|movement|presence|occupancy)/iu.test(
+        `${text(card?.entity_id)} ${text(card?.friendly_name)}`,
+      )
+    )
+  ));
+  return referencesKnownEntity || (describesMotionState && hasMotionEntity)
+    ? { kind: 'state', phrase }
+    : null;
 }
 
 function normalized(value) {
@@ -229,6 +244,40 @@ function normalizeGoalAnalysis(analysis, sourceText, cards) {
     normalizedAnalysis.evidence.target_phrase = '';
   }
   normalizedAnalysis.target_entity_ids = [...new Set(targetIds)];
+  const targetHints = [
+    ...(Array.isArray(normalizedAnalysis.target_hints)
+      ? normalizedAnalysis.target_hints
+      : []),
+    targetPhrase,
+  ].map(text).filter(Boolean);
+  const groundedExplicitLightAction = Boolean(
+    explicitService
+    && EXPLICIT_LIGHT_TARGET_RE.test(sourceText)
+    && cards.some((card) => (
+      card?.domain === 'light'
+      && Array.isArray(card.supported_actions)
+      && card.supported_actions.includes(explicitService.service)
+      && (
+        normalizedAnalysis.target_entity_ids.includes(card.entity_id)
+        || cardMatchesTargetHints(card, targetHints)
+      )
+    )),
+  );
+  if (
+    normalizedAnalysis.status === 'ready'
+    && groundedExplicitLightAction
+  ) {
+    normalizedAnalysis.goal_category = 'lighting';
+    normalizedAnalysis.home_supports_goal = true;
+    normalizedAnalysis.primary_service = explicitService.service;
+    normalizedAnalysis.requested_services = [explicitService.service];
+    normalizedAnalysis.action_source = 'explicit';
+    normalizedAnalysis.target_scope = 'specific';
+    normalizedAnalysis.evidence = {
+      ...(normalizedAnalysis.evidence || {}),
+      action_phrase: explicitService.phrase,
+    };
+  }
   if (
     normalizedAnalysis.target_entity_ids.length
     && explicitService

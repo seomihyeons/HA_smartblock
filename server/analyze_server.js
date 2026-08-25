@@ -9,6 +9,8 @@ import dotenv from "dotenv";
 import { buildEntityCards, createAutomationDraft, LLM_PIPELINE_VERSION } from "./llm_draft_service.mjs";
 import { GOAL_PROMPT_VERSION } from "./automation_goal_analyzer.mjs";
 import { DRAFT_PROMPT_VERSION } from "./ollama_automation_provider.mjs";
+import { ControlNowError, createControlNowService } from "./control_now_service.mjs";
+import { createAssistantRequestRouter } from "./assistant_request_router.mjs";
 
 dotenv.config();
 
@@ -68,6 +70,72 @@ async function fetchHomeAssistantStates() {
     return states;
 }
 
+async function callHomeAssistantLightService({ service, entity_id }) {
+    const haBase = buildHaBaseUrl();
+    const haToken = process.env.HA_TOKEN || "";
+    if (!haBase || !haToken) {
+        throw new Error("Missing HA_BASE_URL(or HA_IP/HA_PORT) or HA_TOKEN in server .env");
+    }
+    if (!new Set(["light.turn_on", "light.turn_off"]).has(service)
+        || !String(entity_id || "").startsWith("light.")) {
+        throw new Error("Rejected unsupported Home Assistant service request");
+    }
+    const serviceName = service.split(".")[1];
+    const response = await fetch(`${haBase.replace(/\/$/, "")}/api/services/light/${serviceName}`, {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${haToken}`,
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ entity_id }),
+        signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) {
+        throw new Error(`Home Assistant service request failed: ${response.status}`);
+    }
+}
+
+const controlNow = createControlNowService({
+    fetchEntityCards: async () => buildEntityCards(await fetchHomeAssistantStates()),
+    callLightService: callHomeAssistantLightService,
+});
+
+async function createDraftResponse(body = {}) {
+    const suppliedCards = Array.isArray(body.entity_cards) ? body.entity_cards : null;
+    const entityCards = suppliedCards || buildEntityCards(await fetchHomeAssistantStates());
+    const result = await createAutomationDraft({
+        command: body.command,
+        conversation: body.conversation,
+        selections: body.selections,
+        entity_cards: entityCards,
+    });
+    const pipeline = result?.pipeline || {};
+    console.info("[llm-draft]", JSON.stringify({
+        status: result?.status,
+        provider: result?.provider,
+        mode: pipeline.mode || "llm",
+        timings_ms: pipeline.timings_ms || null,
+        ollama_calls: pipeline.ollama_calls || [],
+    }));
+    return {
+        ...result,
+        system: {
+            pipeline_version: LLM_PIPELINE_VERSION,
+            goal_prompt_version: GOAL_PROMPT_VERSION,
+            draft_prompt_version: DRAFT_PROMPT_VERSION,
+        },
+        context: {
+            source: suppliedCards ? "request" : "live_ha",
+            entity_count: entityCards.length,
+        },
+    };
+}
+
+const assistantRouter = createAssistantRequestRouter({
+    createDraft: createDraftResponse,
+    previewControl: (payload) => controlNow.preview(payload),
+});
+
 app.get("/api/llm/status", (req, res) => {
     if (!guardLocal(req, res)) return;
     return res.json({
@@ -88,40 +156,63 @@ app.post("/api/llm/automation/draft", async (req, res) => {
     if (!guardLocal(req, res)) return;
 
     try {
-        const suppliedCards = Array.isArray(req.body?.entity_cards)
-            ? req.body.entity_cards
-            : null;
-        const entityCards = suppliedCards || buildEntityCards(await fetchHomeAssistantStates());
-        const result = await createAutomationDraft({
-            command: req.body?.command,
-            conversation: req.body?.conversation,
-            selections: req.body?.selections,
-            entity_cards: entityCards,
-        });
-        const pipeline = result?.pipeline || {};
-        console.info("[llm-draft]", JSON.stringify({
-            status: result?.status,
-            provider: result?.provider,
-            mode: pipeline.mode || "llm",
-            timings_ms: pipeline.timings_ms || null,
-            ollama_calls: pipeline.ollama_calls || [],
-        }));
-        return res.json({
-            ...result,
-            system: {
-                pipeline_version: LLM_PIPELINE_VERSION,
-                goal_prompt_version: GOAL_PROMPT_VERSION,
-                draft_prompt_version: DRAFT_PROMPT_VERSION,
-            },
-            context: {
-                source: suppliedCards ? "request" : "live_ha",
-                entity_count: entityCards.length,
-            },
-        });
+        return res.json(await createDraftResponse(req.body));
     } catch (error) {
         const message = String(error?.message || error);
         const status = message.includes("Missing HA_") ? 503 : 500;
         return res.status(status).json({ status: "failure", error: message });
+    }
+});
+
+app.post("/api/assistant/message", async (req, res) => {
+    if (!guardLocal(req, res)) return;
+    try {
+        return res.json(await assistantRouter.handle(req.body));
+    } catch (error) {
+        const message = String(error?.message || error);
+        const status = error instanceof ControlNowError
+            ? error.statusCode
+            : message.includes("Missing HA_") ? 503 : 500;
+        return res.status(status).json({
+            status: "failure",
+            code: error instanceof ControlNowError ? error.code : "assistant_request_failed",
+            error: message,
+        });
+    }
+});
+
+app.post("/api/control-now/preview", async (req, res) => {
+    if (!guardLocal(req, res)) return;
+    try {
+        return res.json(await controlNow.preview({
+            command: req.body?.command,
+            selected_entity_id: req.body?.selected_entity_id,
+        }));
+    } catch (error) {
+        const status = error instanceof ControlNowError
+            ? error.statusCode
+            : String(error?.message || "").includes("Missing HA_") ? 503 : 500;
+        return res.status(status).json({
+            status: "failure",
+            code: error instanceof ControlNowError ? error.code : "control_preview_failed",
+            error: String(error?.message || error),
+        });
+    }
+});
+
+app.post("/api/control-now/execute", async (req, res) => {
+    if (!guardLocal(req, res)) return;
+    try {
+        return res.json(await controlNow.execute({ execution_id: req.body?.execution_id }));
+    } catch (error) {
+        const status = error instanceof ControlNowError
+            ? error.statusCode
+            : String(error?.message || "").includes("Missing HA_") ? 503 : 502;
+        return res.status(status).json({
+            status: "failure",
+            code: error instanceof ControlNowError ? error.code : "ha_service_failed",
+            error: String(error?.message || error),
+        });
     }
 });
 

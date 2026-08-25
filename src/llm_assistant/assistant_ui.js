@@ -32,7 +32,6 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
   const input = $('aiAssistantInput');
   const sendButton = $('aiAssistantSend');
   const messages = $('aiAssistantMessages');
-  const welcome = $('aiAssistantWelcome');
   const status = $('aiAssistantStatus');
 
   if (!openButton || !panel || !closeButton || !form || !input || !messages || !status) {
@@ -59,6 +58,32 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     scrollToLatest();
   };
 
+  const renderWelcome = () => {
+    messages.textContent = '';
+    const section = createElement('section', 'ai-assistant-welcome');
+    section.id = 'aiAssistantWelcome';
+    section.appendChild(createElement('h2', '', 'Ask HA-SmartBlock'));
+    section.appendChild(createElement(
+      'p',
+      '',
+      'Describe an automation or ask to control a light. The assistant selects the safe workflow from your request.',
+    ));
+    const example = createElement('div', 'ai-welcome-example');
+    example.appendChild(createElement('span', '', 'Examples'));
+    example.appendChild(createElement(
+      'code',
+      '',
+      'When entrance motion is detected, turn on the living room light. · Turn off the kitchen light.',
+    ));
+    section.appendChild(example);
+    section.appendChild(createElement(
+      'div',
+      'ai-welcome-safety',
+      'Requests are routed automatically · Device control always requires Execute · Automation saving still requires Push to HA',
+    ));
+    messages.appendChild(section);
+  };
+
   const openPanel = () => {
     panel.classList.remove('hidden');
     setModalOpenState('aiAssistantPanel', true);
@@ -80,8 +105,8 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     try {
       button.disabled = true;
       renderAutomationToWorkspace(ws, automation, { clearBefore: true });
-      appendMessage('assistant', 'The validated draft was imported into Blockly. It was not saved or executed.');
-      setStatus(status, 'done', 'Imported to Blockly · Not saved to Home Assistant');
+      appendMessage('assistant', 'The validated draft was imported and its YAML regenerated. Use Push to HA separately to save it.');
+      setStatus(status, 'done', 'Imported to Blockly · YAML regenerated · Not saved to Home Assistant');
       return true;
     } catch (error) {
       button.disabled = false;
@@ -121,10 +146,14 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       ...(result.pipeline?.policy_notes || []),
     ];
     if (assumptions.length) {
+      const goalAnalysis = result.pipeline?.goal_analysis || {};
+      const noteLabel = goalAnalysis.inferred_action && goalAnalysis.goal_category === 'sleep_preparation'
+        ? 'Conservative Policy Gate · sleep_preparation'
+        : 'Draft notes';
       card.appendChild(createElement(
         'div',
         'ai-draft-assumptions',
-        `AI assumptions · ${assumptions.join(' · ')}`,
+        `${noteLabel} · ${assumptions.join(' · ')}`,
       ));
     }
 
@@ -160,14 +189,63 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     scrollToLatest();
   };
 
-  const requestDraft = async () => {
+  const executeControl = async (preview, button) => {
+    busy = true;
+    button.disabled = true;
+    sendButton.disabled = true;
+    input.disabled = true;
+    setStatus(status, 'running', 'Revalidating light with Home Assistant...');
+    try {
+      const response = await fetch('/api/control-now/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ execution_id: preview.execution_id }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(result.error || `Execute failed: ${response.status}`);
+      appendMessage('assistant', `Executed once · ${result.service} · ${result.entity?.entity_id}`);
+      setStatus(status, 'done', 'Executed once · Home Assistant confirmed the request');
+    } catch (error) {
+      appendMessage('assistant', `The light was not confirmed as controlled.\n${error?.message || error}`, 'ai-message-error');
+      setStatus(status, 'error', 'Execution failed · Create a new preview before retrying');
+    } finally {
+      busy = false;
+      sendButton.disabled = false;
+      input.disabled = false;
+      input.focus();
+    }
+  };
+
+  const renderControlPreview = (result) => {
+    const card = createElement('section', 'ai-draft-card');
+    card.appendChild(createElement('div', 'ai-draft-title', 'Control preview'));
+    card.appendChild(createElement('div', 'ai-draft-row', `Service · ${result.service}`));
+    card.appendChild(createElement('div', 'ai-draft-row', `Entity · ${result.entity?.entity_id}`));
+    if (result.entity?.name && result.entity.name !== result.entity.entity_id) {
+      card.appendChild(createElement('div', 'ai-draft-row', `Name · ${result.entity.name}`));
+    }
+    card.appendChild(createElement(
+      'div',
+      'ai-draft-assumptions',
+      'No action has run. Execute is single-use and the server will revalidate the entity and service.',
+    ));
+    const actions = createElement('div', 'ai-draft-actions');
+    const executeButton = createElement('button', '', 'Execute');
+    executeButton.type = 'button';
+    executeButton.addEventListener('click', () => executeControl(result, executeButton));
+    actions.appendChild(executeButton);
+    card.appendChild(actions);
+    messages.appendChild(card);
+    scrollToLatest();
+  };
+
+  const requestAssistant = async (selectedEntityId = null) => {
     busy = true;
     sendButton.disabled = true;
     input.disabled = true;
-    setStatus(status, 'running', 'Home Assistant context loading · Automation draft planning...');
-
+    setStatus(status, 'running', 'Understanding request · Loading Home Assistant context...');
     try {
-      const response = await fetch('/api/llm/automation/draft', {
+      const response = await fetch('/api/assistant/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -175,11 +253,21 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           conversation,
           context_source: 'live_ha',
           selections,
+          selected_entity_id: selectedEntityId,
         }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(result.error || `Draft request failed: ${response.status}`);
+        const detail = result.code ? `${result.code}: ${result.error || 'Request failed'}` : result.error;
+        throw new Error(detail || `Assistant request failed: ${response.status}`);
+      }
+
+      if (result.status === 'ready_to_execute') {
+        awaitingClarification = false;
+        appendMessage('assistant', 'This is an immediate control request. Review the exact service and entity below.');
+        renderControlPreview(result);
+        setStatus(status, 'idle', 'Control preview · Awaiting explicit Execute');
+        return;
       }
 
       if (result.status === 'success') {
@@ -212,12 +300,16 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           const button = createElement('button', '', label);
           button.type = 'button';
           button.addEventListener('click', async () => {
-            selections[`${result.role}_entity_id`] = candidate.entity_id;
             const selectionMessage = `Selected entity: ${candidate.entity_id}`;
             appendMessage('user', `${label} selected`);
-            conversation.push({ role: 'user', content: selectionMessage });
             list.querySelectorAll('button').forEach((item) => { item.disabled = true; });
-            await requestDraft();
+            if (result.intent === 'immediate_control') {
+              await requestAssistant(candidate.entity_id);
+              return;
+            }
+            selections[`${result.role}_entity_id`] = candidate.entity_id;
+            conversation.push({ role: 'user', content: selectionMessage });
+            await requestAssistant();
           });
           list.appendChild(button);
         }
@@ -226,7 +318,9 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
         setStatus(
           status,
           'idle',
-          `Entity confirmation required · ${result.model || result.provider || 'provider unknown'}`,
+          result.intent === 'immediate_control'
+            ? 'Control preview · Light selection required'
+            : `Entity confirmation required · ${result.model || result.provider || 'provider unknown'}`,
         );
         return;
       }
@@ -257,7 +351,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       throw new Error(result.error || 'Draft generation failed.');
     } catch (error) {
       appendMessage('assistant', `The request could not be processed.\n${error?.message || error}`, 'ai-message-error');
-      setStatus(status, 'error', 'Draft request failed · Check analyzer server and Home Assistant connection');
+      setStatus(status, 'error', 'Assistant request failed · Nothing executed or saved');
     } finally {
       busy = false;
       sendButton.disabled = false;
@@ -279,7 +373,10 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     const command = input.value.trim();
     if (!command) return;
 
-    welcome?.remove();
+    $('aiAssistantWelcome')?.remove();
+
+    appendMessage('user', command);
+    input.value = '';
 
     if (awaitingClarification && conversation.length) {
       conversation.push({ role: 'user', content: command });
@@ -288,8 +385,6 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       conversation = [{ role: 'user', content: command }];
       selections = {};
     }
-    appendMessage('user', command);
-    input.value = '';
-    await requestDraft();
+    await requestAssistant();
   });
 }

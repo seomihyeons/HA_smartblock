@@ -305,6 +305,62 @@ test('unsupported climate goal cannot be coerced into a lighting plan', async ()
   assert.match(result.reason, /조명 켜기와 끄기/);
 });
 
+test('a grounded Korean lighting action overrides a sensor-driven security category mistake', async () => {
+  let calls = 0;
+  const result = await createAutomationDraft({
+    command: '현관에서 움직임이 감지되면 거실 불을 켜줘',
+    entity_cards: cards,
+  }, {
+    env: { LLM_PROVIDER: 'ollama' },
+    fetchImpl: async () => {
+      calls += 1;
+      if (calls === 1) {
+        return ollamaResponse({
+          ...readyAnalysis('light.turn_on'),
+          goal_category: 'security',
+          trigger_specified: false,
+          trigger_kind: 'none',
+          target_hints: ['거실'],
+          evidence: {
+            trigger_phrase: '',
+            action_phrase: '켜줘',
+            target_phrase: '거실',
+          },
+        });
+      }
+      return ollamaResponse({
+        status: 'success',
+        automation: {
+          alias: '현관 움직임 감지 시 거실 조명 켜기',
+          triggers: [{
+            platform: 'state',
+            entity_id: ['binary_sensor.entrance_motion'],
+            from: 'off',
+            to: 'on',
+          }],
+          conditions: [],
+          actions: [{
+            service: 'light.turn_on',
+            target: { entity_id: ['light.living_room'] },
+            data: {},
+          }],
+        },
+      });
+    },
+  });
+
+  assert.equal(calls, 2);
+  assert.equal(result.status, 'success');
+  assert.equal(result.pipeline.goal_analysis.goal_category, 'lighting');
+  assert.equal(result.pipeline.goal_analysis.trigger_specified, true);
+  assert.equal(result.pipeline.goal_analysis.trigger_kind, 'state');
+  assert.equal(result.pipeline.goal_analysis.evidence.trigger_phrase, '현관에서 움직임이 감지되면');
+  assert.equal(result.pipeline.goal_analysis.primary_service, 'light.turn_on');
+  assert.equal(result.pipeline.goal_analysis.action_source, 'explicit');
+  assert.deepEqual(result.automation.actions[0].target.entity_id, ['light.living_room']);
+  assert.deepEqual(result.automation.triggers[0].entity_id, ['binary_sensor.entrance_motion']);
+});
+
 test('ready goal proceeds to a grounded light-off automation plan', async () => {
   let calls = 0;
   const result = await createAutomationDraft({

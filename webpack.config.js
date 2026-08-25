@@ -288,6 +288,17 @@ module.exports = (env, argv) => {
           changeOrigin: true,
           secure: false,
         },
+
+        '/api/control-now': {
+          target: 'http://localhost:8787',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/api/assistant': {
+          target: 'http://localhost:8787',
+          changeOrigin: true,
+          secure: false,
+        },
       },
 
       setupMiddlewares: (middlewares, devServer) => {
@@ -296,7 +307,7 @@ module.exports = (env, argv) => {
 
         app.use((req, res, next) => {
           const url = String(req.url || '');
-          if (url.startsWith('/ha/api') || url.startsWith('/analyze') || url.startsWith('/api/llm')) {
+          if (url.startsWith('/ha/api') || url.startsWith('/analyze') || url.startsWith('/api/llm') || url.startsWith('/api/control-now') || url.startsWith('/api/assistant')) {
             const addr = String(req.socket?.remoteAddress || '');
             if (!isLocalAddress(addr)) {
               sendJson(res, 403, { error: 'forbidden' });

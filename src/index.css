@@ -276,6 +276,8 @@ body.floating-buttons-hidden #btnAiAssistant {
 .ai-assistant-meta {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
   min-height: 29px;
   padding: 10px 16px 0;
 }
@@ -477,7 +479,8 @@ body.floating-buttons-hidden #btnAiAssistant {
 }
 
 .ai-assistant-form button:disabled,
-.ai-draft-actions button:disabled {
+.ai-draft-actions button:disabled,
+.ai-candidate-list button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
