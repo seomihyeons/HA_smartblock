@@ -16,7 +16,7 @@
     "automation"
   ],
   "author": "",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "dependencies": {
     "blockly": "^11.0.0",
     "dotenv": "^17.2.3",

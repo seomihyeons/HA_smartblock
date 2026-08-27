@@ -1,6 +1,6 @@
-# HA-SmartBlock
-**An ECA(Event-Condtion-Action)-Based
-Visual Block System for Home Assistant**
+# Home Assistant Visual Block Studio
+
+**HA-SmartBlock — An ECA (Event–Condition–Action)-based visual block system for Home Assistant**
 
 ## Home Assistant
 [Home Assistant](https://www.home-assistant.io/) is a widely used open-source home automation platform.   
@@ -47,6 +47,9 @@ https://github.com/seomihyeons/HA_smartblock
 5. Install **HA SmartBlock** from the Add-on Store.
 6. Start the add-on and open the Web UI.
 
+The add-on uses Home Assistant Ingress and the Supervisor API. Users do not
+need to enter a Long-Lived Access Token in the add-on UI.
+
 The add-on is distributed as a pre-built GHCR container image:
 
 ~~~text
@@ -58,7 +61,8 @@ To run the **HA-SmartBlock** program locally, first download or clone this repos
 After extracting or cloning the files, open a terminal (PowerShell or VS Code terminal) and navigate to the project root: `/HA_smartblock`.
 
 ~~~bash
-git clone <repository_url>
+git clone https://github.com/seomihyeons/HA_smartblock.git
+cd HA_smartblock
 ~~~
 
 
@@ -78,10 +82,21 @@ Notes:
 - do not expose the local dev server publicly while using `HA_TOKEN`
 
 ### Install and Run
-Install dependencies and launch the program:
+Install the exact dependency versions recorded in the lockfile:
 ~~~bash
-npm install
-npm run start
+npm ci
+~~~
+
+Start the analyzer and Home Assistant integration server in the first terminal:
+
+~~~bash
+node server/analyze_server.js
+~~~
+
+Start the web editor in a second terminal:
+
+~~~bash
+npm start
 ~~~
 
 ## Home Assistant Integration
@@ -108,7 +123,10 @@ Live pull/push requires HA credentials:
 ## Conflict Analyzer
 UI entry: `🛠`
 
-The conflict analyzer detects potential redundancy, inconsistency, and circularity conflicts among Home Assistant automations.
+The conflict model represents potential redundancy, inconsistency, and
+circularity relationships among Home Assistant automations. The current
+demonstrated analyzer reports inconsistency cases in which the same event can
+produce opposing actions on the same entity.
 
 The analyzer reports summary information such as:
 - automations analyzed
@@ -150,7 +168,11 @@ Features include:
 - Baseline management through the local development server API
 
 - Datasets: `test/test_*`
+- Evaluation corpus: 861 public Home Assistant automation examples from
+  [`geekofweek/homeassistant`](https://github.com/geekofweek/homeassistant)
 - Note: Regression datasets are large and intended primarily for verification and testing purposes.
+- The 861-case evaluation verifies conversion stability; it does not imply
+  complete support for every Home Assistant automation syntax.
 
 
 ## Security Notes
@@ -160,3 +182,8 @@ Features include:
 
 ## Demo Video
 [Watch the Demo Video](https://youtu.be/_tS3Mm9kdRk)
+
+## License
+
+HA-SmartBlock source code is distributed under the [MIT License](./LICENSE).
+Third-party components retain their respective licenses.
