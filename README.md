@@ -181,7 +181,7 @@ Features include:
 - If LAN access is required, set `DEV_SERVER_HOST=0.0.0.0` and add your own access guard.
 
 ## Demo Video
-[Watch the Demo Video](https://youtu.be/_tS3Mm9kdRk)
+[Watch the Korean Demo Video](https://youtu.be/HTn2kHTjjU0)
 
 ## License
 
