@@ -12,9 +12,14 @@ import { DRAFT_PROMPT_VERSION } from "./ollama_automation_provider.mjs";
 import { ControlNowError, createControlNowService } from "./control_now_service.mjs";
 import { createAssistantRequestRouter } from "./assistant_request_router.mjs";
 import {
+    ProviderNeutralAssistantError,
+    createProviderNeutralAssistantAdapter,
+} from "./provider_neutral_assistant_adapter.mjs";
+import {
     createCapabilityRegistry,
     publicCapabilityContext,
 } from "./capability_registry.mjs";
+import { resolveExplicitEntityReferences, retrieveEntityContext } from "./entity_retriever.mjs";
 
 dotenv.config();
 
@@ -28,6 +33,8 @@ const PY_PATH = path.resolve(
 const PY_CMD = "python";
 const HOST = process.env.ANALYZER_HOST || "127.0.0.1";
 const PORT = Number(process.env.ANALYZER_PORT || "8787");
+const LLM_ASSISTANT_BACKEND = String(process.env.LLM_ASSISTANT_BACKEND || "ollama").trim().toLowerCase();
+const providerNeutralAssistant = createProviderNeutralAssistantAdapter();
 
 function buildHaBaseUrl() {
     if (process.env.HA_BASE_URL) return process.env.HA_BASE_URL;
@@ -149,14 +156,73 @@ async function createDraftResponse(body = {}) {
         }
         : await loadHomeCapabilityContext();
     const entityCards = homeContext.entityCards;
-    const result = await createAutomationDraft({
-        command: body.command,
-        conversation: body.conversation,
-        selections: body.selections,
-        interaction_mode: body.interaction_mode || "automation",
-        entity_cards: entityCards,
-        capability_context: homeContext.capabilityContext,
-    });
+    const entityResolution = resolveExplicitEntityReferences(
+        String(body.command || ""), entityCards, body.slots,
+    );
+    const ambiguousReference = entityResolution.find((reference) => reference.status === "ambiguous");
+    // A duplicate display name is a real ambiguity.  Resolve it before any
+    // provider call, so a model cannot silently choose between devices.
+    if (ambiguousReference) {
+        return {
+            status: "needs_confirmation",
+            intent: "automation",
+            role: "entity_reference",
+            resolution_key: ambiguousReference.reference,
+            question: `Which ${ambiguousReference.candidates[0]?.name || "entity"} did you mean?`,
+            candidates: ambiguousReference.candidates,
+            provider: "deterministic",
+            model: "entity-resolution",
+            validation: { schema_valid: false, grounded: false, blockly_supported: false },
+            pipeline: { mode: "deterministic_entity_resolution", timings_ms: { total: 0 } },
+        };
+    }
+    // Retrieval is deliberately outside the generation model.  It uses only
+    // live EntityCards, so entity naming conventions are data rather than
+    // per-home rules embedded in an LLM prompt.
+    const retrieval = LLM_ASSISTANT_BACKEND === "provider_neutral"
+        ? await retrieveEntityContext(String(body.command || ""), entityCards, {
+            mode: process.env.LLM_ENTITY_RETRIEVAL || "lexical",
+            maxCards: Number(process.env.LLM_ENTITY_CANDIDATE_LIMIT || 24),
+        })
+        : null;
+    const retrievedEntityCards = [...(retrieval?.cards || entityCards)];
+    const retrievedIds = new Set(retrievedEntityCards.map((card) => card.entity_id));
+    const entityById = new Map(entityCards.map((card) => [card.entity_id, card]));
+    // A deterministic binding is always part of the provider's validation
+    // scope, even if a bounded retriever would otherwise omit it.
+    for (const reference of entityResolution) {
+        if (reference.status !== "resolved" || retrievedIds.has(reference.entity_id)) continue;
+        const card = entityById.get(reference.entity_id);
+        if (card) {
+            retrievedEntityCards.push(card);
+            retrievedIds.add(card.entity_id);
+        }
+    }
+    const result = LLM_ASSISTANT_BACKEND === "provider_neutral"
+        ? await providerNeutralAssistant.createDraft({
+            command: body.command,
+            conversation: body.conversation,
+            provider: body.provider,
+            entityCards: retrievedEntityCards,
+            capabilityContext: homeContext.capabilityContext,
+            entityResolution,
+            slots: body.slots,
+            retrieval: retrieval && {
+                method: retrieval.method,
+                fallback: retrieval.fallback === true,
+                embedding_model: retrieval.embedding_model || null,
+                candidate_entity_ids: retrievedEntityCards.map((card) => card.entity_id),
+                ranking: retrieval.ranking || [],
+            },
+        })
+        : await createAutomationDraft({
+            command: body.command,
+            conversation: body.conversation,
+            selections: body.selections,
+            interaction_mode: body.interaction_mode || "automation",
+            entity_cards: entityCards,
+            capability_context: homeContext.capabilityContext,
+        });
     const pipeline = result?.pipeline || {};
     console.info("[llm-draft]", JSON.stringify({
         status: result?.status,
@@ -171,10 +237,14 @@ async function createDraftResponse(body = {}) {
             pipeline_version: LLM_PIPELINE_VERSION,
             goal_prompt_version: GOAL_PROMPT_VERSION,
             draft_prompt_version: DRAFT_PROMPT_VERSION,
+            backend: LLM_ASSISTANT_BACKEND,
         },
         context: {
             source: suppliedCards ? "request" : "live_ha",
             entity_count: entityCards.length,
+            retrieved_entity_count: retrievedEntityCards.length,
+            retrieval_method: retrieval?.method || null,
+            resolved_entity_references: entityResolution.filter((reference) => reference.status === "resolved").length,
             service_count: homeContext.capabilityContext.services.length,
             capability_registry_version: homeContext.capabilityContext.registry_version,
         },
@@ -190,16 +260,39 @@ app.get("/api/llm/status", (req, res) => {
     if (!guardLocal(req, res)) return;
     return res.json({
         status: "ready",
-        provider: String(process.env.LLM_PROVIDER || "fake").toLowerCase(),
-        model: process.env.LLM_PROVIDER === "ollama"
+        provider: LLM_ASSISTANT_BACKEND === "provider_neutral"
+            ? String(process.env.LLM_ASSISTANT_PROVIDER || "configured-default").toLowerCase()
+            : String(process.env.LLM_PROVIDER || "fake").toLowerCase(),
+        model: LLM_ASSISTANT_BACKEND === "provider_neutral"
+            ? null
+            : process.env.LLM_PROVIDER === "ollama"
             ? String(process.env.OLLAMA_MODEL || "qwen3:4b")
             : null,
         system: {
             pipeline_version: LLM_PIPELINE_VERSION,
             goal_prompt_version: GOAL_PROMPT_VERSION,
             draft_prompt_version: DRAFT_PROMPT_VERSION,
+            backend: LLM_ASSISTANT_BACKEND,
         },
     });
+});
+
+app.get("/api/llm/providers", async (req, res) => {
+    if (!guardLocal(req, res)) return;
+    if (LLM_ASSISTANT_BACKEND !== "provider_neutral") {
+        return res.json({ providers: [], default_provider: null, backend: LLM_ASSISTANT_BACKEND });
+    }
+    try {
+        const catalog = await providerNeutralAssistant.getProviders();
+        const requestedDefault = String(process.env.LLM_ASSISTANT_PROVIDER || "").trim().toLowerCase();
+        const defaultProvider = catalog.providers.some((provider) => (
+            provider.id === requestedDefault && provider.configured
+        )) ? requestedDefault : catalog.default_provider;
+        return res.json({ ...catalog, default_provider: defaultProvider, backend: LLM_ASSISTANT_BACKEND });
+    } catch (error) {
+        const status = error instanceof ProviderNeutralAssistantError ? error.statusCode : 500;
+        return res.status(status).json({ error: "Provider status is unavailable." });
+    }
 });
 
 app.post("/api/llm/automation/draft", async (req, res) => {
@@ -209,7 +302,9 @@ app.post("/api/llm/automation/draft", async (req, res) => {
         return res.json(await createDraftResponse(req.body));
     } catch (error) {
         const message = String(error?.message || error);
-        const status = message.includes("Missing HA_") ? 503 : 500;
+        const status = error instanceof ProviderNeutralAssistantError
+            ? error.statusCode
+            : message.includes("Missing HA_") ? 503 : 500;
         return res.status(status).json({ status: "failure", error: message });
     }
 });
@@ -222,6 +317,8 @@ app.post("/api/assistant/message", async (req, res) => {
         const message = String(error?.message || error);
         const status = error instanceof ControlNowError
             ? error.statusCode
+            : error instanceof ProviderNeutralAssistantError
+                ? error.statusCode
             : message.includes("Missing HA_") ? 503 : 500;
         return res.status(status).json({
             status: "failure",

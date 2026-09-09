@@ -12,6 +12,21 @@ function tokens(value) {
     .filter((token) => token.length > 1);
 }
 
+function compact(value) {
+  return text(value).toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+}
+
+function compactNgrams(value, maximum = 6) {
+  const parts = text(value).toLocaleLowerCase().match(/[\p{L}\p{N}]+/gu) || [];
+  const phrases = new Set();
+  for (let start = 0; start < parts.length; start += 1) {
+    for (let end = start + 1; end <= Math.min(parts.length, start + maximum); end += 1) {
+      phrases.add(parts.slice(start, end).join(''));
+    }
+  }
+  return phrases;
+}
+
 function compactCard(card) {
   return {
     entity_id: text(card.entity_id),
@@ -52,6 +67,82 @@ export function entityCardDocument(card) {
   ].join('\n');
 }
 
+function entityReferenceDocument(card) {
+  return [
+    `entity ${card.entity_id}`,
+    `name ${card.friendly_name}`,
+    `area ${card.area || ''}`,
+    `domain ${card.domain}`,
+    `device class ${card.device_class || ''}`,
+  ].join('\n');
+}
+
+/**
+ * Resolves only explicit EntityCard-name references.  It intentionally does
+ * not infer rooms, device aliases, or an automation role from language.  That
+ * keeps automatic bindings explainable and independent of one HA installation.
+ */
+export function resolveExplicitEntityReferences(query, cards, slots = {}) {
+  const eligible = eligibleCards(cards);
+  const phrases = compactNgrams(query);
+  const requestedBindings = slots && typeof slots === 'object' && !Array.isArray(slots)
+    && slots.entity_references && typeof slots.entity_references === 'object'
+    ? slots.entity_references
+    : {};
+  const groups = new Map();
+
+  for (const card of eligible) {
+    const labels = new Set([
+      compact(card.friendly_name),
+      compact(card.entity_id.split('.').slice(1).join(' ')),
+    ]);
+    for (const label of labels) {
+      if (!label || !phrases.has(label)) continue;
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label).push(card);
+    }
+  }
+
+  const maximalLabels = [...groups.keys()].filter((label) => (
+    ![...groups.keys()].some((other) => other !== label && other.includes(label))
+  ));
+  return maximalLabels
+    .sort((left, right) => right.length - left.length || left.localeCompare(right))
+    .map((reference) => {
+      const candidates = groups.get(reference)
+        .sort((left, right) => left.entity_id.localeCompare(right.entity_id));
+      const selectedId = text(requestedBindings[reference]);
+      const selected = candidates.find((card) => card.entity_id === selectedId);
+      if (selected) {
+        return {
+          reference,
+          status: 'resolved',
+          entity_id: selected.entity_id,
+          evidence: 'user_selected_candidate',
+        };
+      }
+      if (candidates.length === 1) {
+        return {
+          reference,
+          status: 'resolved',
+          entity_id: candidates[0].entity_id,
+          evidence: 'unique_normalized_name_match',
+        };
+      }
+      return {
+        reference,
+        status: 'ambiguous',
+        candidates: candidates.map((card) => ({
+          entity_id: card.entity_id,
+          name: card.friendly_name,
+          area: card.area || null,
+          domain: card.domain,
+        })),
+        evidence: 'multiple_normalized_name_matches',
+      };
+    });
+}
+
 function lexicalScore(query, card, documentFrequency, documentCount) {
   const normalizedQuery = text(query).toLocaleLowerCase();
   const fields = [card.entity_id, card.friendly_name, card.area, card.domain, card.device_class]
@@ -62,7 +153,10 @@ function lexicalScore(query, card, documentFrequency, documentCount) {
     if (normalizedQuery === field) score += 24 - index;
     else if (field.length > 1 && normalizedQuery.includes(field)) score += 12 - index;
   });
-  const documentTokens = new Set(tokens(entityCardDocument(card)));
+  // Service verbs such as "turn on" should not make every compatible device
+  // appear relevant. Retrieval matches descriptive metadata; capability is a
+  // separate validation concern after the request has been routed.
+  const documentTokens = new Set(tokens(entityReferenceDocument(card)));
   for (const token of new Set(tokens(query))) {
     if (!documentTokens.has(token)) continue;
     const df = documentFrequency.get(token) || 0;
@@ -155,11 +249,22 @@ async function ollamaEmbeddings(inputs, options) {
 export async function retrieveEntityContext(query, cards, options = {}) {
   const maxCards = Math.max(1, Number.parseInt(String(options.maxCards || ''), 10) || 32);
   const lexical = rankEntitiesLexically(query, cards);
-  const diversifiedLexical = diversifyRanking(lexical);
+  const lexicalEvidence = lexical.filter(({ score }) => score > 0);
+  const diversifiedLexical = lexicalEvidence.length ? lexicalEvidence : diversifyRanking(lexical);
   const mode = text(options.mode || options.env?.LLM_ENTITY_RETRIEVAL || process.env.LLM_ENTITY_RETRIEVAL || 'lexical')
     .toLocaleLowerCase();
   if (mode !== 'hybrid' || lexical.length < 2) {
-    return { cards: diversifiedLexical.slice(0, maxCards).map(({ card }) => card), method: 'lexical', fallback: false };
+    const ranking = diversifiedLexical.slice(0, maxCards);
+    return {
+      cards: ranking.map(({ card }) => card),
+      ranking: ranking.map(({ card, score }, index) => ({
+        entity_id: card.entity_id,
+        rank: index + 1,
+        lexical_score: score,
+      })),
+      method: 'lexical',
+      fallback: false,
+    };
   }
 
   try {
@@ -171,18 +276,28 @@ export async function retrieveEntityContext(query, cards, options = {}) {
     const dense = lexical
       .map(({ card }, index) => ({ card, score: cosineSimilarity(queryEmbedding, documentEmbeddings[index]) }))
       .sort((a, b) => b.score - a.score || a.card.entity_id.localeCompare(b.card.entity_id));
-    const lexicalEvidence = lexical.filter(({ score }) => score > 0);
+    const ranking = reciprocalRankFusion(lexicalEvidence.length ? [lexicalEvidence, dense] : [dense])
+      .slice(0, maxCards);
     return {
-      cards: reciprocalRankFusion(lexicalEvidence.length ? [lexicalEvidence, dense] : [dense])
-        .slice(0, maxCards)
-        .map(({ card }) => card),
+      cards: ranking.map(({ card }) => card),
+      ranking: ranking.map(({ card, score }, index) => ({
+        entity_id: card.entity_id,
+        rank: index + 1,
+        fused_score: score,
+      })),
       method: 'hybrid_rrf',
       embedding_model: model || null,
       fallback: false,
     };
   } catch (error) {
+    const ranking = diversifiedLexical.slice(0, maxCards);
     return {
-      cards: diversifiedLexical.slice(0, maxCards).map(({ card }) => card),
+      cards: ranking.map(({ card }) => card),
+      ranking: ranking.map(({ card, score }, index) => ({
+        entity_id: card.entity_id,
+        rank: index + 1,
+        lexical_score: score,
+      })),
       method: 'lexical',
       fallback: true,
       fallback_reason: text(error?.message).slice(0, 160),

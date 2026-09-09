@@ -5,7 +5,7 @@ import { retrieveEntityContext } from './entity_retriever.mjs';
 import { scopeCapabilityContext } from './capability_registry.mjs';
 import { validateJsonSchema } from './json_schema_validator.mjs';
 
-export const GOAL_PROMPT_VERSION = '2026-08-25.1';
+export const GOAL_PROMPT_VERSION = '2026-08-25.2';
 
 export const GOAL_ANALYSIS_SCHEMA = {
   type: 'object',
@@ -91,10 +91,30 @@ Rules:
 15. Set target_scope=specific when the user identifies a room or device, all only when the user explicitly requests all matching devices, and unspecified when no target is stated. For specific targets, copy exact target wording into target_hints and evidence.target_phrase, and put only matching IDs from home_context.entities into target_entity_ids. Never invent an entity ID.
 16. When status=needs_clarification, leave unconfirmed requested_services, target_hints, and target_entity_ids empty and use action_source=unknown.
 17. Write questions, assumptions, and reason in the language used by the user.
-18. Return exactly one object conforming to the provided JSON Schema.`;
+18. risk_level must equal the highest risk value advertised for requested_services. Do not estimate or lower it.
+19. Return exactly one object conforming to the provided JSON Schema.`;
 
 function text(value) {
   return String(value ?? '').trim();
+}
+
+const RISK_RANK = Object.freeze({ low: 0, medium: 1, high: 2 });
+
+function applyRegistryRisk(analysis, capabilityContext = {}) {
+  if (!analysis || analysis.status !== 'ready') return analysis;
+  const capabilities = new Map((capabilityContext.services || [])
+    .map((service) => typeof service === 'string' ? { id: service, risk: 'low' } : service)
+    .filter((service) => text(service?.id))
+    .map((service) => [text(service.id), service]));
+  const services = [...new Set([
+    ...(Array.isArray(analysis.requested_services) ? analysis.requested_services : []),
+    analysis.primary_service,
+  ].map(text).filter((service) => service && service !== 'none'))];
+  analysis.risk_level = services.reduce((highest, service) => {
+    const risk = text(capabilities.get(service)?.risk) || 'high';
+    return RISK_RANK[risk] > RISK_RANK[highest] ? risk : highest;
+  }, 'low');
+  return analysis;
 }
 
 function conversationText(payload) {
@@ -197,7 +217,10 @@ function normalizeGoalAnalysis(analysis, sourceText, cards) {
   ) {
     normalizedAnalysis.target_scope = 'specific';
     if (!MULTI_TARGET_RE.test(targetPhraseForGrounding)) {
-      const bestCompatible = cards.find((card) => card?.supported_actions?.includes(requestedService));
+      const bestCompatible = cards.find((card) => (
+        card?.supported_actions?.includes(requestedService)
+        && cardMatchesTargetHints(card, [targetPhraseForGrounding])
+      ));
       if (bestCompatible) normalizedAnalysis.target_entity_ids = [bestCompatible.entity_id];
     }
   }
@@ -393,7 +416,10 @@ export async function analyzeAutomationGoal(payload = {}, options = {}) {
       retrieval_method: retrieval.method,
       ...response.performance,
     });
-    analysis = normalizeGoalAnalysis(response.output, sourceText, entityCards);
+    analysis = applyRegistryRisk(
+      normalizeGoalAnalysis(response.output, sourceText, entityCards),
+      promptCapabilityContext,
+    );
     analysisValidation = validateGoalAnalysis(analysis, sourceText, entityCards);
     if (analysisValidation.valid) break;
     requestMessages = [
@@ -468,10 +494,9 @@ export async function analyzeAutomationGoal(payload = {}, options = {}) {
     .map((service) => typeof service === 'string' ? { id: service, risk: 'low' } : service)
     .filter((service) => text(service?.id))
     .map((service) => [text(service.id), service]));
-  const riskRank = { low: 0, medium: 1, high: 2 };
   const effectiveRisk = services.reduce((highest, service) => {
     const risk = text(serviceCapabilities.get(service)?.risk) || 'high';
-    return riskRank[risk] > riskRank[highest] ? risk : highest;
+    return RISK_RANK[risk] > RISK_RANK[highest] ? risk : highest;
   }, 'low');
   const supported = services.every((service) => capabilityServiceIds.has(service));
   const targetsCompatible = (analysis.target_entity_ids || []).every((entityId) => {
@@ -488,9 +513,36 @@ export async function analyzeAutomationGoal(payload = {}, options = {}) {
       ollama_calls: ollamaCalls,
     };
   }
-  if (!actionIsExplicit && effectiveRisk !== 'low') {
+  const requiresGroundedTarget = services.some((service) => (
+    serviceCapabilities.get(service)?.target_required !== false
+  ));
+  if (
+    actionIsExplicit
+    && requiresGroundedTarget
+    && analysis.target_scope !== 'all'
+    && !(analysis.target_entity_ids || []).length
+  ) {
+    const korean = /[가-힣]/u.test(sourceText);
     return {
-      ...clarification(analysis, 'Please state the requested action explicitly because it is not classified as low risk.'),
+      ...clarification(
+        analysis,
+        korean
+          ? '요청한 기기를 Home Assistant 엔터티와 연결하지 못했습니다. 기기나 위치를 다시 지정해 주세요.'
+          : 'I could not match the requested device to a Home Assistant entity. Please specify the device or area.',
+      ),
+      model: response.model,
+      ollama_calls: ollamaCalls,
+    };
+  }
+  if (!actionIsExplicit && effectiveRisk !== 'low') {
+    const korean = /[가-힣]/u.test(sourceText);
+    return {
+      ...clarification(
+        analysis,
+        korean
+          ? '요청을 사용 가능한 기기와 안전하게 연결하지 못했습니다. 제어할 기기와 동작을 지정해 주세요.'
+          : 'I could not safely map the request to an available device action. Please specify the device and action.',
+      ),
       model: response.model,
       ollama_calls: ollamaCalls,
     };

@@ -276,10 +276,38 @@ body.floating-buttons-hidden #btnAiAssistant {
 .ai-assistant-meta {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 10px;
   min-height: 29px;
   padding: 10px 16px 0;
+}
+
+.ai-assistant-provider {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+
+.ai-assistant-provider select {
+  min-width: 108px;
+  min-height: 29px;
+  padding: 4px 26px 4px 9px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  background: #fff;
+  color: #111827;
+  font: inherit;
+  font-weight: 600;
+}
+
+.ai-assistant-provider select:disabled {
+  cursor: not-allowed;
+  color: #9ca3af;
+  background: #f3f4f6;
 }
 
 .ai-assistant-messages {

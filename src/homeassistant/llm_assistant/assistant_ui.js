@@ -1,4 +1,4 @@
-import { setModalOpenState } from '../utils/floating_modal_state';
+import { setModalOpenState } from '../../utils/floating_modal_state';
 
 const $ = (id) => document.getElementById(id);
 
@@ -31,18 +31,23 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
   const form = $('aiAssistantForm');
   const input = $('aiAssistantInput');
   const sendButton = $('aiAssistantSend');
+  const providerSelect = $('aiAssistantProvider');
   const messages = $('aiAssistantMessages');
   const status = $('aiAssistantStatus');
 
-  if (!openButton || !panel || !closeButton || !form || !input || !messages || !status) {
+  if (!openButton || !panel || !closeButton || !form || !input || !messages || !status || !providerSelect) {
     return;
   }
 
   let activeCommand = '';
   let conversation = [];
   let selections = {};
+  let slots = { entity_references: {} };
   let awaitingClarification = false;
   let busy = false;
+  let providerReady = false;
+  let selectedProvider = '';
+  let providerLoadPromise = null;
 
   const scrollToLatest = () => {
     messages.scrollTop = messages.scrollHeight;
@@ -84,9 +89,60 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     messages.appendChild(section);
   };
 
+  const resetConversationForProvider = () => {
+    activeCommand = '';
+    conversation = [];
+    selections = {};
+    slots = { entity_references: {} };
+    awaitingClarification = false;
+    renderWelcome();
+  };
+
+  const loadProviders = async () => {
+    if (providerLoadPromise) return providerLoadPromise;
+    providerLoadPromise = (async () => {
+      providerSelect.disabled = true;
+      try {
+        const response = await fetch('/api/llm/providers');
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || 'Provider status is unavailable.');
+
+        const providers = Array.isArray(result.providers) ? result.providers : [];
+        const configured = providers.filter((provider) => provider?.configured === true);
+        providerSelect.textContent = '';
+        providers.forEach((provider) => {
+          const option = document.createElement('option');
+          option.value = provider.id;
+          option.textContent = provider.configured ? provider.label : `${provider.label} · Not configured`;
+          option.disabled = !provider.configured;
+          providerSelect.appendChild(option);
+        });
+        const preferred = providers.find((provider) => (
+          provider.id === result.default_provider && provider.configured
+        )) || configured[0];
+        if (!preferred) throw new Error('No configured LLM provider is available.');
+
+        selectedProvider = preferred.id;
+        providerSelect.value = selectedProvider;
+        providerReady = true;
+        providerSelect.disabled = false;
+        setStatus(status, 'idle', 'Ready');
+      } catch (error) {
+        providerReady = false;
+        providerSelect.textContent = '';
+        const option = document.createElement('option');
+        option.textContent = 'No provider available';
+        providerSelect.appendChild(option);
+        setStatus(status, 'error', 'No configured LLM provider is available');
+      }
+    })();
+    return providerLoadPromise;
+  };
+
   const openPanel = () => {
     panel.classList.remove('hidden');
     setModalOpenState('aiAssistantPanel', true);
+    void loadProviders();
     window.setTimeout(() => input.focus(), 0);
   };
 
@@ -194,6 +250,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     button.disabled = true;
     sendButton.disabled = true;
     input.disabled = true;
+    providerSelect.disabled = true;
     setStatus(status, 'running', 'Revalidating capability with Home Assistant...');
     try {
       const response = await fetch('/api/control-now/execute', {
@@ -253,7 +310,9 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           conversation,
           context_source: 'live_ha',
           selections,
+          slots,
           selected_entity_id: selectedEntityId,
+          provider: selectedProvider || undefined,
         }),
       });
       const result = await response.json().catch(() => ({}));
@@ -307,7 +366,11 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
               await requestAssistant(candidate.entity_id);
               return;
             }
-            selections[`${result.role}_entity_id`] = candidate.entity_id;
+            if (result.role === 'entity_reference' && result.resolution_key) {
+              slots.entity_references[result.resolution_key] = candidate.entity_id;
+            } else {
+              selections[`${result.role}_entity_id`] = candidate.entity_id;
+            }
             conversation.push({ role: 'user', content: selectionMessage });
             await requestAssistant();
           });
@@ -348,6 +411,13 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
         return;
       }
 
+      if (result.status === 'no_match') {
+        awaitingClarification = false;
+        appendMessage('assistant', result.reason || 'No matching entity or capability is available in the current Home Assistant context.');
+        setStatus(status, 'idle', 'No matching Home Assistant entity · Nothing executed');
+        return;
+      }
+
       throw new Error(result.error || 'Draft generation failed.');
     } catch (error) {
       appendMessage('assistant', `The request could not be processed.\n${error?.message || error}`, 'ai-message-error');
@@ -356,6 +426,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       busy = false;
       sendButton.disabled = false;
       input.disabled = false;
+      providerSelect.disabled = !providerReady;
       input.focus();
     }
   };
@@ -367,9 +438,24 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     if (event.key === 'Escape' && !panel.classList.contains('hidden')) closePanel();
   });
 
+  providerSelect.addEventListener('change', () => {
+    if (busy || !providerSelect.value || providerSelect.value === selectedProvider) return;
+    selectedProvider = providerSelect.value;
+    resetConversationForProvider();
+    setStatus(status, 'idle', 'Ready');
+  });
+
+  input.addEventListener('keydown', (event) => {
+    // Keep multiline input available without making the common chat action
+    // require a mouse click. IME composition must finish before Enter sends.
+    if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    if (!busy) form.requestSubmit();
+  });
+
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    if (busy) return;
+    if (busy || !providerReady || !selectedProvider) return;
     const command = input.value.trim();
     if (!command) return;
 
@@ -384,6 +470,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       activeCommand = command;
       conversation = [{ role: 'user', content: command }];
       selections = {};
+      slots = { entity_references: {} };
     }
     await requestAssistant();
   });

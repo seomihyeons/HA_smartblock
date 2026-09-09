@@ -1,0 +1,22 @@
+# Local secrets
+.env
+llm_api/.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Runtime logs
+*.log
+server.stdout.log
+server.stderr.log
+
+# Local virtual environments and external caches
+.venv/
+reproductions/sage/.venv/
+reproductions/sage/hf_cache/
+
+# Generated reproduction scratch output
+reproductions/sage/source/subset_test/
+reproductions/sage/logs/

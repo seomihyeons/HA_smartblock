@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   rankEntitiesLexically,
   reciprocalRankFusion,
+  resolveExplicitEntityReferences,
   retrieveEntityContext,
 } from '../entity_retriever.mjs';
 
@@ -21,6 +22,29 @@ test('lexical retrieval is deterministic and domain agnostic', () => {
     'light.living_room',
     'switch.coffee',
   ]);
+});
+
+test('explicit entity resolution binds a unique name and asks before duplicate-name selection', () => {
+  const result = resolveExplicitEntityReferences('Turn on the living room light', [
+    ...cards,
+    { entity_id: 'light.living_room_lamp', friendly_name: 'Living Room Light', domain: 'light', supported_actions: ['light.turn_on'] },
+  ]);
+  assert.deepEqual(result, [{
+    reference: 'livingroomlight', status: 'ambiguous', evidence: 'multiple_normalized_name_matches',
+    candidates: [
+      { entity_id: 'light.living_room', name: 'Living Room Light', area: 'Living Room', domain: 'light' },
+      { entity_id: 'light.living_room_lamp', name: 'Living Room Light', area: null, domain: 'light' },
+    ],
+  }]);
+
+  const selected = resolveExplicitEntityReferences('Turn on the living room light', [
+    ...cards,
+    { entity_id: 'light.living_room_lamp', friendly_name: 'Living Room Light', domain: 'light', supported_actions: ['light.turn_on'] },
+  ], { entity_references: { livingroomlight: 'light.living_room_lamp' } });
+  assert.deepEqual(selected, [{
+    reference: 'livingroomlight', status: 'resolved', entity_id: 'light.living_room_lamp',
+    evidence: 'user_selected_candidate',
+  }]);
 });
 
 test('hybrid retrieval uses dense multilingual evidence without a room dictionary', async () => {

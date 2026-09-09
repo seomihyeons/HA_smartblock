@@ -6,6 +6,7 @@ import {
 } from '../../src/import/yaml_import.js';
 import {
   AUTOMATION_IR_SCHEMA,
+  normalizeToAutomationIr,
   validateAutomationIr,
 } from '../../src/automation_ir/schema.mjs';
 import {
@@ -101,6 +102,44 @@ test('schema validator rejects malformed top-level sections', () => {
   assert.equal(result.valid, false);
   assert.match(result.errors.join('\n'), /triggers must be an array/);
   assert.match(result.errors.join('\n'), /actions must be an array/);
+});
+
+test('shared IR normalizer accepts legacy aliases and returns canonical fields', () => {
+  const result = normalizeToAutomationIr({
+    trigger: { platform: 'state', entity_id: 'binary_sensor.front_door', to: 'on' },
+    condition: { condition: 'state', entity_id: 'light.entrance', state: 'off' },
+    action: { service: 'light.turn_on', target: { entity_id: 'light.entrance' } },
+  });
+
+  assert.deepEqual(result.conflicts, []);
+  assert.equal(result.automation.triggers[0].trigger, 'state');
+  assert.equal('platform' in result.automation.triggers[0], false);
+  assert.equal(result.automation.actions[0].action, 'light.turn_on');
+  assert.equal('service' in result.automation.actions[0], false);
+  assert.equal(validateAutomationIr(result.automation).valid, true);
+});
+
+test('shared IR normalizer reports conflicting aliases without dropping unknown fields', () => {
+  const result = normalizeToAutomationIr({
+    triggers: [{ trigger: 'state', platform: 'event', future_option: { keep: true } }],
+    conditions: [],
+    actions: [],
+  });
+
+  assert.match(result.conflicts.join('\n'), /conflicting trigger and platform/);
+  assert.deepEqual(result.automation.triggers[0].future_option, { keep: true });
+});
+
+test('YAML import preserves a conflicting legacy trigger instead of silently choosing one', () => {
+  const normalized = normalizeAutomationObject({
+    triggers: [{ trigger: 'state', platform: 'event', future_option: 'keep' }],
+    conditions: [],
+    actions: [],
+  });
+
+  assert.equal(normalized.triggers[0].trigger, 'state');
+  assert.equal(normalized.triggers[0].platform, 'event');
+  assert.equal(normalized.triggers[0].future_option, 'keep');
 });
 
 test('unsupported actions fall back individually and keep their order', () => {

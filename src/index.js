@@ -15,7 +15,7 @@ import './blocks/extensions.js';
 
 import { initConflictAnalyzerUI } from "./homeassistant/conflict_analyzer/debug_ui";
 import { initTaskAltUI } from '../test/task_alt/task_alt_ui';
-import { initAiAssistantUI } from './llm_assistant/assistant_ui';
+import { initAiAssistantUI } from './homeassistant/llm_assistant/assistant_ui';
 
 import './index.css';
 import { yamlGenerator } from './generators/yaml';

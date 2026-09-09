@@ -1,5 +1,7 @@
 // src/import/yaml_import.js
 
+import { normalizeToAutomationIr } from '../automation_ir/schema.mjs';
+
 // 경량 파서 + 정규화 (외부 의존성 없음)
 export function yamlTextToInternalJson(yamlText) {
   // 원시 파싱
@@ -576,7 +578,12 @@ function normalizeConditions(conds) {
 
 /* ---------- 자동화 전체 정규화 ---------- */
 export function normalizeAutomationObject(obj) {
-  const o = { ...obj };
+  // Shared IR handling accepts legacy/current Home Assistant spellings before
+  // this importer applies its domain-specific value normalization. A legacy
+  // YAML conflict remains untouched here so the importer can preserve it via
+  // its existing fallback behavior; LLM drafts reject such conflicts earlier.
+  const shared = normalizeToAutomationIr(obj);
+  const o = { ...(shared.conflicts.length ? obj : shared.automation) };
 
   if (o.alias != null && typeof o.alias !== 'string') o.alias = String(o.alias);
 
@@ -594,7 +601,9 @@ export function normalizeAutomationObject(obj) {
 
     const plat = out.platform || out.trigger || out.type;
     if (plat === 'sun' || out.event === 'sunrise' || out.event === 'sunset') {
-      out.platform = 'sun';
+      out.trigger = 'sun';
+      delete out.platform;
+      delete out.type;
       if (out.offset != null) out.offset = normalizeSunOffset(out.offset);
     }
 

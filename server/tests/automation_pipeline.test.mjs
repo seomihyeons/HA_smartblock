@@ -8,6 +8,7 @@ const cards = [
   { entity_id: 'light.living_room', friendly_name: 'Living Room Light', domain: 'light', state: 'on', supported_actions: ['light.turn_on', 'light.turn_off'] },
   { entity_id: 'switch.coffee', friendly_name: 'Coffee Maker', domain: 'switch', state: 'off', supported_actions: ['switch.turn_on', 'switch.turn_off'] },
   { entity_id: 'climate.bedroom', friendly_name: 'Bedroom Thermostat', domain: 'climate', state: 'heat', supported_actions: ['climate.set_temperature'] },
+  { entity_id: 'automation.arrival', friendly_name: 'Arrival Routine', domain: 'automation', state: 'on', supported_actions: ['automation.trigger'] },
 ];
 
 const capabilities = {
@@ -20,6 +21,7 @@ const capabilities = {
     { id: 'switch.turn_on', risk: 'low' },
     { id: 'switch.turn_off', risk: 'low' },
     { id: 'climate.set_temperature', risk: 'medium' },
+    { id: 'automation.trigger', risk: 'medium' },
   ],
 };
 
@@ -171,6 +173,78 @@ test('risk is computed from registry data rather than the model category or clai
   assert.equal(result.status, 'unsupported');
   assert.match(result.reason, /draft-only/);
   assert.equal(result.pipeline.goal_analysis.risk_level, 'medium');
+});
+
+test('registry risk rejects a model-inferred automation service and repairs to a grounded clarification', async () => {
+  const incorrectGoal = goal({
+    goal_category: 'door open',
+    primary_service: 'automation.trigger',
+    requested_services: ['automation.trigger'],
+    action_source: 'inferred',
+    target_scope: 'unspecified',
+    target_hints: [],
+    target_entity_ids: [],
+    risk_level: 'low',
+    assumptions: ['Trigger an existing automation.'],
+    evidence: {
+      trigger_phrase: '현관문이 열리면',
+      action_phrase: '',
+      target_phrase: '',
+    },
+  });
+  const correctedGoal = goal({
+    status: 'needs_clarification',
+    goal_type: 'ambiguous',
+    home_supports_goal: false,
+    trigger_specified: true,
+    trigger_kind: 'state',
+    primary_service: 'none',
+    requested_services: [],
+    action_source: 'unknown',
+    target_scope: 'unspecified',
+    target_hints: [],
+    target_entity_ids: [],
+    risk_level: 'low',
+    assumptions: [],
+    questions: ['복도 스위치에 해당하는 Home Assistant 엔터티를 찾지 못했습니다.'],
+    reason: 'The requested switch is unavailable in the supplied home context.',
+    evidence: {
+      trigger_phrase: '현관문이 열리면',
+      action_phrase: '',
+      target_phrase: '',
+    },
+  });
+  const mocks = options([incorrectGoal, correctedGoal]);
+  const result = await createAutomationDraft({
+    command: '현관문이 열리면 복도 스위치를 켜줘.',
+    entity_cards: cards,
+    capability_context: capabilities,
+    interaction_mode: 'auto',
+  }, mocks);
+  assert.equal(result.status, 'needs_clarification');
+  assert.match(result.question, /복도 스위치/);
+  assert.equal(mocks.calls(), 2);
+});
+
+test('an explicit target-required service without a grounded entity asks for the device', async () => {
+  const ungrounded = goal({
+    trigger_specified: false,
+    trigger_kind: 'none',
+    target_scope: 'specific',
+    target_hints: ['hallway switch'],
+    target_entity_ids: [],
+    evidence: { trigger_phrase: '', action_phrase: 'turn on', target_phrase: 'hallway switch' },
+  });
+  const mocks = options([ungrounded]);
+  const result = await createAutomationDraft({
+    command: 'Turn on the hallway switch',
+    entity_cards: cards,
+    capability_context: capabilities,
+    interaction_mode: 'auto',
+  }, mocks);
+  assert.equal(result.status, 'needs_clarification');
+  assert.match(result.question, /Home Assistant entity/);
+  assert.equal(mocks.calls(), 1);
 });
 
 test('vague action evidence is stopped before a service can be planned', async () => {

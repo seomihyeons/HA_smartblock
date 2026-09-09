@@ -48,6 +48,12 @@
       </div>
 
       <div class="ai-assistant-meta">
+        <label class="ai-assistant-provider" for="aiAssistantProvider">
+          <span>Model</span>
+          <select id="aiAssistantProvider" aria-label="LLM provider" disabled>
+            <option>Loading…</option>
+          </select>
+        </label>
         <div id="aiAssistantStatus" class="ai-assistant-status state-idle">Ready · Requests are routed automatically</div>
       </div>
 
@@ -68,7 +74,7 @@
       </div>
 
       <form id="aiAssistantForm" class="ai-assistant-form">
-        <textarea id="aiAssistantInput" rows="2" maxlength="1000" placeholder="Ask for an automation or light control in English or Korean…" aria-label="Home Assistant request" required></textarea>
+        <textarea id="aiAssistantInput" rows="2" maxlength="1000" placeholder="What would you like to automate or control?" aria-label="Home Assistant request" required></textarea>
         <button id="aiAssistantSend" type="submit">Send</button>
       </form>
     </div>
