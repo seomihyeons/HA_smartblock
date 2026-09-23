@@ -36,6 +36,18 @@
     🗨︎
   </button>
 
+  <button id="btnBlockSearch" type="button" title="Search blocks" aria-label="Search blocks">
+    <span aria-hidden="true">⌕</span><span>Search blocks</span>
+  </button>
+
+  <div id="blockSearchFlyoutHeader" class="block-search-flyout-header hidden">
+    <label for="blockSearchFlyoutInput">
+      <span aria-hidden="true">⌕</span>
+      <input id="blockSearchFlyoutInput" type="search" autocomplete="off" placeholder="Search blocks">
+    </label>
+    <button id="blockSearchFlyoutClose" type="button" aria-label="Close search">×</button>
+  </div>
+
   <div id="aiAssistantPanel" class="modal ai-assistant-modal hidden" role="dialog" aria-modal="true" aria-labelledby="aiAssistantTitle">
     <div id="aiAssistantBackdrop" class="modal-backdrop" aria-hidden="true"></div>
 

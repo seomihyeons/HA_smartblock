@@ -1,6 +1,6 @@
 # fetch_GOW.py
 # ------------------------------------------------------------
-# Scans geekof_automation/*.yaml and generates
+# Scans automations/geekofweek/*.yaml and generates
 # src/data/entities_geekofweek.js
 # ------------------------------------------------------------
 
@@ -14,7 +14,7 @@ from typing import Dict, Iterable, List, Set
 
 HERE = Path(__file__).resolve().parent
 PROJECT_ROOT = HERE.parent.parent
-GOW_ROOT = PROJECT_ROOT / "geekof_automation"
+GOW_ROOT = PROJECT_ROOT / "automations" / "geekofweek"
 OUT_ENTITIES_JS = HERE / "entities_geekofweek.js"
 
 

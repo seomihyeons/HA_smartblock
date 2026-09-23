@@ -7,7 +7,7 @@ build
 test/**/*.yaml
 test/**/*.yml
 test/task_alt/baseline.json
-geekof_automation
-**/geekof_automation
+automations
+**/automations
 **/entities_geekofweek.js
 **/fetch_GOW.py

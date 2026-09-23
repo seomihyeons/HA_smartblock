@@ -16,6 +16,7 @@ import './blocks/extensions.js';
 import { initConflictAnalyzerUI } from "./homeassistant/conflict_analyzer/debug_ui";
 import { initTaskAltUI } from '../test/task_alt/task_alt_ui';
 import { initAiAssistantUI } from './homeassistant/llm_assistant/assistant_ui';
+import { initBlockSearchFlyout } from './block_search_flyout.js';
 
 import './index.css';
 import { yamlGenerator } from './generators/yaml';
@@ -182,4 +183,5 @@ window.addEventListener("DOMContentLoaded", () => {
     renderAutomationToWorkspace,
     getWorkspaceYaml: () => yamlGenerator.workspaceToCode(ws),
   });
+  initBlockSearchFlyout({ workspace: ws });
 });
