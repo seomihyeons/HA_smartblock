@@ -11,6 +11,8 @@ xhome_workspace/
 src/data/test_entities.json
 security/
 automations/
+src/data/fetch_B.py
+src/data/entities_basnijholt.js
 test/task_alt/baseline.json
 SERP4IoT_demo_plan.md
 SERP4IoT_presentation_outline.md
