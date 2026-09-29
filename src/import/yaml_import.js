@@ -28,7 +28,23 @@ function parseYamlLite(text) {
   const INDENT_RE = /^(\s*)(.*)$/;
   const stripQuotes = (s) => {
     const t = s.trim();
-    if ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))) return t.slice(1, -1);
+    if (t.startsWith('"') && t.endsWith('"')) {
+      // JSON string escaping is a compatible subset of double-quoted YAML.
+      // Decode it here so a generated `\\n` represents the same value as a
+      // multiline YAML scalar during import and semantic comparison.
+      try {
+        return JSON.parse(t);
+      } catch (_) {
+        return t.slice(1, -1);
+      }
+    }
+    if (t.startsWith("'") && t.endsWith("'")) {
+      // YAML escapes a literal apostrophe inside a single-quoted scalar as
+      // two apostrophes.  Decode it before it reaches a Blockly text field;
+      // otherwise a Jinja expression such as states(''light.kitchen'') is
+      // regenerated as invalid Jinja.
+      return t.slice(1, -1).replace(/''/g, "'");
+    }
     return t;
   };
   const splitInlineArray = (inner) => {
@@ -105,6 +121,7 @@ function parseYamlLite(text) {
     if (!m) return { text: styleToken, endIdx: startIdx };
 
     const style = m[1]; // '>' or '|'
+    const chomp = m[2] || '';
     const rows = [];
 
     let i = startIdx + 1;
@@ -152,8 +169,11 @@ function parseYamlLite(text) {
       }
       text = out.join('').trim();
     } else {
-      // literal scalar
-      text = valueLines.join('\n').trim();
+      // Literal scalars preserve their internal whitespace. YAML's default
+      // "clip" chomping keeps exactly one terminal newline; `|-` removes it.
+      // Trimming here used to corrupt imported multi-line Jinja source.
+      text = valueLines.join('\n');
+      if (chomp !== '-') text += '\n';
     }
 
     return { text, endIdx };
@@ -227,10 +247,12 @@ function parseYamlLite(text) {
         const idx = after.indexOf(':');
         const key = after.slice(0, idx).trim();
         let vStr = after.slice(idx + 1).trim();
+        let isBlockScalar = false;
         if (vStr) {
           const blockScalar = consumeBlockScalar(lineIdx, indent, vStr);
           if (blockScalar.endIdx !== lineIdx || BLOCK_SCALAR_RE.test(vStr)) {
             vStr = blockScalar.text;
+            isBlockScalar = true;
             lineIdx = blockScalar.endIdx;
           } else {
             const consumed = consumeMultilineQuoted(vStr, lineIdx);
@@ -239,7 +261,7 @@ function parseYamlLite(text) {
           }
         }
         const mapNode = { __type: 'map', value: {} };
-        mapNode.value[key] = vStr ? wrapScalar(vStr) : { __type: 'map', value: {} };
+        mapNode.value[key] = vStr ? (isBlockScalar ? vStr : wrapScalar(vStr)) : { __type: 'map', value: {} };
         seqNode.value.push(mapNode);
         stack.push({ indent, node: mapNode });
       } else {
@@ -291,6 +313,7 @@ function parseYamlLite(text) {
       }
       const key = content.slice(0, idx).trim();
       let vStr = content.slice(idx + 1).trim();
+      let isBlockScalar = false;
       let mapNode = parent;
       if (parent.__type === 'seq') {
         mapNode = { __type: 'map', value: {} };
@@ -301,13 +324,14 @@ function parseYamlLite(text) {
         const blockScalar = consumeBlockScalar(lineIdx, indent, vStr);
         if (blockScalar.endIdx !== lineIdx || BLOCK_SCALAR_RE.test(vStr)) {
           vStr = blockScalar.text;
+          isBlockScalar = true;
           lineIdx = blockScalar.endIdx;
         } else {
           const consumed = consumeMultilineQuoted(vStr, lineIdx);
           vStr = consumed.text;
           lineIdx = consumed.endIdx;
         }
-        const wrapped = wrapScalar(vStr);
+        const wrapped = isBlockScalar ? vStr : wrapScalar(vStr);
         // 인라인 배열이면 곧바로 시퀀스 노드로 저장
         if (Array.isArray(wrapped)) {
           mapNode.value[key] = { __type: 'seq', value: wrapped };
@@ -626,12 +650,20 @@ export function normalizeAutomationObject(obj) {
       ? siblingDelay
       : (a?.delay ?? siblingDelay);
 
-    const na = {
-      ...a,
-      delay: normalizeFor(delaySource),
-      for: normalizeFor(a?.for),
-      target: normalizeTarget(a?.target),
-    };
+    const na = { ...a };
+
+    // Do not synthesize absent optional action fields as `null`.  Besides
+    // producing noisy Raw Action YAML, a generated `target: null` changes a
+    // complex choose action's exact structure and incorrectly fails semantic
+    // round-trip comparison.
+    if (delaySource != null) na.delay = normalizeFor(delaySource);
+    else delete na.delay;
+
+    if (a?.for != null) na.for = normalizeFor(a.for);
+    else delete na.for;
+
+    if (a?.target != null) na.target = normalizeTarget(a.target);
+    else delete na.target;
 
     if (na.data && typeof na.data === 'object' && !Array.isArray(na.data)) {
       let nextData = { ...na.data };

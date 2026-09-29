@@ -26,6 +26,7 @@ import { customTheme } from './utils/custom_theme.js';
 import './blocks/extensions';
 
 import { ruleBlocks } from './blocks/rule_blocks';
+import { ruleMetadataBlocks } from './blocks/rule_metadata.js';
 import { rawLinesBlocks } from './blocks/raw_lines';
 Blockly.common.defineBlocks(rawLinesBlocks);
 
@@ -62,6 +63,7 @@ import { actionDataBlocks } from './blocks/action/action_data.js';
 import { actionMqttBlocks } from './blocks/action/action_mqtt.js';
 
 Blockly.common.defineBlocks(ruleBlocks);
+Blockly.common.defineBlocks(ruleMetadataBlocks);
 
 Blockly.common.defineBlocks(haEventStateBlocks);
 Blockly.common.defineBlocks(eventEntityBlocks);

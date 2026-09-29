@@ -1,6 +1,6 @@
 // src/import/blocks/action_mapper.js
 import * as Blockly from 'blockly';
-import { createConditionsRoot } from './condition_mapper';
+import { createConditionsRoot } from './condition_mapper.js';
 import { createRawLinesBlock } from './raw_fallback.js';
 
 const canCreate = (t) => !!Blockly.Blocks?.[t];
@@ -108,6 +108,15 @@ function buildNotifyMessageAsTextBlock(message, notifyBlock, workspace) {
   textBlk.setFieldValue(message, 'TEXT');
   textBlk.initSvg(); textBlk.render();
   appendStmt(notifyBlock, textBlk, 'MESSAGE_BLOCKS');
+}
+
+function buildNotifyTitleBlock(title, notifyBlock, workspace) {
+  if (typeof title !== 'string' || !title.length) return;
+  if (!canCreate('notify_prop_title')) return;
+  const titleBlk = workspace.newBlock('notify_prop_title');
+  titleBlk.setFieldValue(title, 'TITLE');
+  titleBlk.initSvg(); titleBlk.render();
+  appendStmt(notifyBlock, titleBlk, 'MESSAGE_BLOCKS');
 }
 
 /**
@@ -799,62 +808,69 @@ function scalarToYaml(v) {
   return JSON.stringify(v);
 }
 
-function appendYamlLines(lines, key, value, indent) {
+// Emit a complete action mapping for the Raw fallback.  Unlike the typed
+// action blocks, Home Assistant actions do not always use `action:`/`service:`
+// as their top-level key (e.g. `condition`, `variables`, `wait_for_trigger`,
+// `repeat`).  Re-labelling one of those objects as `action: { ...JSON... }`
+// changes its meaning, so preserve its actual YAML shape instead.
+function appendRawActionYamlKey(lines, key, value, indent, isListItem = false) {
   const pad = ' '.repeat(indent);
+  const prefix = isListItem ? `${pad}- ` : pad;
+
   if (Array.isArray(value)) {
-    lines.push(`${pad}${key}:`);
+    if (!value.length) {
+      lines.push(`${prefix}${key}: []`);
+      return;
+    }
+    lines.push(`${prefix}${key}:`);
     for (const item of value) {
       if (item && typeof item === 'object' && !Array.isArray(item)) {
-        lines.push(`${pad}  -`);
-        for (const [k, v] of Object.entries(item)) {
-          appendYamlLines(lines, k, v, indent + 6);
+        const entries = Object.entries(item);
+        if (!entries.length) {
+          lines.push(`${' '.repeat(indent + 2)}- {}`);
+          continue;
+        }
+        const [firstKey, firstValue] = entries[0];
+        appendRawActionYamlKey(lines, firstKey, firstValue, indent + 2, true);
+        for (const [childKey, childValue] of entries.slice(1)) {
+          appendRawActionYamlKey(lines, childKey, childValue, indent + 4);
         }
       } else if (Array.isArray(item)) {
-        lines.push(`${pad}  - ${JSON.stringify(item)}`);
+        lines.push(`${' '.repeat(indent + 2)}- ${JSON.stringify(item)}`);
       } else {
-        lines.push(`${pad}  - ${scalarToYaml(item)}`);
+        lines.push(`${' '.repeat(indent + 2)}- ${scalarToYaml(item)}`);
       }
     }
     return;
   }
 
   if (value && typeof value === 'object') {
-    lines.push(`${pad}${key}:`);
-    for (const [k, v] of Object.entries(value)) {
-      appendYamlLines(lines, k, v, indent + 2);
+    const entries = Object.entries(value);
+    if (!entries.length) {
+      lines.push(`${prefix}${key}: {}`);
+      return;
+    }
+    lines.push(`${prefix}${key}:`);
+    for (const [childKey, childValue] of entries) {
+      appendRawActionYamlKey(lines, childKey, childValue, indent + 2);
     }
     return;
   }
 
-  lines.push(`${pad}${key}: ${scalarToYaml(value)}`);
+  lines.push(`${prefix}${key}: ${scalarToYaml(value)}`);
 }
 
 function actionObjToRawLines(a) {
-  if (!a || typeof a !== 'object') return ['- action: {}'];
-  const svc = a.action || a.service || '';
+  if (!a || typeof a !== 'object' || Array.isArray(a)) return ['- {}'];
+  const entries = Object.entries(a);
+  if (!entries.length) return ['- {}'];
+
   const lines = [];
-
-  if (typeof svc === 'string' && svc.length) {
-    lines.push(`- action: ${svc}`);
-  } else {
-    lines.push(`- action: ${JSON.stringify(a)}`);
-    return lines;
+  const [firstKey, firstValue] = entries[0];
+  appendRawActionYamlKey(lines, firstKey, firstValue, 0, true);
+  for (const [key, value] of entries.slice(1)) {
+    appendRawActionYamlKey(lines, key, value, 2);
   }
-
-  if (a.target && typeof a.target === 'object') {
-    lines.push(`  target:`);
-    for (const [k, v] of Object.entries(a.target)) {
-      appendYamlLines(lines, k, v, 4);
-    }
-  }
-
-  if (a.data && typeof a.data === 'object') {
-    lines.push(`  data:`);
-    for (const [k, v] of Object.entries(a.data)) {
-      appendYamlLines(lines, k, v, 4);
-    }
-  }
-
   return lines;
 }
 
@@ -1180,6 +1196,7 @@ export function createActionNode(a, workspace) {
 
     const uiTarget = svc.replace(/^notify\./, '') || 'notify';
     const message = a?.data?.message ?? a?.data?.notification?.message ?? '';
+    const title = a?.data?.title ?? '';
 
     const b = workspace.newBlock('action_notify');
 
@@ -1190,6 +1207,7 @@ export function createActionNode(a, workspace) {
 
     b.initSvg(); b.render();
     buildNotifyMessageAsTextBlock(String(message ?? ''), b, workspace);
+    buildNotifyTitleBlock(String(title ?? ''), b, workspace);
 
     // nested payload: data.data
     const nested = a?.data?.data;

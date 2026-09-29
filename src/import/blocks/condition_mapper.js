@@ -195,6 +195,15 @@ function extractTemplateExpression(raw) {
   return s;
 }
 
+// Keep the parsed scalar as well as the editable expression.  The generator
+// uses it only while TEMPLATE is unchanged, so imported multi-line Jinja is
+// round-tripped exactly but a user edit still produces ordinary editable YAML.
+function setImportedTemplateSource(block, rawTemplate, expression) {
+  const source = String(rawTemplate ?? '');
+  if (block.getField('SOURCE_TEMPLATE')) block.setFieldValue(source, 'SOURCE_TEMPLATE');
+  if (block.getField('SOURCE_TEMPLATE_EXPR')) block.setFieldValue(expression, 'SOURCE_TEMPLATE_EXPR');
+}
+
 // 논리 그룹 감지: {or:[...]} / {and:[...]} / {not:[...]}  (구문 혼합도 수용)
 function getLogicGroup(c) {
   if (!c || typeof c !== 'object') return null;
@@ -547,6 +556,32 @@ function makeSunConditionBlock(workspace, c) {
 function createSingleConditionNode(c, workspace, context = 'and') {
   if (!c) return null;
 
+  // Home Assistant permits a template condition in shorthand form:
+  // `conditions: "{{ ... }}"`.  It is semantically the same as
+  // `{ condition: template, value_template: "{{ ... }}" }`, and the
+  // existing condition_template block can represent it without losing it.
+  // Do this before accessing object properties; otherwise JavaScript falls
+  // through to the default state-condition path and creates an empty block.
+  if (typeof c === 'string') {
+    const rawTemplate = c.trim();
+    if (/^\{\{[\s\S]*\}\}$/.test(rawTemplate) && canCreate('condition_template')) {
+      const expr = extractTemplateExpression(rawTemplate);
+      if (expr) {
+        const b = workspace.newBlock('condition_template');
+        if (b.getField('TEMPLATE')) b.setFieldValue(expr, 'TEMPLATE');
+        setImportedTemplateSource(b, c, expr);
+        b.initSvg?.();
+        b.render?.();
+        return b;
+      }
+    }
+    return createRawLinesBlock(workspace, 'condition', conditionToRawLines(c));
+  }
+
+  if (typeof c !== 'object' || Array.isArray(c)) {
+    return createRawLinesBlock(workspace, 'condition', conditionToRawLines(c));
+  }
+
   // 1) 논리 그룹 (or/and/not)
   const logic = getLogicGroup(c);
   if (logic) {
@@ -612,6 +647,7 @@ function createSingleConditionNode(c, workspace, context = 'and') {
 
     const b = workspace.newBlock('condition_template');
     if (b.getField('TEMPLATE')) b.setFieldValue(expr, 'TEMPLATE');
+    setImportedTemplateSource(b, rawTemplate, expr);
     b.initSvg?.();
     b.render?.();
     return b;

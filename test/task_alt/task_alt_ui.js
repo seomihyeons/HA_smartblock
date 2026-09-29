@@ -687,28 +687,32 @@ export function initTaskAltUI({ ws }) {
               if (idx >= 0 && results[idx]) applyPreview(results[idx], idx);
             });
             rowHead.appendChild(nameBtn);
+            row.appendChild(rowHead);
+
+            // Keep the name on top, then use one compact footer row for the
+            // outcome and the editor action.  This avoids a redundant
+            // "status changed" line while making the change easy to scan.
+            const footer = document.createElement('div');
+            footer.className = 'taskalt-change-footer';
+            const summary = document.createElement('div');
+            summary.className = 'taskalt-change-summary';
 
             if (change.statusChange) {
               const badge = document.createElement('span');
               badge.className = `taskalt-status ${statusClass(change.statusChange.to)}`;
               badge.textContent = `${change.statusChange.from} -> ${change.statusChange.to}`;
-              rowHead.appendChild(badge);
+              summary.appendChild(badge);
             } else if (change.isNew) {
               const badge = document.createElement('span');
               badge.className = 'taskalt-status norm';
               badge.textContent = 'NEW';
-              rowHead.appendChild(badge);
+              summary.appendChild(badge);
             } else if (change.isMissing) {
               const badge = document.createElement('span');
               badge.className = 'taskalt-status raw';
               badge.textContent = 'MISSING';
-              rowHead.appendChild(badge);
+              summary.appendChild(badge);
             }
-
-            row.appendChild(rowHead);
-
-            const detail = document.createElement('div');
-            detail.className = 'taskalt-change-body';
 
             if (change.countChange) {
               const count = document.createElement('div');
@@ -718,37 +722,28 @@ export function initTaskAltUI({ ws }) {
                 `condition ${change.countChange.condition[0]}->${change.countChange.condition[1]}`,
                 `action ${change.countChange.action[0]}->${change.countChange.action[1]}`,
               ].join(', ');
-              detail.appendChild(count);
+              summary.appendChild(count);
             }
 
             if (change.rawChange) {
               const raw = document.createElement('div');
               raw.className = 'taskalt-change-line';
               raw.textContent = `raw ${change.rawChange.from}->${change.rawChange.to}`;
-              detail.appendChild(raw);
+              summary.appendChild(raw);
             }
 
-            if (!detail.childNodes.length) {
-              const empty = document.createElement('div');
-              empty.className = 'taskalt-change-line';
-              empty.textContent = 'status changed';
-              detail.appendChild(empty);
-            }
-
-            row.appendChild(detail);
+            footer.appendChild(summary);
 
             const idx = results.findIndex((x) => String(x?.name || '') === change.name);
             if (idx >= 0 && results[idx]) {
-              const actions = document.createElement('div');
-              actions.className = 'taskalt-inline-actions';
               const openBtn = document.createElement('button');
               openBtn.type = 'button';
               openBtn.className = `taskalt-open-btn${committedPreview?.idx === idx ? ' active' : ''}`;
               openBtn.textContent = committedPreview?.idx === idx ? 'Opened in Editor' : 'Open in Editor';
               openBtn.addEventListener('click', () => commitPreviewToEditor(results[idx], idx));
-              actions.appendChild(openBtn);
-              row.appendChild(actions);
+              footer.appendChild(openBtn);
             }
+            row.appendChild(footer);
             list.appendChild(row);
           });
 

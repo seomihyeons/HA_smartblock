@@ -40,6 +40,11 @@ yamlGenerator.forBlock['ha_actions_raw'] = function (block) {
   return raw || '';
 };
 
+function normalizeRawYaml(raw) {
+  const text = String(raw ?? '').replace(/\r\n/g, '\n');
+  return text.trim() ? `${text.trimEnd()}\n` : '';
+}
+
 /* ===== Home Assistant custom blocks ===== */
 function emitRawLines(block) {
   const raw = String(block.getFieldValue('RAW_LINES') || '').replace(/\r\n/g, '\n');
@@ -47,6 +52,12 @@ function emitRawLines(block) {
   const lines = raw.split('\n');
   while (lines.length && lines[lines.length - 1] === '') lines.pop();
   return lines.join('\n') + '\n';
+}
+
+function statementCodeIfPresent(block, generator, inputName) {
+  return block.getInput(inputName)
+    ? generator.statementToCode(block, inputName)
+    : '';
 }
 
 yamlGenerator.forBlock['ha_event_raw_lines'] = function (block) {
@@ -58,6 +69,27 @@ yamlGenerator.forBlock['ha_condition_raw_lines'] = function (block) {
 yamlGenerator.forBlock['ha_action_raw_lines'] = function (block) {
   return emitRawLines(block);
 };
+yamlGenerator.forBlock['ha_metadata_raw_lines'] = function (block) {
+  return emitRawLines(block);
+};
+yamlGenerator.forBlock['ha_rule_execution'] = function (block) {
+  const mode = block.getFieldValue('MODE') || 'single';
+  let code = `mode: ${mode}\n`;
+
+  if (
+    (mode === 'queued' || mode === 'parallel') &&
+    block.getFieldValue('USE_MAX') === 'TRUE'
+  ) {
+    const max = Math.max(1, Math.trunc(Number(block.getFieldValue('MAX')) || 10));
+    code += `max: ${max}\n`;
+  }
+
+  return code;
+};
+yamlGenerator.forBlock['ha_rule_max_exceeded'] = function (block) {
+  const maxExceeded = block.getFieldValue('MAX_EXCEEDED') || '__default__';
+  return maxExceeded === '__default__' ? '' : `max_exceeded: ${maxExceeded}\n`;
+};
 
 
 
@@ -67,10 +99,15 @@ yamlGenerator.forBlock['event_action'] = function (block, generator) {
   const id = block.getFieldValue('ID') || '';
   const escapeSq = (s) => String(s).replace(/'/g, "''");
   const eventCode = generator.statementToCode(block, 'EVENT');
+  const metadataCode = statementCodeIfPresent(block, generator, 'METADATA');
   const actionCode = generator.statementToCode(block, 'ACTION');
 
   let code = `- alias: '${escapeSq(alias)}'\n`;
   if (id && id != "(Optional)") { code += `  id: '${escapeSq(id)}'\n`; }
+  if (metadataCode && metadataCode.trim()) {
+    // statementToCode already indents a connected statement one level.
+    code += metadataCode;
+  }
 
   code += `\n  triggers:\n`; code += generator.prefixLines(eventCode, `  `);
   code += `\n  actions:\n`; code += generator.prefixLines(actionCode, `  `);
@@ -84,11 +121,16 @@ yamlGenerator.forBlock['event_condition_action'] = function (block, generator) {
   const id = block.getFieldValue('ID') || '';
   const escapeSq = (s) => String(s).replace(/'/g, "''");
   const eventCode = generator.statementToCode(block, 'EVENT');
+  const metadataCode = statementCodeIfPresent(block, generator, 'METADATA');
   const conditionCode = generator.statementToCode(block, 'CONDITION');
   const actionCode = generator.statementToCode(block, 'ACTION');
 
   let code = `- alias: '${escapeSq(alias)}'\n`;
   if (id && id != "(Optional)") { code += `  id: '${escapeSq(id)}'\n`; }
+  if (metadataCode && metadataCode.trim()) {
+    // statementToCode already indents a connected statement one level.
+    code += metadataCode;
+  }
 
   code += `\n  triggers:\n`; code += generator.prefixLines(eventCode, `  `);
   if (conditionCode && conditionCode.trim()) {
@@ -472,15 +514,33 @@ function normalizeTemplateExpression(raw) {
   return s;
 }
 
+function emitTemplateScalar(value, indent) {
+  const source = String(value ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  if (!source.includes('\n')) return `${indent}value_template: ${JSON.stringify(source)}`;
+
+  // A literal scalar preserves every newline and every space after the YAML
+  // indentation. `|` retains a final newline; `|-` deliberately omits one.
+  const hasFinalNewline = source.endsWith('\n');
+  const lines = (hasFinalNewline ? source.slice(0, -1) : source).split('\n');
+  return [
+    `${indent}value_template: |${hasFinalNewline ? '' : '-'}`,
+    ...lines.map((line) => `${indent}${yamlGenerator.INDENT}${line}`),
+  ].join('\n');
+}
+
 yamlGenerator.forBlock['condition_template'] = function (block) {
-  const expr = normalizeTemplateExpression(block.getFieldValue('TEMPLATE'));
+  const current = String(block.getFieldValue('TEMPLATE') ?? '');
+  const expr = normalizeTemplateExpression(current);
   if (!expr) return '';
 
-  const escaped = expr.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
   const i = yamlGenerator.INDENT;
+  const source = block.getFieldValue('SOURCE_TEMPLATE');
+  const sourceExpression = block.getFieldValue('SOURCE_TEMPLATE_EXPR');
+  const unchangedImportedTemplate = source && current === sourceExpression;
+  const valueTemplate = unchangedImportedTemplate ? source : `{{ ${expr} }}`;
   const lines = [
     `- condition: template`,
-    `${i}value_template: "{{ ${escaped} }}"`,
+    emitTemplateScalar(valueTemplate, i),
     '',
   ];
   return lines.join('\n');
@@ -1221,6 +1281,9 @@ function emitYamlObject(obj, indent = 0) {
 yamlGenerator.forBlock['action_data_kv_text'] = function (block) {
   const k = (block.getFieldValue('KEY') || '').trim();
   const rawV = String(block.getFieldValue('VALUE') || '');
+  // Use a trimmed view only where a scalar must be parsed.  The original
+  // value, including terminal newlines in multiline Jinja templates, is data
+  // and must survive a Blockly round trip.
   const v = rawV.trim();
   if (!k) return '';
   const keyLower = k.toLowerCase();
@@ -1406,7 +1469,7 @@ yamlGenerator.forBlock['action_data_kv_text'] = function (block) {
     }
   }
 
-  return `${k}: ${JSON.stringify(v)}\n`;
+  return `${k}: ${JSON.stringify(rawV)}\n`;
 };
 
 // Action: if-then-else
@@ -1468,6 +1531,7 @@ yamlGenerator.forBlock['action_notify'] = function (block, generator) {
 
   const extraLines = [];
   const messageParts = [];
+  let notificationTitle = '';
   const mergePushOptionBlock = (pushBlock, pushPayload, state) => {
     const option = String(pushBlock.getFieldValue('OPTION') || 'none');
     state.seen = true;
@@ -1688,6 +1752,9 @@ yamlGenerator.forBlock['action_notify'] = function (block, generator) {
         if (tagYaml) extraLines.push(tagYaml);
       }
     }
+    if (child.type === 'notify_prop_title') {
+      notificationTitle = String(child.getFieldValue('TITLE') || '').trim();
+    }
     if (child.type === 'notify_push') {
       mergeLegacyPushBlock(child, pushPayload, pushState);
       const pushYaml = buildPushYaml(child);
@@ -1707,6 +1774,7 @@ yamlGenerator.forBlock['action_notify'] = function (block, generator) {
 
   let code = `- action: ${svc}\n`;
   code += `  data:\n`;
+  if (notificationTitle) code += `    title: ${JSON.stringify(notificationTitle)}\n`;
   code += `    message: ${JSON.stringify(message)}\n`;
   if (extraLines.length) {
     code += `    data:\n`;
