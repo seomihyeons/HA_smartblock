@@ -110,6 +110,13 @@ export const DOMAIN_SPEC = {
     ],
   },
 
+  device_tracker: {
+    states: [
+      ['home', 'home'],
+      ['not home', 'not_home'],
+    ],
+  },
+
   fan: {
     actions: [
       ['on', 'turn_on'],
@@ -292,6 +299,13 @@ export const DOMAIN_SPEC = {
       ['pending', 'pending'],
       ['arming', 'arming'],
       ['triggered', 'triggered'],
+    ],
+  },
+
+  siren: {
+    actions: [
+      ['on', 'turn_on'],
+      ['off', 'turn_off'],
     ],
   },
 

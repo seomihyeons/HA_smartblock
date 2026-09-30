@@ -14,11 +14,13 @@ import { renderAutomationToWorkspace } from './import/yamlToBlocks';
 import './blocks/extensions.js';
 
 import { initConflictAnalyzerUI } from "./homeassistant/conflict_analyzer/debug_ui";
+import { setupHaPullPanel } from './homeassistant/ha_pull_panel';
 import { initTaskAltUI } from '../test/task_alt/task_alt_ui';
 import { initBlockSearchFlyout } from './block_search_flyout.js';
 
 import './index.css';
 import { yamlGenerator } from './generators/yaml';
+import { loadStudyRuntimeEntities } from './data/entities_index.js';
 
 import { toolbox } from './toolbox';
 import { customTheme } from './utils/custom_theme.js';
@@ -28,7 +30,6 @@ import './blocks/extensions';
 import { ruleBlocks } from './blocks/rule_blocks';
 import { ruleMetadataBlocks } from './blocks/rule_metadata.js';
 import { rawLinesBlocks } from './blocks/raw_lines';
-Blockly.common.defineBlocks(rawLinesBlocks);
 
 import { haEventStateBlocks } from './blocks/event/event_HA_state';
 import { eventEntityBlocks } from './blocks/event/event_entity.js';
@@ -62,6 +63,35 @@ import { actionNotifyTagBlocks } from './blocks/action/action_notify_tag.js';
 import { actionDataBlocks } from './blocks/action/action_data.js';
 import { actionMqttBlocks } from './blocks/action/action_mqtt.js';
 
+function showStudyEntityLoadError(error) {
+  const message = document.createElement('div');
+  message.setAttribute('role', 'alert');
+  message.textContent =
+    'Study entities could not be loaded from Home Assistant. Entity selectors are empty. ' +
+    'Check the Home Assistant connection and reload.';
+  message.style.cssText = [
+    'position:fixed',
+    'top:12px',
+    'left:50%',
+    'transform:translateX(-50%)',
+    'z-index:10000',
+    'max-width:720px',
+    'padding:10px 14px',
+    'border:1px solid #a33',
+    'border-radius:6px',
+    'background:#fff3f3',
+    'color:#7a1515',
+    'font:14px sans-serif',
+  ].join(';');
+  document.body.prepend(message);
+  console.error('[HA-SmartBlock Study] Blockly started with no selectable entities.', error);
+}
+
+async function bootstrap() {
+  const runtimeEntities = await loadStudyRuntimeEntities();
+  if (!runtimeEntities.ok) showStudyEntityLoadError(runtimeEntities.error);
+
+Blockly.common.defineBlocks(rawLinesBlocks);
 Blockly.common.defineBlocks(ruleBlocks);
 Blockly.common.defineBlocks(ruleMetadataBlocks);
 
@@ -170,8 +200,6 @@ ws.addChangeListener((e) => {
   runCode();
 });
 
-import { setupHaPullPanel } from './homeassistant/ha_pull_panel';
-
 setupHaPullPanel({ ws });
 
 
@@ -180,4 +208,11 @@ window.addEventListener("DOMContentLoaded", () => {
   initConflictAnalyzerUI();
   initTaskAltUI({ ws });
   initBlockSearchFlyout({ workspace: ws });
+});
+
+}
+
+bootstrap().catch((error) => {
+  console.error('[HA-SmartBlock Study] Initialization failed.', error);
+  showStudyEntityLoadError(error);
 });
