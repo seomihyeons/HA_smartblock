@@ -1,8 +1,11 @@
 // src/import/yamlToBlocks.js
 import * as Blockly from 'blockly';
-import { createTriggerBlock, createTriggerBlocks } from './blocks/trigger_mapper';
-import { createConditionsRoot } from './blocks/condition_mapper';
-import { createActionNode } from './blocks/action_mapper';
+import { createTriggerBlock, createTriggerBlocks } from './blocks/trigger_mapper.js';
+import { createConditionsRoot } from './blocks/condition_mapper.js';
+import { createActionNode } from './blocks/action_mapper.js';
+import { createRawLinesBlock } from './blocks/raw_fallback.js';
+import { mapActionsWithIndividualFallback } from './action_fallback.mjs';
+import { evaluateChooseTypedRepresentability } from './choose_policy.mjs';
 
 const ROOT_BLOCK_TYPE = 'event_condition_action';
 
@@ -52,6 +55,11 @@ const GROUPABLE_ACTION_DOMAINS = new Set([
   'input_select',
   'media_player',
   'homeassistant',
+]);
+
+const SUPPORTED_RULE_MODES = new Set(['single', 'restart', 'queued', 'parallel']);
+const SUPPORTED_MAX_EXCEEDED = new Set([
+  'silent', 'debug', 'info', 'warning', 'error', 'critical',
 ]);
 
 const isTemplateEntity = (v) =>
@@ -336,6 +344,29 @@ function dumpSectionListYaml(sectionValue) {
   return out.trimEnd() + (out ? '\n' : '');
 }
 
+function dumpMetadataYaml(metadata) {
+  if (!isPlainObject(metadata)) return '';
+  let out = '';
+  for (const [key, value] of Object.entries(metadata)) {
+    if (isPlainObject(value) || Array.isArray(value)) {
+      out += `${key}: ${dumpYamlValue(value, 1)}\n`;
+    } else {
+      out += `${key}: ${dumpYamlValue(value, 0)}\n`;
+    }
+  }
+  return out.trimEnd() + (out ? '\n' : '');
+}
+
+function extractAutomationMetadata(autoJson) {
+  if (!isPlainObject(autoJson)) return {};
+  const structuralKeys = new Set([
+    'alias', 'id', 'triggers', 'trigger', 'conditions', 'condition', 'actions', 'action',
+  ]);
+  return Object.fromEntries(
+    Object.entries(autoJson).filter(([key, value]) => !structuralKeys.has(key) && value !== undefined),
+  );
+}
+
 function createRawBlock(ws, type, rawYamlText) {
   if (!canCreate(type)) return null;
   const b = ws.newBlock(type);
@@ -356,6 +387,73 @@ export function renderAutomationToWorkspace(ws, autoJson, opts = {}) {
   const IN_EVENT = root ? findStmtInput(root, ['Event', 'EVENT']) : null;
   const IN_COND = root ? findStmtInput(root, ['Condition', 'CONDITION']) : null;
   const IN_ACTION = root ? findStmtInput(root, ['Action', 'ACTION']) : null;
+
+  const metadata = extractAutomationMetadata(autoJson);
+  if (Object.keys(metadata).length) {
+    // Metadata is opt-in in the normal Rule UI. Imports that need it turn on
+    // the mutator before attaching the preservation block.
+    if (typeof root?.setMetadataVisible_ === 'function') {
+      root.setMetadataVisible_(true);
+    }
+    const metadataInput = root ? findStmtInput(root, ['Metadata', 'METADATA']) : null;
+    // Execution settings have closed Home Assistant vocabularies, so preserve
+    // them as an editable typed block. Everything else remains Raw Metadata.
+    const remainingMetadata = { ...metadata };
+    const mode = remainingMetadata.mode;
+    const max = remainingMetadata.max;
+    const maxExceeded = remainingMetadata.max_exceeded;
+    delete remainingMetadata.mode;
+    delete remainingMetadata.max;
+    delete remainingMetadata.max_exceeded;
+
+    if (SUPPORTED_RULE_MODES.has(String(mode)) && canCreate('ha_rule_execution')) {
+      const executionBlock = ws.newBlock('ha_rule_execution');
+      executionBlock.setFieldValue(String(mode), 'MODE');
+      executionBlock.updateShape_?.();
+
+      const hasValidMax =
+        (String(mode) === 'queued' || String(mode) === 'parallel') &&
+        Number.isInteger(Number(max)) && Number(max) >= 1;
+      if (hasValidMax) {
+        executionBlock.setFieldValue('TRUE', 'USE_MAX');
+        executionBlock.updateShape_?.();
+        executionBlock.setFieldValue(String(Number(max)), 'MAX');
+      } else if (max !== undefined) {
+        // `max` is invalid for this mode or malformed; preserve it exactly.
+        remainingMetadata.max = max;
+      }
+
+      executionBlock.initSvg?.();
+      executionBlock.render?.();
+      if (root && metadataInput) appendChild(root, executionBlock, metadataInput);
+      else executionBlock.moveBy(80, 80);
+    } else if (mode !== undefined) {
+      // Do not silently coerce a future or custom Home Assistant mode.
+      remainingMetadata.mode = mode;
+    }
+
+    if (SUPPORTED_MAX_EXCEEDED.has(String(maxExceeded)) && canCreate('ha_rule_max_exceeded')) {
+      const maxExceededBlock = ws.newBlock('ha_rule_max_exceeded');
+      maxExceededBlock.setFieldValue(String(maxExceeded), 'MAX_EXCEEDED');
+      maxExceededBlock.initSvg?.();
+      maxExceededBlock.render?.();
+      if (root && metadataInput) appendChild(root, maxExceededBlock, metadataInput);
+      else maxExceededBlock.moveBy(80, 80);
+    } else if (maxExceeded !== undefined) {
+      // Do not coerce an unknown future log level.
+      remainingMetadata.max_exceeded = maxExceeded;
+    }
+
+    if (Object.keys(remainingMetadata).length) {
+      const rawMetadata = createRawLinesBlock(
+        ws,
+        'metadata',
+        dumpMetadataYaml(remainingMetadata).trimEnd().split('\n'),
+      );
+      if (root && metadataInput) appendChild(root, rawMetadata, metadataInput);
+      else rawMetadata.moveBy(80, 80);
+    }
+  }
 
   /* ---------------- Triggers ---------------- */
   const triggers = Array.isArray(autoJson?.triggers)
@@ -442,37 +540,48 @@ export function renderAutomationToWorkspace(ws, autoJson, opts = {}) {
     : [];
 
   if (actions.length) {
-    const created = [];
-    let allOk = true;
-
-    actions.forEach((a) => {
-      const b = createActionNode(a, ws);
-      if (!b) {
-        allOk = false;
-        return;
-      }
-      setIdIfPresent(b, a);
-      created.push(b);
+    const automationVariables = Object.keys(
+      isPlainObject(autoJson?.variables) ? autoJson.variables : {},
+    );
+    const created = mapActionsWithIndividualFallback(actions, {
+      createAction: (a) => {
+        if (a?.choose && !evaluateChooseTypedRepresentability(a, { automationVariables }).eligible) {
+          // Returning null delegates to createRawAction below. That path uses
+          // the complete action object, so no branch is partially converted.
+          return null;
+        }
+        return createActionNode(a, ws);
+      },
+      createRawAction: (a) => {
+        // Older regression artifacts and an earlier normalizer occasionally
+        // carried absent optional fields as explicit nulls. They are not part
+        // of the source action and must not be shown or re-exported by a Raw
+        // Action block.
+        const rawAction = { ...a };
+        for (const key of ['delay', 'for', 'target']) {
+          if (rawAction[key] === null) delete rawAction[key];
+        }
+        const rawText = dumpSectionListYaml([rawAction]);
+        return createRawLinesBlock(ws, 'action', rawText.trimEnd().split('\n'));
+      },
     });
 
-    if (allOk && created.length === actions.length) {
-      created.forEach((b, i) => {
-        b.initSvg();
-        b.render();
-        if (root && IN_ACTION) appendChild(root, b, IN_ACTION);
-        else b.moveBy(80, 360 + i * 80);
-      });
-    } else {
-      created.forEach((b) => b.dispose(false));
+    created.forEach((b, index) => {
+      const a = actions[index];
+      setIdIfPresent(b, a);
+    });
 
-      const rawText = dumpSectionListYaml(actions);
-      const rawBlock = createRawBlock(ws, 'ha_actions_raw', rawText);
-      if (rawBlock) {
-        if (root && IN_ACTION) appendChild(root, rawBlock, IN_ACTION);
-        else rawBlock.moveBy(80, 360);
-      }
-    }
+    created.forEach((b, i) => {
+      b.initSvg();
+      b.render();
+      if (root && IN_ACTION) appendChild(root, b, IN_ACTION);
+      else b.moveBy(80, 360 + i * 80);
+    });
   }
 
-  Blockly.svgResize(ws);
+  // A browser workspace has an SVG surface to resize; headless workspaces are
+  // used by regression tests and do not.
+  if (typeof ws.getParentSvg === 'function' && ws.getParentSvg()) {
+    Blockly.svgResize(ws);
+  }
 }

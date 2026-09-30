@@ -8,6 +8,7 @@ import { formatOneReport, statusFromResult } from './report_formatter';
 import { detectTaskAltKeyword } from './baseline_keywords';
 
 const RAW_TYPES = new Set([
+  'ha_metadata_raw_lines',
   'ha_event_raw_lines',
   'ha_condition_raw_lines',
   'ha_action_raw_lines',

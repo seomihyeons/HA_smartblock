@@ -41,6 +41,15 @@ const kvTypeByKey = (rawKey) => {
   return NUMERIC_KV_KEYS.has(k) ? 'number' : 'text';
 };
 
+// Blockly fields abbreviate their visible label after 50 characters by default.
+// Automation templates are often meaningful as a whole, so data-value fields
+// must keep their complete source visible in the workspace.
+const showEntireFieldValue = (field) => {
+  if (!field) return;
+  field.maxDisplayLength = Infinity;
+  field.forceRerender?.();
+};
+
 export const actionDataBlocks = Blockly.common.createBlockDefinitionsFromJsonArray([
   // light.turn_on에서 자주 쓰는 옵션
   {
@@ -141,8 +150,13 @@ export const actionDataBlocks = Blockly.common.createBlockDefinitionsFromJsonArr
 
 Blockly.Extensions.register('ha_action_data_kv_autotype', function () {
   const keyField = this.getField('KEY');
+  const valueField = this.getField('VALUE');
   const typeField = this.getField('VALUE_TYPE');
   if (!keyField || !typeField) return;
+
+  showEntireFieldValue(keyField);
+  showEntireFieldValue(valueField);
+  showEntireFieldValue(typeField);
 
   const syncType = (keyVal) => {
     const inferred = kvTypeByKey(keyVal);
@@ -196,8 +210,10 @@ Blockly.Blocks['action_data_color'] = {
         .appendField(new Blockly.FieldNumber(prevG, 0, 255, 1), 'G')
         .appendField(new Blockly.FieldNumber(prevB, 0, 255, 1), 'B');
     } else {
+      const nameField = new Blockly.FieldTextInput(prevName);
+      showEntireFieldValue(nameField);
       input
-        .appendField(new Blockly.FieldTextInput(prevName), 'NAME');
+        .appendField(nameField, 'NAME');
     }
 
     modeField.setValidator((newMode) => {

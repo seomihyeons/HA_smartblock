@@ -15,7 +15,8 @@ export const ruleBlocks =
       "message1": "Event %1", "args1": [ { "type": "input_statement", "name": "EVENT", "check": "HA_EVENT" } ],
       "message2": "Action %1", "args2": [ { "type": "input_statement", "name": "ACTION", "check": "HA_ACTION" } ],
       "colour": "3B4574","tooltip": "Container block that groups Event and Action blocks.",
-      "helpUrl": ""
+      "helpUrl": "",
+      "mutator": "ha_rule_optional_metadata"
     },
 
     // Event-Condition-Action (ECA) Block
@@ -27,10 +28,11 @@ export const ruleBlocks =
         { "type": "field_input", "name": "ID", "text": "(Optional)" }
       ],
       "message1": "Event %1", "args1": [ { "type": "input_statement", "name": "EVENT", "check": "HA_EVENT" } ],
-      "message2": "Condition %1", "args2": [ { "type": "input_statement", "name": "CONDITION", "check": "HA_CONDITION" } ],
-      "message3": "Action %1", "args3": [ { "type": "input_statement", "name": "ACTION", "check": "HA_ACTION"} ],
+     "message2": "Condition %1", "args2": [ { "type": "input_statement", "name": "CONDITION", "check": "HA_CONDITION" } ],
+     "message3": "Action %1", "args3": [ { "type": "input_statement", "name": "ACTION", "check": "HA_ACTION"} ],
       "colour": "3B4574",
       "tooltip": "Container block that groups Event, Condition, and Action blocks.",
-      "helpUrl": ""
+      "helpUrl": "",
+      "mutator": "ha_rule_optional_metadata"
     }
   ]);

@@ -246,3 +246,56 @@ Blockly.Extensions.registerMutator(
     if (typeof this.updateShape_ === 'function') this.updateShape_();
   }
 );
+
+// Automation-level YAML fields such as `variables` and `mode` are optional
+// metadata. Keep the normal EA/ECA rule compact, and expose a raw metadata
+// statement input only when a user explicitly requests it or an import needs
+// to preserve those fields.
+const HaRuleOptionalMetadataMutator = {
+  hasMetadata_: false,
+
+  saveExtraState() {
+    return { hasMetadata: this.hasMetadata_ };
+  },
+
+  loadExtraState(state) {
+    this.hasMetadata_ = !!state?.hasMetadata;
+    this.updateShape_();
+  },
+
+  setMetadataVisible_(visible) {
+    this.hasMetadata_ = !!visible;
+    this.updateShape_();
+  },
+
+  updateShape_() {
+    const inputName = 'METADATA';
+    const exists = !!this.getInput(inputName);
+
+    if (this.hasMetadata_ && !exists) {
+      this.appendStatementInput(inputName)
+        .setCheck('HA_METADATA')
+        .appendField('Metadata');
+    } else if (!this.hasMetadata_ && exists) {
+      this.removeInput(inputName, true);
+    }
+
+    if (this.rendered) this.render();
+  },
+
+  customContextMenu(options) {
+    options.push({
+      text: this.hasMetadata_ ? 'Hide metadata' : 'Show metadata',
+      enabled: true,
+      callback: () => this.setMetadataVisible_(!this.hasMetadata_),
+    });
+  },
+};
+
+Blockly.Extensions.registerMutator(
+  'ha_rule_optional_metadata',
+  HaRuleOptionalMetadataMutator,
+  function () {
+    if (typeof this.updateShape_ === 'function') this.updateShape_();
+  }
+);

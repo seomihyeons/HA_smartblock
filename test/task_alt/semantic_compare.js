@@ -128,7 +128,22 @@ function normalizeTriggers(list) {
 }
 
 function normalizeConditionOne(c) {
-  if (!c || typeof c !== 'object') return c;
+  const normalizeTemplateCondition = (value) => {
+    const raw = String(value ?? '').trim();
+    const match = raw.match(/^\{\{\s*([\s\S]*?)\s*\}\}$/);
+    return match ? `{{ ${match[1].trim()} }}` : raw;
+  };
+
+  if (!c || typeof c !== 'object') {
+    const raw = String(c ?? '').trim();
+    // Home Assistant accepts a template condition directly as `{{ ... }}`.
+    // The Blockly template block emits its explicit equivalent, so compare
+    // the two spellings as the same condition.
+    if (/^\{\{[\s\S]*\}\}$/.test(raw)) {
+      return { condition: 'template', value_template: normalizeTemplateCondition(raw) };
+    }
+    return c;
+  }
 
   if (Array.isArray(c.or) || c.condition === 'or') {
     const raw = Array.isArray(c.or) ? c.or : asArray(c.conditions);
@@ -145,6 +160,9 @@ function normalizeConditionOne(c) {
 
   const type = String(c.condition || '').trim();
   const out = { condition: type };
+  if (type === 'template' && c.value_template != null) {
+    out.value_template = normalizeTemplateCondition(c.value_template);
+  }
   const eids = normalizeEntityList(c.entity_id ?? c.entity);
   if (eids.length) out.entity_id = eids[0];
   if (c.state != null) out.state = String(c.state);
@@ -469,6 +487,14 @@ function normalizeActionOne(a) {
     return { delay: d || String(delaySource) };
   }
 
+  // These structures carry control-flow semantics that cannot be reduced to a
+  // service/entity/data triple. Keep the full parsed object in the comparison
+  // so a dropped choose branch or wait/repeat never passes as normalization.
+  const complexKeys = ['choose', 'repeat', 'wait_for_trigger', 'wait_template', 'parallel'];
+  if (a && typeof a === 'object' && complexKeys.some((key) => Object.prototype.hasOwnProperty.call(a, key))) {
+    return { complex: stable(a) };
+  }
+
   const service = String(a?.action || a?.service || '').trim();
   const targetIds = normalizeEntityList(
     a?.target?.entity_id ?? a?.data?.entity_id ?? a?.entity_id
@@ -492,17 +518,30 @@ function sectionCounts(obj) {
   };
 }
 
+function normalizeMetadata(obj) {
+  const structuralKeys = new Set([
+    'alias', 'id', 'triggers', 'trigger', 'conditions', 'condition', 'actions', 'action',
+  ]);
+  const metadata = {};
+  for (const [key, value] of Object.entries(obj || {})) {
+    if (!structuralKeys.has(key) && value !== undefined) metadata[key] = value;
+  }
+  return stable(metadata);
+}
+
 export function compareSemantic(original, regenerated) {
   const strictOriginal = stable(original || {});
   const strictRegenerated = stable(regenerated || {});
   const strictEqual = fp(strictOriginal) === fp(strictRegenerated);
 
   const normOriginal = {
+    metadata: normalizeMetadata(original),
     triggers: normalizeTriggers(original?.triggers ?? original?.trigger),
     conditions: normalizeConditions(original?.conditions ?? original?.condition),
     actions: normalizeActions(original?.actions ?? original?.action),
   };
   const normRegenerated = {
+    metadata: normalizeMetadata(regenerated),
     triggers: normalizeTriggers(regenerated?.triggers ?? regenerated?.trigger),
     conditions: normalizeConditions(regenerated?.conditions ?? regenerated?.condition),
     actions: normalizeActions(regenerated?.actions ?? regenerated?.action),

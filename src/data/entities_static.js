@@ -1,5 +1,25 @@
 // Static test entities (user-defined)
 export const dummyEntities = [
+  // Synthetic Home fixture for RT-BEH-001: Door open -> Light on.
+  {
+    domain: 'binary_sensor',
+    entity_id: 'binary_sensor.sb_test_door',
+    state: 'off',
+    attributes: {
+      friendly_name: 'SB Test Door',
+      device_class: 'door',
+    },
+  },
+  {
+    domain: 'light',
+    entity_id: 'light.sb_test_light',
+    state: 'off',
+    attributes: {
+      friendly_name: 'SB Test Light',
+      supported_color_modes: ['onoff'],
+      color_mode: 'onoff',
+    },
+  },
   {
     domain: 'input_datetime',
     entity_id: 'input_datetime.morning_start',

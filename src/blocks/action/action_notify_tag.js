@@ -52,10 +52,12 @@ export const actionNotifyTagBlocks =
     args0: [
       { type: 'field_input', name: 'TITLE', text: 'Unlock Front Door', spellcheck: true },
     ],
-    previousStatement: 'HA_NOTIFY_TAG',
-    nextStatement: 'HA_NOTIFY_TAG',
+    // This field can sit either in a tag's button list or directly under a
+    // notify action as Home Assistant's `data.title`.
+    previousStatement: ['HA_NOTIFY_TAG', 'HA_NOTIFY'],
+    nextStatement: ['HA_NOTIFY_TAG', 'HA_NOTIFY'],
     colour: '#E3CC57',
-    tooltip: 'Button title.',
+    tooltip: 'Notification title, or a title for an actionable notification button.',
     helpUrl: '',
   },
 
