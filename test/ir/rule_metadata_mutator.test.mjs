@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as Blockly from 'blockly';
+import { setStudyRuntimeEntities } from '../../src/data/entities_index.js';
+import { STUDY_ENTITY_IDS } from '../../src/data/study_entity_filter.js';
 
 import '../../src/blocks/extensions.js';
 import { ruleBlocks } from '../../src/blocks/rule_blocks.js';
@@ -18,6 +20,12 @@ Blockly.common.defineBlocks(rawLinesBlocks);
 Blockly.common.defineBlocks(eventGroupBlocks);
 Blockly.common.defineBlocks(actionEntityBlocks);
 Blockly.common.defineBlocks(actionDataBlocks);
+
+setStudyRuntimeEntities(STUDY_ENTITY_IDS.map((entity_id) => ({
+  entity_id,
+  state: 'off',
+  attributes: { friendly_name: entity_id },
+})));
 
 test('EA and ECA rules hide metadata by default and expose it only through their mutator', () => {
   const workspace = new Blockly.Workspace();
@@ -116,34 +124,34 @@ test('group state triggers keep sibling fields outside the entity_id array', () 
   const workspace = new Blockly.Workspace();
   const rule = workspace.newBlock('event_action');
   const group = workspace.newBlock('event_group_entities');
-  group.setFieldValue('cover', 'DOMAIN');
-  group.setFieldValue('opening', 'TO');
+  group.setFieldValue('binary_sensor', 'DOMAIN');
+  group.setFieldValue('on', 'TO');
   rule.getInput('EVENT').connection.connect(group.previousConnection);
 
   const entityOptions = group.getField('DOMAIN').getOptions();
-  assert.ok(entityOptions.some(([, value]) => value === 'cover'));
+  assert.ok(entityOptions.some(([, value]) => value === 'binary_sensor'));
   const item = workspace.newBlock('event_group_entity_item');
-  const itemOptions = item.getField('ENTITY_ID').getOptions();
-  const entityId = itemOptions.find(([, value]) => String(value).startsWith('cover.'))?.[1];
-  assert.ok(entityId, 'a cover entity must be available for the group trigger test');
-  item.setFieldValue(entityId, 'ENTITY_ID');
   group.getInput('ENTITIES').connection.connect(item.previousConnection);
+  const itemOptions = item.getField('ENTITY_ID').getOptions();
+  const entityId = itemOptions.find(([, value]) => String(value).startsWith('binary_sensor.'))?.[1];
+  assert.ok(entityId, 'an allowlisted binary sensor must be available for the group trigger test');
+  item.setFieldValue(entityId, 'ENTITY_ID');
 
   const yaml = yamlGenerator.workspaceToCode(workspace);
   assert.match(yaml, /^    - trigger: state$/m);
-  assert.match(yaml, /^      entity_id:\n        - cover\./m);
-  assert.match(yaml, /^      to: 'opening'$/m);
+  assert.match(yaml, /^      entity_id:\n        - binary_sensor\./m);
+  assert.match(yaml, /^      to: 'on'$/m);
 
   const parsed = yamlTextToInternalJson(yaml);
   assert.deepEqual(parsed.triggers[0].entity_id, [entityId]);
-  assert.equal(parsed.triggers[0].to, 'opening');
+  assert.equal(parsed.triggers[0].to, 'on');
 });
 
 test('typed entity actions keep target and data mappings structurally nested', () => {
   const workspace = new Blockly.Workspace();
   const rule = workspace.newBlock('event_action');
   const action = workspace.newBlock('action_light');
-  action.setFieldValue('light.front_porch_left', 'ENTITY_ID');
+  action.setFieldValue('light.entrance', 'ENTITY_ID');
   action.setFieldValue('turn_on', 'ACTION');
   action.hasData_ = true;
   action.updateShape_();
@@ -155,7 +163,7 @@ test('typed entity actions keep target and data mappings structurally nested', (
 
   const yaml = yamlGenerator.workspaceToCode(workspace);
   const parsed = yamlTextToInternalJson(yaml);
-  assert.equal(parsed.actions[0].target.entity_id[0], 'light.front_porch_left');
+  assert.equal(parsed.actions[0].target.entity_id[0], 'light.entrance');
   assert.equal(parsed.actions[0].data.transition, 5);
 });
 
@@ -163,7 +171,7 @@ test('generic action data keeps complete template text visible and preserves ter
   const workspace = new Blockly.Workspace();
   const rule = workspace.newBlock('event_action');
   const action = workspace.newBlock('action_light');
-  action.setFieldValue('light.front_porch_left', 'ENTITY_ID');
+  action.setFieldValue('light.entrance', 'ENTITY_ID');
   action.setFieldValue('turn_on', 'ACTION');
   action.hasData_ = true;
   action.updateShape_();

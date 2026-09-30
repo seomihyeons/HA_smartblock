@@ -2,30 +2,37 @@
 import * as Blockly from 'blockly';
 import { dummyEntities } from '../../data/entities_index.js';
 
-function getEntitiesWithNumericAttributes() {
-  return dummyEntities.filter((entity) => {
+export function getEntitiesWithNumericAttributes(entities = dummyEntities) {
+  return (entities || []).filter((entity) => {
     const attrs = entity.attributes || {};
     return Object.values(attrs).some((v) => !isNaN(parseFloat(v)));
   });
 }
 
-function getEntityOptions() {
-  const list = getEntitiesWithNumericAttributes();
+export function getNumericAttributeEntityOptions(entities = dummyEntities) {
+  const list = getEntitiesWithNumericAttributes(entities);
   return list.length
     ? list.map((e) => [e.attributes?.friendly_name || e.entity_id, e.entity_id])
     : [['(No numeric attribute entities found)', '']];
 }
 
-function getAttributeOptions() {
-  const block = this.getSourceBlock?.();
-  const entityId = block?.getFieldValue('ENTITY_ID');
-  const entity = dummyEntities.find((e) => e.entity_id === entityId);
+export function getNumericAttributeOptions(entityId, entities = dummyEntities) {
+  const entity = (entities || []).find((e) => e.entity_id === entityId);
   if (!entity) return [['(Select entity first)', '']];
   const attrs = entity.attributes || {};
   const numericAttrs = Object.keys(attrs).filter((k) => !isNaN(parseFloat(attrs[k])));
   return numericAttrs.length
     ? numericAttrs.map((a) => [a, a])
     : [['(No numeric attributes)', '']];
+}
+
+function getEntityOptions() {
+  return getNumericAttributeEntityOptions();
+}
+
+function getAttributeOptions() {
+  const block = this.getSourceBlock?.();
+  return getNumericAttributeOptions(block?.getFieldValue('ENTITY_ID'));
 }
 
 Blockly.Blocks['condition_numeric_state_attribute'] = {
