@@ -16,7 +16,7 @@ const runtimeEntity = (entity_id) => ({
   attributes: { friendly_name: entity_id },
 });
 
-test('study filter accepts only the 13 allowlisted entity IDs', () => {
+test('study filter accepts only the 17 allowlisted entity IDs', () => {
   const result = filterStudyEntities([
     ...STUDY_ENTITY_IDS.map(runtimeEntity),
     runtimeEntity('sun.sun'),
@@ -42,6 +42,7 @@ test('study filter does not fill missing entities from another corpus', () => {
   );
   assert.equal(result.missing.length, STUDY_ENTITY_IDS.length - 2);
   assert.ok(result.missing.includes('siren.home_alarm'));
+  assert.ok(result.missing.includes('binary_sensor.bedroom_door'));
 });
 
 test('runtime fetch discards hundreds of non-study entities', async () => {

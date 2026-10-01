@@ -14,9 +14,22 @@ Blockly.common.defineBlocks(eventEntityBlocks);
 Blockly.common.defineBlocks(conditionStateBlocks);
 Blockly.common.defineBlocks(actionEntityBlocks);
 
+const DOOR_IDS = new Set([
+  'binary_sensor.front_door',
+  'binary_sensor.back_door',
+  'binary_sensor.entrance_door',
+  'binary_sensor.bedroom_door',
+  'binary_sensor.bathroom_door',
+  'binary_sensor.kitchen_door',
+]);
+
 const STUDY_TASKS = {
   'binary_sensor.front_door': { event: true, condition: true, action: false },
   'binary_sensor.back_door': { event: true, condition: true, action: false },
+  'binary_sensor.entrance_door': { event: true, condition: true, action: false },
+  'binary_sensor.bedroom_door': { event: true, condition: true, action: false },
+  'binary_sensor.bathroom_door': { event: true, condition: true, action: false },
+  'binary_sensor.kitchen_door': { event: true, condition: true, action: false },
   'binary_sensor.entrance_motion': { event: true, condition: true, action: false },
   'binary_sensor.bedroom_motion': { event: true, condition: true, action: false },
   'binary_sensor.living_motion': { event: true, condition: true, action: false },
@@ -35,9 +48,7 @@ const runtimeEntity = (entity_id) => ({
   state: entity_id === 'device_tracker.resident' ? 'home' : 'off',
   attributes: {
     friendly_name: entity_id,
-    ...(entity_id === 'binary_sensor.front_door' || entity_id === 'binary_sensor.back_door'
-      ? { device_class: 'door' }
-      : {}),
+    ...(DOOR_IDS.has(entity_id) ? { device_class: 'door' } : {}),
   },
 });
 
