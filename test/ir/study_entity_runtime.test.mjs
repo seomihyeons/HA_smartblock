@@ -6,6 +6,8 @@ import {
 } from '../../src/data/study_entity_filter.js';
 import {
   dummyEntities,
+  runtimeEntities,
+  studyEntities,
   loadStudyRuntimeEntities,
   setStudyRuntimeEntities,
 } from '../../src/data/entities_index.js';
@@ -29,7 +31,7 @@ test('study filter accepts only the 17 allowlisted entity IDs', () => {
   assert.deepEqual(result.missing, []);
 });
 
-test('study filter does not fill missing entities from another corpus', () => {
+test('runtime entities stay available while the 17-entity study set remains separate', () => {
   const result = setStudyRuntimeEntities([
     runtimeEntity('light.entrance'),
     runtimeEntity('binary_sensor.front_door'),
@@ -38,6 +40,18 @@ test('study filter does not fill missing entities from another corpus', () => {
 
   assert.deepEqual(
     dummyEntities.map((entity) => entity.entity_id),
+    ['binary_sensor.front_door', 'light.entrance', 'person.developer']
+  );
+  assert.deepEqual(
+    runtimeEntities.map((entity) => entity.entity_id),
+    ['binary_sensor.front_door', 'light.entrance', 'person.developer']
+  );
+  assert.deepEqual(
+    studyEntities.map((entity) => entity.entity_id),
+    ['binary_sensor.front_door', 'light.entrance']
+  );
+  assert.deepEqual(
+    result.entities.map((entity) => entity.entity_id),
     ['binary_sensor.front_door', 'light.entrance']
   );
   assert.equal(result.missing.length, STUDY_ENTITY_IDS.length - 2);
@@ -45,7 +59,7 @@ test('study filter does not fill missing entities from another corpus', () => {
   assert.ok(result.missing.includes('binary_sensor.bedroom_door'));
 });
 
-test('runtime fetch discards hundreds of non-study entities', async () => {
+test('runtime fetch keeps non-study Home Assistant entities for generic selectors', async () => {
   const extras = Array.from({ length: 300 }, (_, index) => runtimeEntity(`sensor.extra_${index}`));
   const result = await loadStudyRuntimeEntities(async () => ({
     ok: true,
@@ -53,10 +67,14 @@ test('runtime fetch discards hundreds of non-study entities', async () => {
   }));
 
   assert.equal(result.ok, true);
-  assert.deepEqual(dummyEntities.map((entity) => entity.entity_id), STUDY_ENTITY_IDS);
+  assert.equal(dummyEntities.length, STUDY_ENTITY_IDS.length + extras.length);
+  assert.equal(runtimeEntities.length, STUDY_ENTITY_IDS.length + extras.length);
+  assert.deepEqual(studyEntities.map((entity) => entity.entity_id), STUDY_ENTITY_IDS);
+  assert.deepEqual(result.entities.map((entity) => entity.entity_id), STUDY_ENTITY_IDS);
+  assert.ok(dummyEntities.some((entity) => entity.entity_id === 'sensor.extra_299'));
 });
 
-test('runtime fetch failure leaves the selector empty', async () => {
+test('runtime fetch failure leaves runtime and study selectors empty', async () => {
   setStudyRuntimeEntities(STUDY_ENTITY_IDS.map(runtimeEntity));
   const result = await loadStudyRuntimeEntities(async () => {
     throw new Error('Home Assistant unavailable');
@@ -64,5 +82,7 @@ test('runtime fetch failure leaves the selector empty', async () => {
 
   assert.equal(result.ok, false);
   assert.deepEqual(dummyEntities, []);
+  assert.deepEqual(runtimeEntities, []);
+  assert.deepEqual(studyEntities, []);
   assert.equal(result.missing.length, STUDY_ENTITY_IDS.length);
 });

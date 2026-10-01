@@ -94,8 +94,19 @@ test('all Study entities expose only their required Event, Condition, and Action
   assert.deepEqual(getStates('device_tracker').map(([, value]) => value), ['home', 'not_home']);
   assert.deepEqual(getActions('siren').map(([, value]) => value), ['turn_on', 'turn_off']);
 
+  // Generic/domain selectors mirror the connected Home Assistant runtime.
+  // Non-study runtime entities remain selectable just as they are in HA Native.
   const lightIds = dropdownIds(workspace, 'action_light');
-  assert.ok(!lightIds.includes('light.sb_test_light'));
-  assert.ok(!lightIds.includes('sun.sun'));
-  assert.ok(!lightIds.includes('weather.home'));
+  const sunEventIds = dropdownIds(workspace, 'event_sun_state');
+  const sunConditionIds = dropdownIds(workspace, 'condition_state_sun');
+  const weatherConditionIds = dropdownIds(workspace, 'condition_state_weather');
+  const personConditionIds = dropdownIds(workspace, 'condition_state_person');
+  const lockConditionIds = dropdownIds(workspace, 'condition_state_lock');
+
+  assert.ok(lightIds.includes('light.sb_test_light'));
+  assert.ok(sunEventIds.includes('sun.sun'));
+  assert.ok(sunConditionIds.includes('sun.sun'));
+  assert.ok(weatherConditionIds.includes('weather.home'));
+  assert.ok(personConditionIds.includes('person.someone'));
+  assert.deepEqual(lockConditionIds, ['']);
 });
