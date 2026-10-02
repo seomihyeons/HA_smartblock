@@ -252,6 +252,36 @@ module.exports = (env, argv) => {
 
     config.devtool = 'eval-cheap-module-source-map';
 
+    const haBaseUrl = String(process.env.HA_BASE_URL || '').trim();
+    const proxy = {
+      '/analyze': {
+        target: 'http://localhost:8787',
+        changeOrigin: true,
+        secure: false,
+      },
+    };
+
+    // A local UI-only session does not need Home Assistant. Do not register a
+    // WebSocket proxy with an empty target: webpack-dev-server would attempt
+    // to access its undefined upgrade handler during startup.
+    if (haBaseUrl) {
+      proxy['/ha/api'] = {
+        target: haBaseUrl,
+        changeOrigin: true,
+        secure: false,
+        ws: true,
+        pathRewrite: { '^/ha': '' },
+        onProxyReq: (proxyReq) => {
+          const token = process.env.HA_TOKEN;
+          if (token) {
+            proxyReq.setHeader('Authorization', `Bearer ${token}`);
+          }
+        },
+      };
+    } else {
+      console.warn('[HA-SmartBlock] HA_BASE_URL is not set; /ha/api is disabled for this local UI session.');
+    }
+
     config.devServer = {
       host: process.env.DEV_SERVER_HOST || '127.0.0.1',
       port: 8080,
@@ -262,27 +292,7 @@ module.exports = (env, argv) => {
         { directory: path.resolve(__dirname, 'src', 'utils'), publicPath: '/utils', watch: false },
       ],
 
-      proxy: {
-        '/ha/api': {
-          target: process.env.HA_BASE_URL,
-          changeOrigin: true,
-          secure: false,
-          ws: true,
-          pathRewrite: { '^/ha': '' },
-          onProxyReq: (proxyReq) => {
-            const token = process.env.HA_TOKEN;
-            if (token) {
-              proxyReq.setHeader('Authorization', `Bearer ${token}`);
-            }
-          },
-        },
-
-        '/analyze': {
-          target: 'http://localhost:8787',
-          changeOrigin: true,
-          secure: false,
-        },
-      },
+      proxy,
 
       setupMiddlewares: (middlewares, devServer) => {
         const app = devServer?.app;

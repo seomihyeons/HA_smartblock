@@ -1,5 +1,6 @@
 import * as Blockly from 'blockly';
 import { toolbox } from './toolbox.js';
+import { setModalOpenState } from './utils/floating_modal_state.js';
 
 const SEARCHABLE_CATEGORIES = new Set(['Rule', 'Event', 'Condition', 'Action']);
 
@@ -26,14 +27,6 @@ function getSearchDefinition(query) {
     { kind: 'label', text: ' ' },
     { kind: 'sep', gap: 44 },
   ];
-
-  // Search is a secondary aid, not a second always-open toolbox. Keep the
-  // drawer compact until the user actually enters a query.
-  if (!searchText) {
-    result.push({ kind: 'label', text: 'Type to search blocks' });
-    return result;
-  }
-
   let matchCount = 0;
 
   toolbox.contents
@@ -50,7 +43,7 @@ function getSearchDefinition(query) {
         if (item.kind !== 'block' || !item.type) return;
 
         const searchable = normalize(`${item.type} ${readableType(item.type)} ${category.name} ${section}`);
-        if (searchable.includes(searchText)) {
+        if (!searchText || searchable.includes(searchText)) {
           matches.push({ item, section });
         }
       });
@@ -73,6 +66,26 @@ function getSearchDefinition(query) {
   return result;
 }
 
+class StableWidthSearchFlyout extends Blockly.VerticalFlyout {
+  fixedWidth_ = 0;
+
+  lockCurrentWidth() {
+    this.fixedWidth_ = this.getWidth();
+    this.position();
+  }
+
+  reflowInternal_() {
+    super.reflowInternal_();
+    if (!this.fixedWidth_ || this.width_ >= this.fixedWidth_) return;
+
+    // Keep the right edge anchored while retaining the width calculated from
+    // the complete initial result set. Filtering must not resize the drawer.
+    this.width_ = this.fixedWidth_;
+    this.position();
+    this.targetWorkspace.recordDragTargets();
+  }
+}
+
 export function initBlockSearchFlyout({ workspace } = {}) {
   const button = document.getElementById('btnBlockSearch');
   const header = document.getElementById('blockSearchFlyoutHeader');
@@ -82,47 +95,38 @@ export function initBlockSearchFlyout({ workspace } = {}) {
 
   const flyoutOptions = Object.create(workspace.options);
   flyoutOptions.toolboxPosition = Blockly.utils.toolbox.Position.RIGHT;
-  const searchFlyout = new Blockly.VerticalFlyout(flyoutOptions);
+  const searchFlyout = new StableWidthSearchFlyout(flyoutOptions);
   workspace.getParentSvg().append(searchFlyout.createDom('g'));
   searchFlyout.init(workspace);
   searchFlyout.setAutoClose(false);
 
-  const isOpen = () => !header.classList.contains('hidden');
   const render = () => searchFlyout.show(getSearchDefinition(input.value));
-
-  const close = ({ restoreFocus = true } = {}) => {
-    if (!isOpen()) return;
-    searchFlyout.hide();
-    header.classList.add('hidden');
-    button.classList.remove('hidden');
-    if (restoreFocus) button.focus();
-  };
 
   const open = () => {
     button.classList.add('hidden');
     header.classList.remove('hidden');
+    setModalOpenState('blockSearchFlyout', true);
     input.value = '';
     render();
+    searchFlyout.lockCurrentWidth();
     requestAnimationFrame(() => input.focus());
   };
 
+  const close = () => {
+    searchFlyout.hide();
+    header.classList.add('hidden');
+    setModalOpenState('blockSearchFlyout', false);
+    button.classList.remove('hidden');
+    button.focus();
+  };
+
   button.addEventListener('click', open);
-  closeButton.addEventListener('click', () => close());
+  closeButton.addEventListener('click', close);
   input.addEventListener('input', render);
   input.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') close();
   });
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && isOpen()) close();
+    if (event.key === 'Escape' && !header.classList.contains('hidden')) close();
   });
-
-  // The normal Blockly toolbox has higher interaction priority. Opening or
-  // selecting it closes the auxiliary search drawer instead of leaving two
-  // competing flyouts on top of the workspace.
-  const toolboxDiv = document.querySelector('.blocklyToolboxDiv');
-  toolboxDiv?.addEventListener(
-    'pointerdown',
-    () => close({ restoreFocus: false }),
-    true
-  );
 }
