@@ -1,6 +1,10 @@
 export const STUDY_ENTITY_IDS = Object.freeze([
   'binary_sensor.front_door',
   'binary_sensor.back_door',
+  'binary_sensor.entrance_door',
+  'binary_sensor.bedroom_door',
+  'binary_sensor.bathroom_door',
+  'binary_sensor.kitchen_door',
   'binary_sensor.entrance_motion',
   'binary_sensor.bedroom_motion',
   'binary_sensor.living_motion',

@@ -204,11 +204,13 @@ setupHaPullPanel({ ws });
 
 
 
-window.addEventListener("DOMContentLoaded", () => {
+// index.js is loaded at the end of <body>, so the required DOM already exists.
+  // Initialise these controls directly after the async HA entity bootstrap.
+  // Waiting for DOMContentLoaded here is race-prone because the event may have
+  // fired while loadStudyRuntimeEntities() was awaiting the network response.
   initConflictAnalyzerUI();
   initTaskAltUI({ ws });
   initBlockSearchFlyout({ workspace: ws });
-});
 
 }
 
