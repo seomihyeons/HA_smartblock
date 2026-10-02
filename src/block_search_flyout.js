@@ -1,5 +1,6 @@
 import * as Blockly from 'blockly';
 import { toolbox } from './toolbox.js';
+import { DOMAIN_SPEC } from './data/options.js';
 import { setModalOpenState } from './utils/floating_modal_state.js';
 
 const SEARCHABLE_CATEGORIES = new Set(['Rule', 'Event', 'Condition', 'Action']);
@@ -14,20 +15,42 @@ function readableType(type) {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function tokenize(value) {
+  return normalize(value).match(/[a-z0-9]+/g) || [];
+}
+
+// Familiar Home Assistant terms improve block discovery without creating
+// duplicate block definitions. For example, `door` should find the binary
+// sensor state blocks used for doors, contacts, windows, and motion sensors.
+const BLOCK_SEARCH_ALIASES = {
+  event_binary_sensor_state: 'sensor contact door window motion occupancy',
+  condition_state_binary_sensor: 'sensor contact door window motion occupancy',
+  action_lock: 'door lock unlock',
+  action_cover: 'door garage shutter blind open close',
+  condition_logic: 'and or logical',
+};
+
+function actionSearchTerms(type) {
+  const domain = String(type || '').replace(/^action_/, '');
+  const actions = DOMAIN_SPEC[domain]?.actions || [];
+  return actions.flatMap(([label, value]) => [label, value.replace(/_/g, ' ')]).join(' ');
+}
+
+function matchesSearch(query, searchable) {
+  if (!query) return true;
+  const searchableTokens = new Set(tokenize(searchable));
+  return tokenize(query).every((token) => searchableTokens.has(token));
+}
+
 function cloneFlyoutItem(item) {
   // Flyout normalisation may add defaults to a block-info object. Keep the
   // search flyout independent from the Toolbox's source definitions.
   return JSON.parse(JSON.stringify(item));
 }
 
-function getSearchDefinition(query) {
+export function getBlockSearchResults(query) {
   const searchText = normalize(query);
-  const result = [
-    // Reserve vertical room for the HTML input that sits above this SVG flyout.
-    { kind: 'label', text: ' ' },
-    { kind: 'sep', gap: 44 },
-  ];
-  let matchCount = 0;
+  const result = [];
 
   toolbox.contents
     .filter((category) => category.kind === 'category' && SEARCHABLE_CATEGORIES.has(category.name))
@@ -42,25 +65,49 @@ function getSearchDefinition(query) {
         }
         if (item.kind !== 'block' || !item.type) return;
 
-        const searchable = normalize(`${item.type} ${readableType(item.type)} ${category.name} ${section}`);
-        if (!searchText || searchable.includes(searchText)) {
-          matches.push({ item, section });
+        const searchable = normalize([
+          item.type,
+          readableType(item.type),
+          category.name,
+          section,
+          BLOCK_SEARCH_ALIASES[item.type],
+          item.type.startsWith('action_') ? actionSearchTerms(item.type) : '',
+        ].join(' '));
+        if (matchesSearch(searchText, searchable)) {
+          matches.push({ type: item.type, category: category.name, section, item });
         }
       });
 
       if (!matches.length) return;
-      let lastSection = null;
-      matches.forEach(({ item, section }) => {
-        if (section && section !== lastSection) {
-          result.push({ kind: 'label', text: section });
-          lastSection = section;
-        }
-        result.push(cloneFlyoutItem(item));
-        matchCount += 1;
-      });
+      result.push(...matches);
     });
 
-  if (!matchCount) {
+  return result;
+}
+
+export function getSearchDefinition(query) {
+  const result = [
+    // Reserve vertical room for the HTML input that sits above this SVG flyout.
+    { kind: 'label', text: ' ' },
+    { kind: 'sep', gap: 44 },
+  ];
+  const matches = getBlockSearchResults(query);
+  let lastCategory = null;
+  let lastSection = null;
+
+  matches.forEach(({ item, category, section }) => {
+    if (category !== lastCategory) {
+      lastCategory = category;
+      lastSection = null;
+    }
+    if (section && section !== lastSection) {
+      result.push({ kind: 'label', text: section });
+      lastSection = section;
+    }
+    result.push(cloneFlyoutItem(item));
+  });
+
+  if (!matches.length) {
     result.push({ kind: 'label', text: 'No matching blocks' });
   }
   return result;
