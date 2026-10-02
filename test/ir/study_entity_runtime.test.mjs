@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {
-  STUDY_ENTITY_IDS,
-  filterStudyEntities,
-} from '../../src/data/study_entity_filter.js';
+import { STUDY_ENTITY_IDS, filterStudyEntities } from '../../src/data/study_entity_filter.js';
 import {
   dummyEntities,
   runtimeEntities,

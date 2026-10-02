@@ -1,17 +1,37 @@
 import { STATE_DOMAINS, ACTION_DOMAINS } from './data/options.js';
 
-const eventStateBlocks = (STATE_DOMAINS || [])
-  .filter((d) => d !== 'sensor')
-  .map((domain) => ({ kind: 'block', type: `event_${domain}_state` }));
+function domainsPresentIn(entities) {
+  if (!Array.isArray(entities)) return null;
+  return new Set(
+    entities
+      .map((entity) => String(entity?.entity_id || '').split('.', 1)[0])
+      .filter(Boolean)
+  );
+}
 
-const conditionStateBlocks = (STATE_DOMAINS || [])
-  .map((domain) => ({ kind: 'block', type: `condition_state_${domain}` }));
+function supportedDomains(domains, availableDomains) {
+  return (domains || []).filter((domain) => !availableDomains || availableDomains.has(domain));
+}
 
-const actionBlocks = (ACTION_DOMAINS || [])
-  .filter((domain) => !['ecobee', 'script', 'python_script', 'mqtt'].includes(domain))
-  .map((domain) => ({ kind: 'block', type: `action_${domain}` }));
+/**
+ * Creates a toolbox whose entity-specific blocks match the currently loaded
+ * Home Assistant entities.  Generic Home Assistant, template, time, and raw
+ * blocks remain available regardless of the entity source.
+ */
+export function createToolbox(entities) {
+  const availableDomains = domainsPresentIn(entities);
+  const eventStateBlocks = supportedDomains(STATE_DOMAINS, availableDomains)
+    .filter((domain) => domain !== 'sensor')
+    .map((domain) => ({ kind: 'block', type: `event_${domain}_state` }));
 
-export const toolbox = {
+  const conditionStateBlocks = supportedDomains(STATE_DOMAINS, availableDomains)
+    .map((domain) => ({ kind: 'block', type: `condition_state_${domain}` }));
+
+  const actionBlocks = supportedDomains(ACTION_DOMAINS, availableDomains)
+    .filter((domain) => !['ecobee', 'script', 'python_script', 'mqtt'].includes(domain))
+    .map((domain) => ({ kind: 'block', type: `action_${domain}` }));
+
+  return {
   kind: 'categoryToolbox',
   contents: [
     {
@@ -138,4 +158,15 @@ export const toolbox = {
       ],
     },
   ],
-};
+  };
+}
+
+// Kept as a live binding so Block Search reads the same runtime-aware toolbox
+// used by Blockly.inject.  Calling setToolboxEntities before injection updates
+// both consumers without re-importing bundled fixture entities.
+export let toolbox = createToolbox();
+
+export function setToolboxEntities(entities) {
+  toolbox = createToolbox(entities);
+  return toolbox;
+}

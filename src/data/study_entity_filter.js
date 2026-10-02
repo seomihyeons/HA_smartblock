@@ -22,7 +22,7 @@ const STUDY_ENTITY_ID_SET = new Set(STUDY_ENTITY_IDS);
 
 function normalizeRuntimeEntity(entity) {
   const entityId = String(entity?.entity_id || '').trim();
-  if (!entityId || !STUDY_ENTITY_ID_SET.has(entityId)) return null;
+  if (!entityId || !entityId.includes('.')) return null;
 
   const attributes = entity?.attributes && typeof entity.attributes === 'object'
     ? entity.attributes
@@ -39,9 +39,9 @@ function normalizeRuntimeEntity(entity) {
   };
 }
 
-// Preserve the study allowlist order and intentionally discard every entity
-// outside it, including Home Assistant system entities returned by /api/states.
-export function filterStudyEntities(runtimeEntities) {
+// Runtime Home Assistant is the selector source of truth.  This normalizes
+// every returned state without consulting the Study task fixture above.
+export function normalizeRuntimeEntities(runtimeEntities) {
   const source = Array.isArray(runtimeEntities) ? runtimeEntities : [];
   const byId = new Map();
 
@@ -50,10 +50,18 @@ export function filterStudyEntities(runtimeEntities) {
     if (normalized) byId.set(normalized.entity_id, normalized);
   }
 
-  const entities = STUDY_ENTITY_IDS
-    .map((entityId) => byId.get(entityId))
-    .filter(Boolean);
-  const missing = STUDY_ENTITY_IDS.filter((entityId) => !byId.has(entityId));
+  return {
+    entities: [...byId.values()].sort((a, b) => a.entity_id.localeCompare(b.entity_id)),
+  };
+}
 
+// The controlled Study set is retained separately for study validation.  It
+// never replaces the full runtime collection used by selectors and toolbox.
+export function filterStudyEntities(runtimeEntities) {
+  const byId = new Map(
+    normalizeRuntimeEntities(runtimeEntities).entities.map((entity) => [entity.entity_id, entity])
+  );
+  const entities = STUDY_ENTITY_IDS.map((entityId) => byId.get(entityId)).filter(Boolean);
+  const missing = STUDY_ENTITY_IDS.filter((entityId) => !byId.has(entityId));
   return { entities, missing };
 }

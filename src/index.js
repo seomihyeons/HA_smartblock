@@ -22,7 +22,7 @@ import './index.css';
 import { yamlGenerator } from './generators/yaml';
 import { loadStudyRuntimeEntities } from './data/entities_index.js';
 
-import { toolbox } from './toolbox';
+import { toolbox, setToolboxEntities } from './toolbox';
 import { customTheme } from './utils/custom_theme.js';
 
 import './blocks/extensions';
@@ -90,6 +90,9 @@ function showStudyEntityLoadError(error) {
 async function bootstrap() {
   const runtimeEntities = await loadStudyRuntimeEntities();
   if (!runtimeEntities.ok) showStudyEntityLoadError(runtimeEntities.error);
+  // Entity-specific toolbox entries must reflect the runtime Home Assistant
+  // entities, not every domain in the development fixture corpus.
+  setToolboxEntities(runtimeEntities.runtimeEntities);
 
 Blockly.common.defineBlocks(rawLinesBlocks);
 Blockly.common.defineBlocks(ruleBlocks);
@@ -202,15 +205,15 @@ ws.addChangeListener((e) => {
 
 setupHaPullPanel({ ws });
 
-
-
-// index.js is loaded at the end of <body>, so the required DOM already exists.
-  // Initialise these controls directly after the async HA entity bootstrap.
-  // Waiting for DOMContentLoaded here is race-prone because the event may have
-  // fired while loadStudyRuntimeEntities() was awaiting the network response.
+// The async entity fetch may complete after DOMContentLoaded. Initialise the
+// controls directly once the workspace exists instead of registering a late
+// DOMContentLoaded handler that would never fire.
+const initWorkspaceTools = () => {
   initConflictAnalyzerUI();
   initTaskAltUI({ ws });
   initBlockSearchFlyout({ workspace: ws });
+};
+initWorkspaceTools();
 
 }
 

@@ -9,6 +9,7 @@ import { actionEntityBlocks } from '../../src/blocks/action/action_entity.js';
 import { STUDY_ENTITY_IDS } from '../../src/data/study_entity_filter.js';
 import { loadStudyRuntimeEntities } from '../../src/data/entities_index.js';
 import { getActions, getStates } from '../../src/data/options.js';
+import { setToolboxEntities, toolbox } from '../../src/toolbox.js';
 
 Blockly.common.defineBlocks(eventEntityBlocks);
 Blockly.common.defineBlocks(conditionStateBlocks);
@@ -40,7 +41,7 @@ const STUDY_TASKS = {
   'light.bedroom': { event: true, condition: true, action: true },
   'light.kitchen': { event: true, condition: true, action: true },
   'light.living_room': { event: true, condition: true, action: true },
-  'siren.home_alarm': { event: false, condition: false, action: true },
+  'siren.home_alarm': { event: true, condition: true, action: true },
 };
 
 const runtimeEntity = (entity_id) => ({
@@ -60,7 +61,7 @@ function dropdownIds(workspace, blockType) {
   return ids;
 }
 
-test('all Study entities expose only their required Event, Condition, and Action selectors', async () => {
+test('all Study task entities expose their required Event, Condition, and Action selectors', async () => {
   const result = await loadStudyRuntimeEntities(async () => ({
     ok: true,
     json: async () => ({
@@ -70,6 +71,7 @@ test('all Study entities expose only their required Event, Condition, and Action
         runtimeEntity('weather.home'),
         runtimeEntity('person.someone'),
         runtimeEntity('light.sb_test_light'),
+        runtimeEntity('switch.runtime_switch'),
       ],
     }),
   }));
@@ -92,6 +94,7 @@ test('all Study entities expose only their required Event, Condition, and Action
   const binaryStates = getStates('binary_sensor').map(([, value]) => value);
   assert.deepEqual(binaryStates, ['on', 'off']);
   assert.deepEqual(getStates('device_tracker').map(([, value]) => value), ['home', 'not_home']);
+  assert.deepEqual(getStates('siren').map(([, value]) => value), ['on', 'off']);
   assert.deepEqual(getActions('siren').map(([, value]) => value), ['turn_on', 'turn_off']);
 
   // Generic/domain selectors mirror the connected Home Assistant runtime.
@@ -109,4 +112,31 @@ test('all Study entities expose only their required Event, Condition, and Action
   assert.ok(weatherConditionIds.includes('weather.home'));
   assert.ok(personConditionIds.includes('person.someone'));
   assert.deepEqual(lockConditionIds, ['']);
+});
+
+test('runtime-aware toolbox exposes applicable blocks for every loaded runtime domain', async () => {
+  const result = await loadStudyRuntimeEntities(async () => ({
+    ok: true,
+    json: async () => ({
+      entities: [
+        ...STUDY_ENTITY_IDS.map(runtimeEntity),
+        runtimeEntity('weather.home'),
+        runtimeEntity('switch.runtime_switch'),
+      ],
+    }),
+  }));
+  setToolboxEntities(result.runtimeEntities);
+
+  const category = (name) => toolbox.contents.find((item) => item.name === name);
+  const blockTypes = (name) => category(name).contents
+    .filter((item) => item.kind === 'block')
+    .map((item) => item.type);
+
+  for (const domain of ['binary_sensor', 'device_tracker', 'light', 'siren', 'weather', 'switch']) {
+    assert.ok(blockTypes('Event').includes(`event_${domain}_state`), `${domain}: Event toolbox block`);
+    assert.ok(blockTypes('Condition').includes(`condition_state_${domain}`), `${domain}: Condition toolbox block`);
+  }
+  for (const domain of ['light', 'siren', 'switch']) {
+    assert.ok(blockTypes('Action').includes(`action_${domain}`), `${domain}: Action toolbox block`);
+  }
 });

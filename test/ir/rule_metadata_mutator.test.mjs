@@ -2,7 +2,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as Blockly from 'blockly';
 import { setStudyRuntimeEntities } from '../../src/data/entities_index.js';
-import { STUDY_ENTITY_IDS } from '../../src/data/study_entity_filter.js';
 
 import '../../src/blocks/extensions.js';
 import { ruleBlocks } from '../../src/blocks/rule_blocks.js';
@@ -21,7 +20,11 @@ Blockly.common.defineBlocks(eventGroupBlocks);
 Blockly.common.defineBlocks(actionEntityBlocks);
 Blockly.common.defineBlocks(actionDataBlocks);
 
-setStudyRuntimeEntities(STUDY_ENTITY_IDS.map((entity_id) => ({
+setStudyRuntimeEntities([
+  'binary_sensor.front_door',
+  'light.entrance',
+  'siren.test_siren',
+].map((entity_id) => ({
   entity_id,
   state: 'off',
   attributes: { friendly_name: entity_id },
