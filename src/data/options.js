@@ -307,6 +307,10 @@ export const DOMAIN_SPEC = {
       ['on', 'turn_on'],
       ['off', 'turn_off'],
     ],
+    states: [
+      ['on', 'on'],
+      ['off', 'off'],
+    ],
   },
 
   button: {
