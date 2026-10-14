@@ -253,9 +253,18 @@ module.exports = (env, argv) => {
     config.devtool = 'eval-cheap-module-source-map';
 
     const haBaseUrl = String(process.env.HA_BASE_URL || '').trim();
+    // The add-on server owns /api/entities and enriches Home Assistant's
+    // /api/states response for Blockly. In local development, proxy just that
+    // endpoint to a running add-on image instead of duplicating its server.
+    const addonApiUrl = String(process.env.SMARTBLOCK_ADDON_URL || 'http://localhost:8080').trim();
     const proxy = {
       '/analyze': {
         target: 'http://localhost:8787',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/entities': {
+        target: addonApiUrl,
         changeOrigin: true,
         secure: false,
       },

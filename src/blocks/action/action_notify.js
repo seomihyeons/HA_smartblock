@@ -2,6 +2,96 @@
 import * as Blockly from 'blockly';
 import { getNotifyTargetOptions, NOTIFY_TEMPLATE_KINDS } from '../../data/options.js';
 
+const NOTIFY_MESSAGE_PLACEHOLDER = 'input message';
+
+// Blockly text fields do not support an HTML-style placeholder.  This field
+// retains the visible guidance text but tags only that sentinel value so the
+// UI can render it in a muted colour. Any real user-entered message is shown
+// with Blockly's normal field text colour.
+class NotifyMessageTextInput extends Blockly.FieldTextInput {
+  constructor(value = NOTIFY_MESSAGE_PLACEHOLDER, validator = null, config = {}) {
+    super(value, validator, config);
+    this.isPlaceholder_ = value === NOTIFY_MESSAGE_PLACEHOLDER;
+  }
+
+  doValueUpdate_(newValue) {
+    super.doValueUpdate_(newValue);
+    // Programmatic values that differ from the prompt (including YAML import)
+    // are always real content. The prompt itself needs explicit state because
+    // a participant may intentionally enter the same words.
+    if (newValue !== NOTIFY_MESSAGE_PLACEHOLDER) this.isPlaceholder_ = false;
+    this.updatePlaceholderAppearance_();
+  }
+
+  bindInputEvents_(htmlInput) {
+    super.bindInputEvents_(htmlInput);
+    // This is a user edit, even if the resulting string happens to be exactly
+    // the same as the prompt text.
+    htmlInput.addEventListener('input', () => this.markAsUserValue());
+  }
+
+  render_() {
+    super.render_();
+    this.updatePlaceholderAppearance_();
+  }
+
+  isPlaceholder() {
+    return this.isPlaceholder_ === true;
+  }
+
+  markAsUserValue() {
+    if (!this.isPlaceholder_) return;
+    this.isPlaceholder_ = false;
+    this.updatePlaceholderAppearance_();
+  }
+
+  saveState(doFullSerialization) {
+    return {
+      value: super.saveState(doFullSerialization),
+      isPlaceholder: this.isPlaceholder(),
+    };
+  }
+
+  loadState(state) {
+    if (state && typeof state === 'object' && Object.hasOwn(state, 'value')) {
+      super.loadState(state.value);
+      this.isPlaceholder_ = state.isPlaceholder === true;
+    } else {
+      // Old saved workspaces stored a bare string. Treat the legacy default
+      // prompt as a placeholder; imported YAML explicitly marks its text as a
+      // real value below.
+      super.loadState(state);
+      this.isPlaceholder_ = this.getValue() === NOTIFY_MESSAGE_PLACEHOLDER;
+    }
+    this.updatePlaceholderAppearance_();
+  }
+
+  updatePlaceholderAppearance_() {
+    const svgRoot = this.getSvgRoot();
+    if (!svgRoot) return;
+    svgRoot.classList.toggle(
+      'notify-message-placeholder',
+      this.isPlaceholder()
+    );
+  }
+}
+
+Blockly.Extensions.register('notify_message_placeholder', function () {
+  const originalField = this.getField('TEXT');
+  const input = this.inputList.find((candidate) => candidate.fieldRow.includes(originalField));
+  if (!originalField || !input) return;
+
+  // Replace just the JSON-created field; the adjacent `text` label stays in
+  // place and the block keeps the same serializable field name.
+  input.removeField('TEXT');
+  input.appendField(
+    new NotifyMessageTextInput(String(originalField.getValue() || NOTIFY_MESSAGE_PLACEHOLDER), null, {
+      spellcheck: true,
+    }),
+    'TEXT'
+  );
+});
+
 function updateNotifyPushOptionShape(block) {
   if (!block) return;
   const option = String(block.getFieldValue('OPTION') || 'none');
@@ -124,6 +214,7 @@ export const actionNotifyBlocks = Blockly.common.createBlockDefinitionsFromJsonA
     colour: '#E3CC57',
     tooltip: 'Legacy block (kept for compatibility).',
     helpUrl: '',
+    extensions: ['notify_message_placeholder'],
   },
   {
     type: 'action_notify_message_template',

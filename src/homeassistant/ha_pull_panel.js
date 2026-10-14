@@ -138,9 +138,7 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
                 rowEl.style.padding = '8px 10px';
                 rowEl.style.borderBottom = '1px solid #f3f4f6';
 
-                const top = el('div', {
-                    innerText: `${item.editable ? '' : '⚠️'} ${name}`,
-                });
+                const top = el('div', { innerText: name });
 
                 top.style.fontWeight = '600';
                 top.style.fontSize = '13px';
@@ -221,7 +219,7 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
                 btnRefresh.disabled = false;
                 btnRefresh.style.opacity = '1';
 
-                setStatus(status, `Loaded ${cache.length}. Editable: ${okCount}. Click ✅ items to open.`);
+                setStatus(status, `Loaded ${cache.length}. Editable: ${okCount}. Click an editable item to open.`);
                 renderList();
             } catch (e) {
                 console.error(e);

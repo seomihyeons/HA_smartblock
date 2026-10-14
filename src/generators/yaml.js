@@ -603,6 +603,30 @@ yamlGenerator.forBlock['condition_sun'] = function (block, generator) {
   return `- condition: sun\n${generator.prefixLines(body + '\n', '  ')}\n`;
 };
 
+yamlGenerator.forBlock['condition_sun_phase'] = function (block) {
+  const phase = String(block.getFieldValue('PHASE') || '');
+  if (!['sun.is_night', 'sun.is_polar_night', 'sun.is_midnight_sun'].includes(phase)) {
+    return '';
+  }
+  return `- condition: ${phase}\n`;
+};
+
+yamlGenerator.forBlock['condition_zone_membership'] = function (block) {
+  const condition = String(block.getFieldValue('MEMBERSHIP') || '');
+  const user = String(block.getFieldValue('USER') || '').trim();
+  const zone = String(block.getFieldValue('ZONE') || '').trim();
+  if (!['zone.in_zone', 'zone.not_in_zone'].includes(condition) || !user || !zone) return '';
+
+  return [
+    `- condition: ${condition}`,
+    '  target:',
+    `    entity_id: ${user}`,
+    '  options:',
+    `    zone: ${zone}`,
+    '',
+  ].join('\n');
+};
+
 yamlGenerator.forBlock['condition_sun_after'] = function (block, generator) {
   const event = String(block.getFieldValue('EVENT') || '').trim();
   if (!event) return '';
@@ -1527,7 +1551,8 @@ yamlGenerator.forBlock['action_if_then'] = function (block) {
 // Action: notify
 yamlGenerator.forBlock['action_notify'] = function (block, generator) {
   const uiTarget = (block.getFieldValue('TARGET') || 'notify').trim();
-  const svc = uiTarget.startsWith('notify.') ? uiTarget : `notify.${uiTarget}`;
+  const isNotifyEntity = uiTarget.startsWith('notify.');
+  const svc = isNotifyEntity ? 'notify.send_message' : `notify.${uiTarget}`;
 
   const extraLines = [];
   const messageParts = [];
@@ -1692,7 +1717,7 @@ yamlGenerator.forBlock['action_notify'] = function (block, generator) {
   while (child) {
     if (child.type === 'action_notify_message_text') {
       const t = String(child.getFieldValue('TEXT') || '');
-      if (t && t !== 'input message') messageParts.push(t);
+      if (t && !child.getField('TEXT')?.isPlaceholder?.()) messageParts.push(t);
     }
     if (child.type === 'action_notify_message_template') {
       const kind = String(child.getFieldValue('TEMPLATE_KIND') || '');
@@ -1716,7 +1741,7 @@ yamlGenerator.forBlock['action_notify'] = function (block, generator) {
       while (inner) {
         if (inner.type === 'action_notify_message_text') {
           const t = String(inner.getFieldValue('TEXT') || '');
-          if (t && t !== 'input message') messageParts.push(t);
+          if (t && !inner.getField('TEXT')?.isPlaceholder?.()) messageParts.push(t);
         }
         if (inner.type === 'action_notify_message_template') {
           const kind = String(inner.getFieldValue('TEMPLATE_KIND') || '');
@@ -1773,6 +1798,9 @@ yamlGenerator.forBlock['action_notify'] = function (block, generator) {
   if (!message) return '';
 
   let code = `- action: ${svc}\n`;
+  if (isNotifyEntity) {
+    code += `  target:\n    entity_id: ${uiTarget}\n`;
+  }
   code += `  data:\n`;
   if (notificationTitle) code += `    title: ${JSON.stringify(notificationTitle)}\n`;
   code += `    message: ${JSON.stringify(message)}\n`;

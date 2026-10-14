@@ -708,6 +708,53 @@ function createSingleConditionNode(c, workspace, context = 'and') {
   }
 
   // (d) sun
+  if (['zone.in_zone', 'zone.not_in_zone'].includes(type)) {
+    const target = c?.target;
+    const options = c?.options;
+    const entityIds = toArray(target?.entity_id).map((entityId) => String(entityId || '').trim()).filter(Boolean);
+    const zone = String(options?.zone || '').trim();
+    const hasExactShape =
+      Object.keys(c).every((key) => ['condition', 'target', 'options'].includes(key)) &&
+      target && typeof target === 'object' && !Array.isArray(target) &&
+      Object.keys(target).length === 1 && Object.prototype.hasOwnProperty.call(target, 'entity_id') &&
+      options && typeof options === 'object' && !Array.isArray(options) &&
+      Object.keys(options).length === 1 && Object.prototype.hasOwnProperty.call(options, 'zone');
+    if (
+      !hasExactShape ||
+      entityIds.length !== 1 ||
+      !zone ||
+      !canCreate('condition_zone_membership')
+    ) {
+      return createRawLinesBlock(workspace, 'condition', conditionToRawLines(c));
+    }
+
+    const b = workspace.newBlock('condition_zone_membership');
+    const isValid =
+      setAndVerifyDropdown(b, 'USER', entityIds[0]) &&
+      setAndVerifyDropdown(b, 'MEMBERSHIP', type) &&
+      setAndVerifyDropdown(b, 'ZONE', zone);
+    if (!isValid) {
+      b.dispose(true);
+      return createRawLinesBlock(workspace, 'condition', conditionToRawLines(c));
+    }
+    b.initSvg?.(); b.render?.();
+    return b;
+  }
+
+  if (['sun.is_night', 'sun.is_polar_night', 'sun.is_midnight_sun'].includes(type)) {
+    if (!canCreate('condition_sun_phase')) {
+      return createRawLinesBlock(workspace, 'condition', conditionToRawLines(c));
+    }
+    const b = workspace.newBlock('condition_sun_phase');
+    const ok = setAndVerifyDropdown(b, 'PHASE', type);
+    if (!ok) {
+      b.dispose(true);
+      return createRawLinesBlock(workspace, 'condition', conditionToRawLines(c));
+    }
+    b.initSvg?.(); b.render?.();
+    return b;
+  }
+
   if (type === 'sun') {
     return makeSunConditionBlock(workspace, c);
   }

@@ -1,33 +1,20 @@
 import { STATE_DOMAINS, ACTION_DOMAINS } from './data/options.js';
 
-function domainsPresentIn(entities) {
-  if (!Array.isArray(entities)) return null;
-  return new Set(
-    entities
-      .map((entity) => String(entity?.entity_id || '').split('.', 1)[0])
-      .filter(Boolean)
-  );
-}
-
-function supportedDomains(domains, availableDomains) {
-  return (domains || []).filter((domain) => !availableDomains || availableDomains.has(domain));
-}
-
 /**
- * Creates a toolbox whose entity-specific blocks match the currently loaded
- * Home Assistant entities.  Generic Home Assistant, template, time, and raw
- * blocks remain available regardless of the entity source.
+ * Creates the complete set of supported Home Assistant blocks. Runtime
+ * entities populate their dropdowns, but must never determine whether a
+ * supported block exists: an empty domain is represented by its `(No
+ * entities)` dropdown option so the block remains discoverable and usable.
  */
-export function createToolbox(entities) {
-  const availableDomains = domainsPresentIn(entities);
-  const eventStateBlocks = supportedDomains(STATE_DOMAINS, availableDomains)
+export function createToolbox() {
+  const eventStateBlocks = (STATE_DOMAINS || [])
     .filter((domain) => domain !== 'sensor')
     .map((domain) => ({ kind: 'block', type: `event_${domain}_state` }));
 
-  const conditionStateBlocks = supportedDomains(STATE_DOMAINS, availableDomains)
+  const conditionStateBlocks = (STATE_DOMAINS || [])
     .map((domain) => ({ kind: 'block', type: `condition_state_${domain}` }));
 
-  const actionBlocks = supportedDomains(ACTION_DOMAINS, availableDomains)
+  const actionBlocks = (ACTION_DOMAINS || [])
     .filter((domain) => !['ecobee', 'script', 'python_script', 'mqtt'].includes(domain))
     .map((domain) => ({ kind: 'block', type: `action_${domain}` }));
 
@@ -48,6 +35,8 @@ export function createToolbox(entities) {
       name: 'Event',
       categorystyle: 'event_category',
       contents: [
+        { kind: 'label', text: 'State' },
+        ...eventStateBlocks,
         { kind: 'label', text: 'Home Assistant' },
         { kind: 'block', type: 'ha_event_homeassistant' },
         { kind: 'label', text: 'Event' },
@@ -61,8 +50,6 @@ export function createToolbox(entities) {
         { kind: 'block', type: 'ha_event_mqtt_payload' },
         { kind: 'block', type: 'ha_event_mqtt_value_template' },
         { kind: 'block', type: 'ha_event_mqtt_encoding' },
-        { kind: 'label', text: 'State' },
-        ...eventStateBlocks,
         { kind: 'label', text: 'Group' },
         { kind: 'block', type: 'event_group_entities' },
         { kind: 'block', type: 'event_group_numeric_entities' },
@@ -85,6 +72,8 @@ export function createToolbox(entities) {
       name: 'Condition',
       categorystyle: 'condition_category',
       contents: [
+        { kind: 'label', text: 'State' },
+        ...conditionStateBlocks,
         { kind: 'label', text: 'Logic' },
         { kind: 'block', type: 'condition_logic' },
         { kind: 'block', type: 'condition_not_value' },
@@ -94,12 +83,13 @@ export function createToolbox(entities) {
         { kind: 'block', type: 'condition_time' },
         { kind: 'block', type: 'condition_time_weekly' },
         { kind: 'label', text: 'Sun' },
+        { kind: 'block', type: 'condition_sun_phase' },
         { kind: 'block', type: 'condition_sun' },
         { kind: 'block', type: 'condition_sun_after' },
         { kind: 'block', type: 'condition_sun_before' },
         { kind: 'block', type: 'condition_sun_offset' },
-        { kind: 'label', text: 'State' },
-        ...conditionStateBlocks,
+        { kind: 'label', text: 'Zone' },
+        { kind: 'block', type: 'condition_zone_membership' },
         { kind: 'label', text: 'Numeric State' },
         { kind: 'block', type: 'condition_numeric_state_entity' },
         { kind: 'block', type: 'condition_numeric_state_attribute' },
@@ -144,7 +134,21 @@ export function createToolbox(entities) {
         { kind: 'block', type: 'action_if_else' },
         { kind: 'block', type: 'action_if_then' },
         { kind: 'label', text: 'Notify' },
-        { kind: 'block', type: 'action_notify' },
+        {
+          kind: 'block',
+          type: 'action_notify',
+          // A notification message is required by notify.send_message.
+          // Seed a connected text block only for newly dragged Toolbox blocks;
+          // YAML import creates its own text child from data.message instead.
+          inputs: {
+            MESSAGE_BLOCKS: {
+              block: {
+                type: 'action_notify_message_text',
+                fields: { TEXT: 'input message' },
+              },
+            },
+          },
+        },
         { kind: 'block', type: 'action_notify_message_text' },
         { kind: 'block', type: 'action_notify_message_template' },
         { kind: 'label', text: 'Notify Tag' },
@@ -161,12 +165,12 @@ export function createToolbox(entities) {
   };
 }
 
-// Kept as a live binding so Block Search reads the same runtime-aware toolbox
-// used by Blockly.inject.  Calling setToolboxEntities before injection updates
-// both consumers without re-importing bundled fixture entities.
+// Kept as a live binding so Blockly and Block Search read the same toolbox.
 export let toolbox = createToolbox();
 
-export function setToolboxEntities(entities) {
-  toolbox = createToolbox(entities);
+// Compatibility entry point used by application startup. Entity data belongs
+// to block dropdowns; it intentionally does not prune supported block types.
+export function setToolboxEntities(_entities) {
+  toolbox = createToolbox();
   return toolbox;
 }

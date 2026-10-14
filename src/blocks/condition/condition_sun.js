@@ -14,6 +14,26 @@ export const conditionSunBlocks =
       helpUrl: '',
     },
     {
+      type: 'condition_sun_phase',
+      message0: 'It is %1',
+      args0: [
+        {
+          type: 'field_dropdown',
+          name: 'PHASE',
+          options: [
+            ['night', 'sun.is_night'],
+            ['polar night', 'sun.is_polar_night'],
+            ['midnight sun', 'sun.is_midnight_sun'],
+          ],
+        },
+      ],
+      previousStatement: 'HA_CONDITION',
+      nextStatement: 'HA_CONDITION',
+      colour: '#AECA3E',
+      tooltip: 'Matches night, polar night, or midnight sun.',
+      helpUrl: '',
+    },
+    {
       type: 'condition_sun_after',
       message0: 'after %1 %2',
       args0: [
