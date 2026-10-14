@@ -106,7 +106,10 @@ function buildNotifyMessageAsTextBlock(message, notifyBlock, workspace) {
   if (!canCreate('action_notify_message_text')) return;
   const textBlk = workspace.newBlock('action_notify_message_text');
   textBlk.setFieldValue(message, 'TEXT');
-  textBlk.initSvg(); textBlk.render();
+  // A YAML message is always real content, even if it happens to have the
+  // same text as the new-block prompt.
+  textBlk.getField('TEXT')?.markAsUserValue?.();
+  textBlk.initSvg?.(); textBlk.render?.();
   appendStmt(notifyBlock, textBlk, 'MESSAGE_BLOCKS');
 }
 
@@ -115,7 +118,7 @@ function buildNotifyTitleBlock(title, notifyBlock, workspace) {
   if (!canCreate('notify_prop_title')) return;
   const titleBlk = workspace.newBlock('notify_prop_title');
   titleBlk.setFieldValue(title, 'TITLE');
-  titleBlk.initSvg(); titleBlk.render();
+  titleBlk.initSvg?.(); titleBlk.render?.();
   appendStmt(notifyBlock, titleBlk, 'MESSAGE_BLOCKS');
 }
 
@@ -1189,12 +1192,21 @@ export function createActionNode(a, workspace) {
   /* ---------- notify.* ---------- */
   const svc = a?.action || a?.service;
 
-  if (typeof svc === 'string' && svc.startsWith('notify.')) {
+  if (typeof svc === 'string' && (svc.startsWith('notify.') || svc === 'notify.send_message')) {
     if (!canCreate('action_notify')) {
       return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
     }
 
-    const uiTarget = svc.replace(/^notify\./, '') || 'notify';
+    const targetEntityIds = toArray(a?.target?.entity_id)
+      .map((entityId) => String(entityId || '').trim())
+      .filter(Boolean);
+    const isNotifyEntity = svc === 'notify.send_message';
+    const uiTarget = isNotifyEntity
+      ? targetEntityIds[0]
+      : (svc.replace(/^notify\./, '') || 'notify');
+    if (isNotifyEntity && targetEntityIds.length !== 1) {
+      return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
+    }
     const message = a?.data?.message ?? a?.data?.notification?.message ?? '';
     const title = a?.data?.title ?? '';
 
@@ -1202,10 +1214,13 @@ export function createActionNode(a, workspace) {
 
     const field = b.getField('TARGET');
     const options = field?.getOptions ? field.getOptions().map(o => o[1]) : [];
-    const valueToSet = options.includes(uiTarget) ? uiTarget : 'notify';
-    b.setFieldValue(valueToSet, 'TARGET');
+    if (!options.includes(uiTarget)) {
+      b.dispose(true);
+      return createRawLinesBlock(workspace, 'action', actionObjToRawLines(a));
+    }
+    b.setFieldValue(uiTarget, 'TARGET');
 
-    b.initSvg(); b.render();
+    b.initSvg?.(); b.render?.();
     buildNotifyMessageAsTextBlock(String(message ?? ''), b, workspace);
     buildNotifyTitleBlock(String(title ?? ''), b, workspace);
 

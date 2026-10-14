@@ -459,6 +459,36 @@ export function getStates(domain) {
   return Array.isArray(opts) && opts.length ? opts : [['(No states)', '']];
 }
 
+// Binary sensors are stored by Home Assistant as on/off, but their
+// device_class determines the human-facing meaning. Keep the stored values
+// unchanged so generators and importers continue to use Home Assistant's
+// canonical YAML values.
+export function getBinarySensorStateOptions(entityId, { includeAny = false } = {}) {
+  const entity = (dummyEntities || []).find((candidate) => candidate?.entity_id === entityId);
+  const deviceClass = String(entity?.attributes?.device_class || '').trim().toLowerCase();
+  const options = deviceClass === 'door'
+    ? [['opened', 'on'], ['closed', 'off']]
+    : [...getStates('binary_sensor')];
+
+  return includeAny ? [...options, ['(any)', '']] : options;
+}
+
+function getExactRuntimeEntityOptions(entityId, emptyLabel) {
+  const entity = (dummyEntities || []).find((candidate) => candidate?.entity_id === entityId);
+  if (!entity) return [[emptyLabel, '']];
+  return [[entity.attributes?.friendly_name || entity.name || entity.entity_id, entity.entity_id]];
+}
+
+// Study-only targets: they are runtime-backed, but deliberately constrained
+// to the one participant and one home zone used by the study tasks.
+export function getStudyPersonOptions() {
+  return getExactRuntimeEntityOptions('person.test_user', '(No study user)');
+}
+
+export function getStudyZoneOptions() {
+  return getExactRuntimeEntityOptions('zone.home', '(No home zone)');
+}
+
 /* ============================================================
  * CONDITION / EVENT OPTIONS
  * ============================================================ */
@@ -570,30 +600,19 @@ export const PRESET_NOTIFY_SERVICES = [
 ];
 
 export function buildDeviceTargets() {
-  return (notifyDevices || []).map((n) => slug(n));
+  return (notifyDevices || [])
+    .map((entityId) => String(entityId || '').trim())
+    .filter((entityId) => entityId.startsWith('notify.'));
 }
 
 export function getNotifyTargetOptions() {
-  const opts = [];
-
-  // 기본 notify.notify
-  opts.push(['notify', 'notify']);
-
-  // 커스텀 notify 서비스
-  CUSTOM_NOTIFY_TARGETS.forEach((v) => opts.push([v, v]));
-
-  // mobile_app 디바이스들
+  // Study notifications are runtime entities, not legacy notify service-name
+  // suffixes. This intentionally exposes only notify.test_user.
   const devices = buildDeviceTargets();
   if (devices.length) {
-    devices.forEach((v) => opts.push([v, v]));
-  } else {
-    opts.push(['(no mobile_app devices)', 'notify']);
+    return devices.map((entityId) => [entityId, entityId]);
   }
-
-  // preset 서비스
-  PRESET_NOTIFY_SERVICES.forEach((v) => opts.push([v, v]));
-
-  return opts;
+  return [['(no notification entity)', '']];
 }
 
 export const NOTIFY_TEMPLATE_KINDS = [

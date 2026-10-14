@@ -4,49 +4,53 @@ import * as Blockly from 'blockly';
 
 import '../../src/blocks/extensions.js';
 import { eventEntityBlocks } from '../../src/blocks/event/event_entity.js';
+import { eventNumericSensorBlocks } from '../../src/blocks/event/event_sensor_state.js';
 import { conditionStateBlocks } from '../../src/blocks/condition/condition_entity_state.js';
+import { conditionZoneBlocks } from '../../src/blocks/condition/condition_zone.js';
 import { actionEntityBlocks } from '../../src/blocks/action/action_entity.js';
+import { actionNotifyBlocks } from '../../src/blocks/action/action_notify.js';
 import { STUDY_ENTITY_IDS } from '../../src/data/study_entity_filter.js';
 import { loadStudyRuntimeEntities } from '../../src/data/entities_index.js';
 import { getActions, getStates } from '../../src/data/options.js';
 import { setToolboxEntities, toolbox } from '../../src/toolbox.js';
 
 Blockly.common.defineBlocks(eventEntityBlocks);
+Blockly.common.defineBlocks(eventNumericSensorBlocks);
 Blockly.common.defineBlocks(conditionStateBlocks);
+Blockly.common.defineBlocks(conditionZoneBlocks);
 Blockly.common.defineBlocks(actionEntityBlocks);
+Blockly.common.defineBlocks(actionNotifyBlocks);
 
 const DOOR_IDS = new Set([
-  'binary_sensor.front_door',
-  'binary_sensor.back_door',
   'binary_sensor.entrance_door',
+  'binary_sensor.back_door',
   'binary_sensor.bedroom_door',
   'binary_sensor.bathroom_door',
-  'binary_sensor.kitchen_door',
 ]);
 
 const STUDY_TASKS = {
-  'binary_sensor.front_door': { event: true, condition: true, action: false },
-  'binary_sensor.back_door': { event: true, condition: true, action: false },
   'binary_sensor.entrance_door': { event: true, condition: true, action: false },
+  'binary_sensor.back_door': { event: true, condition: true, action: false },
   'binary_sensor.bedroom_door': { event: true, condition: true, action: false },
   'binary_sensor.bathroom_door': { event: true, condition: true, action: false },
-  'binary_sensor.kitchen_door': { event: true, condition: true, action: false },
   'binary_sensor.entrance_motion': { event: true, condition: true, action: false },
   'binary_sensor.bedroom_motion': { event: true, condition: true, action: false },
   'binary_sensor.living_motion': { event: true, condition: true, action: false },
-  'device_tracker.resident': { event: true, condition: true, action: false },
-  'binary_sensor.night_mode': { event: true, condition: true, action: false },
+  'person.test_user': { event: true, condition: true, action: false },
   'light.entrance': { event: true, condition: true, action: true },
   'light.hallway': { event: true, condition: true, action: true },
   'light.bedroom': { event: true, condition: true, action: true },
   'light.kitchen': { event: true, condition: true, action: true },
   'light.living_room': { event: true, condition: true, action: true },
-  'siren.home_alarm': { event: true, condition: true, action: true },
+  'switch.dehumidifier': { event: true, condition: true, action: true },
+  'cover.bedroom_curtain': { event: true, condition: true, action: true },
 };
 
 const runtimeEntity = (entity_id) => ({
   entity_id,
-  state: entity_id === 'device_tracker.resident' ? 'home' : 'off',
+  state: entity_id === 'person.test_user'
+    ? 'home'
+    : (entity_id === 'sensor.living_room_humidity' ? '72' : 'off'),
   attributes: {
     friendly_name: entity_id,
     ...(DOOR_IDS.has(entity_id) ? { device_class: 'door' } : {}),
@@ -68,8 +72,11 @@ test('all Study task entities expose their required Event, Condition, and Action
       entities: [
         ...STUDY_ENTITY_IDS.map(runtimeEntity),
         runtimeEntity('sun.sun'),
+        runtimeEntity('zone.home'),
         runtimeEntity('weather.home'),
         runtimeEntity('person.someone'),
+        runtimeEntity('device_tracker.someone_else'),
+        runtimeEntity('notify.someone_else'),
         runtimeEntity('light.sb_test_light'),
         runtimeEntity('switch.runtime_switch'),
       ],
@@ -77,7 +84,8 @@ test('all Study task entities expose their required Event, Condition, and Action
   }));
 
   assert.equal(result.ok, true);
-  assert.deepEqual(Object.keys(STUDY_TASKS), STUDY_ENTITY_IDS);
+  assert.ok(STUDY_ENTITY_IDS.includes('sensor.living_room_humidity'));
+  assert.ok(STUDY_ENTITY_IDS.includes('notify.test_user'));
 
   const workspace = new Blockly.Workspace();
   for (const [entityId, requirements] of Object.entries(STUDY_TASKS)) {
@@ -94,8 +102,7 @@ test('all Study task entities expose their required Event, Condition, and Action
   const binaryStates = getStates('binary_sensor').map(([, value]) => value);
   assert.deepEqual(binaryStates, ['on', 'off']);
   assert.deepEqual(getStates('device_tracker').map(([, value]) => value), ['home', 'not_home']);
-  assert.deepEqual(getStates('siren').map(([, value]) => value), ['on', 'off']);
-  assert.deepEqual(getActions('siren').map(([, value]) => value), ['turn_on', 'turn_off']);
+  assert.deepEqual(getActions('cover').map(([, value]) => value), ['open_cover', 'close_cover', 'stop_cover', 'toggle', 'set_cover_position']);
 
   // Generic/domain selectors mirror the connected Home Assistant runtime.
   // Non-study runtime entities remain selectable just as they are in HA Native.
@@ -104,14 +111,23 @@ test('all Study task entities expose their required Event, Condition, and Action
   const sunConditionIds = dropdownIds(workspace, 'condition_state_sun');
   const weatherConditionIds = dropdownIds(workspace, 'condition_state_weather');
   const personConditionIds = dropdownIds(workspace, 'condition_state_person');
-  const lockConditionIds = dropdownIds(workspace, 'condition_state_lock');
+  const numericTrigger = workspace.newBlock('ha_event_numeric_state_sensor');
+  const numericIds = numericTrigger.getField('ENTITY')?.getOptions?.().map(([, value]) => value) || [];
+  const notify = workspace.newBlock('action_notify');
+  const notifyIds = notify.getField('TARGET')?.getOptions?.().map(([, value]) => value) || [];
+  const zoneCondition = workspace.newBlock('condition_zone_membership');
+  const zoneUsers = zoneCondition.getField('USER')?.getOptions?.().map(([, value]) => value) || [];
+  const zones = zoneCondition.getField('ZONE')?.getOptions?.().map(([, value]) => value) || [];
 
   assert.ok(lightIds.includes('light.sb_test_light'));
   assert.ok(sunEventIds.includes('sun.sun'));
   assert.ok(sunConditionIds.includes('sun.sun'));
   assert.ok(weatherConditionIds.includes('weather.home'));
-  assert.ok(personConditionIds.includes('person.someone'));
-  assert.deepEqual(lockConditionIds, ['']);
+  assert.deepEqual(personConditionIds, ['person.test_user']);
+  assert.ok(numericIds.includes('sensor.living_room_humidity'));
+  assert.deepEqual(notifyIds, ['notify.test_user']);
+  assert.deepEqual(zoneUsers, ['person.test_user']);
+  assert.deepEqual(zones, ['zone.home']);
 });
 
 test('runtime-aware toolbox exposes applicable blocks for every loaded runtime domain', async () => {
@@ -132,11 +148,11 @@ test('runtime-aware toolbox exposes applicable blocks for every loaded runtime d
     .filter((item) => item.kind === 'block')
     .map((item) => item.type);
 
-  for (const domain of ['binary_sensor', 'device_tracker', 'light', 'siren', 'weather', 'switch']) {
+  for (const domain of ['binary_sensor', 'person', 'light', 'cover', 'weather', 'switch']) {
     assert.ok(blockTypes('Event').includes(`event_${domain}_state`), `${domain}: Event toolbox block`);
     assert.ok(blockTypes('Condition').includes(`condition_state_${domain}`), `${domain}: Condition toolbox block`);
   }
-  for (const domain of ['light', 'siren', 'switch']) {
+  for (const domain of ['light', 'cover', 'switch']) {
     assert.ok(blockTypes('Action').includes(`action_${domain}`), `${domain}: Action toolbox block`);
   }
 });

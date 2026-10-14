@@ -1,21 +1,21 @@
 export const STUDY_ENTITY_IDS = Object.freeze([
-  'binary_sensor.front_door',
-  'binary_sensor.back_door',
   'binary_sensor.entrance_door',
+  'binary_sensor.back_door',
   'binary_sensor.bedroom_door',
   'binary_sensor.bathroom_door',
-  'binary_sensor.kitchen_door',
   'binary_sensor.entrance_motion',
   'binary_sensor.bedroom_motion',
   'binary_sensor.living_motion',
-  'device_tracker.resident',
-  'binary_sensor.night_mode',
+  'sensor.living_room_humidity',
+  'switch.dehumidifier',
+  'cover.bedroom_curtain',
   'light.entrance',
   'light.hallway',
   'light.bedroom',
   'light.kitchen',
   'light.living_room',
-  'siren.home_alarm',
+  'person.test_user',
+  'notify.test_user',
 ]);
 
 const STUDY_ENTITY_ID_SET = new Set(STUDY_ENTITY_IDS);
@@ -52,6 +52,27 @@ export function normalizeRuntimeEntities(runtimeEntities) {
 
   return {
     entities: [...byId.values()].sort((a, b) => a.entity_id.localeCompare(b.entity_id)),
+  };
+}
+
+/**
+ * The study Home Assistant may expose its own administrator/device-tracker
+ * states alongside the task corpus. They must never become selectable as a
+ * participant or notification recipient. Keep the one deliberately modelled
+ * study participant and its notification endpoint only.
+ */
+export function sanitizeStudyRuntimeEntities(runtimeEntities) {
+  const blockedUserDomains = new Set(['person', 'device_tracker', 'notify']);
+  const allowedUserEntities = new Set([
+    'person.test_user',
+    'notify.test_user',
+  ]);
+
+  const { entities } = normalizeRuntimeEntities(runtimeEntities);
+  return {
+    entities: entities.filter((entity) =>
+      !blockedUserDomains.has(entity.domain) || allowedUserEntities.has(entity.entity_id)
+    ),
   };
 }
 

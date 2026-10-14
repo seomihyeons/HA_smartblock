@@ -1,7 +1,7 @@
 // src/blocks/event/event_entity.js
 import * as Blockly from 'blockly';
 import { dummyEntities } from '../../data/entities_index.js';
-import { STATE_DOMAINS, getStates } from '../../data/options.js';
+import { STATE_DOMAINS, getBinarySensorStateOptions, getStates } from '../../data/options.js';
 
 function getEntityOptions(domain, { numericOnly = false } = {}) {
   const filtered = (dummyEntities || []).filter(e => {
@@ -16,11 +16,55 @@ function getEntityOptions(domain, { numericOnly = false } = {}) {
 }
 
 // getStates(domain) = [['on','on'], ...] 그대로 쓰되 (any) 옵션만 추가
-function withAny(options) {
+function withAny(options, { anyFirst = false } = {}) {
   const opts = (options || []).filter(([, v]) => v); // '(No states)' 같은 빈 값 제거
   if (!opts.length) return [['(any)', '']];
-  return [...opts, ['(any)', '']];
+  const any = ['(any)', ''];
+  return anyFirst ? [any, ...opts] : [...opts, any];
 }
+
+function binarySensorTriggerStateOptions({ anyFirst = false } = {}) {
+  const entityId = this.getSourceBlock()?.getFieldValue('ENTITY_ID') || '';
+  const options = getBinarySensorStateOptions(entityId, { includeAny: true });
+  if (!anyFirst) return options;
+
+  const any = options.find(([, value]) => value === '');
+  return any ? [any, ...options.filter(([, value]) => value !== '')] : options;
+}
+
+function binarySensorTriggerFromStateOptions() {
+  return binarySensorTriggerStateOptions.call(this, { anyFirst: true });
+}
+
+function refreshSemanticStateFields(block, fieldNames) {
+  for (const fieldName of fieldNames) {
+    const field = block.getField(fieldName);
+    if (!field) continue;
+
+    const options = field.getOptions?.(false) || [];
+    const currentValue = field.getValue();
+    const nextValue = options.some(([, value]) => value === currentValue)
+      ? currentValue
+      : options[0]?.[1];
+
+    if (nextValue !== undefined) field.setValue(nextValue, false);
+    field.forceRerender?.();
+  }
+}
+
+Blockly.Extensions.register('binary_sensor_trigger_semantic_states', function () {
+  const entityField = this.getField('ENTITY_ID');
+  if (!entityField) return;
+
+  const refresh = () => refreshSemanticStateFields(this, ['FROM', 'TO']);
+  entityField.setValidator((newValue) => {
+    // Field validators run before ENTITY_ID has been updated. Deferring lets
+    // dynamic dropdowns read the newly selected runtime entity.
+    queueMicrotask(refresh);
+    return newValue;
+  });
+  refresh();
+});
 
 const labelOf = (domain) => (domain === 'binary_sensor' ? 'binary sensor' : domain);
 
@@ -49,8 +93,20 @@ export const eventEntityBlocks =
         message0: `${labelOf(domain)} %1 from %2 to %3 id %4 %5 %6`,
         args0: [
           { type: 'field_dropdown', name: 'ENTITY_ID', options: () => getEntityOptions(domain) },
-          { type: 'field_dropdown', name: 'FROM', options: () => withAny(getStates(domain)) },
-          { type: 'field_dropdown', name: 'TO', options: () => withAny(getStates(domain)) },
+          {
+            type: 'field_dropdown',
+            name: 'FROM',
+            options: domain === 'binary_sensor'
+              ? binarySensorTriggerFromStateOptions
+              : () => withAny(getStates(domain), { anyFirst: true }),
+          },
+          {
+            type: 'field_dropdown',
+            name: 'TO',
+            options: domain === 'binary_sensor'
+              ? binarySensorTriggerStateOptions
+              : () => withAny(getStates(domain)),
+          },
           { type: 'field_checkbox', name: 'USE_ID', checked: false },
           { type: 'field_input', name: 'ID', text: '' },
           { type: 'input_value', name: 'FOR' },
@@ -60,7 +116,9 @@ export const eventEntityBlocks =
         colour: 180,
         tooltip: `Triggers when the selected ${domain} entity changes state.`,
         helpUrl: '',
-        extensions: ['event_trigger_optional_id'],
+        extensions: domain === 'binary_sensor'
+          ? ['event_trigger_optional_id', 'binary_sensor_trigger_semantic_states']
+          : ['event_trigger_optional_id'],
       })),
 
     {

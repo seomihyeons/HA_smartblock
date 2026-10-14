@@ -35,6 +35,8 @@ export function createToolbox() {
       name: 'Event',
       categorystyle: 'event_category',
       contents: [
+        { kind: 'label', text: 'State' },
+        ...eventStateBlocks,
         { kind: 'label', text: 'Home Assistant' },
         { kind: 'block', type: 'ha_event_homeassistant' },
         { kind: 'label', text: 'Event' },
@@ -48,8 +50,6 @@ export function createToolbox() {
         { kind: 'block', type: 'ha_event_mqtt_payload' },
         { kind: 'block', type: 'ha_event_mqtt_value_template' },
         { kind: 'block', type: 'ha_event_mqtt_encoding' },
-        { kind: 'label', text: 'State' },
-        ...eventStateBlocks,
         { kind: 'label', text: 'Group' },
         { kind: 'block', type: 'event_group_entities' },
         { kind: 'block', type: 'event_group_numeric_entities' },
@@ -72,6 +72,8 @@ export function createToolbox() {
       name: 'Condition',
       categorystyle: 'condition_category',
       contents: [
+        { kind: 'label', text: 'State' },
+        ...conditionStateBlocks,
         { kind: 'label', text: 'Logic' },
         { kind: 'block', type: 'condition_logic' },
         { kind: 'block', type: 'condition_not_value' },
@@ -81,12 +83,13 @@ export function createToolbox() {
         { kind: 'block', type: 'condition_time' },
         { kind: 'block', type: 'condition_time_weekly' },
         { kind: 'label', text: 'Sun' },
+        { kind: 'block', type: 'condition_sun_phase' },
         { kind: 'block', type: 'condition_sun' },
         { kind: 'block', type: 'condition_sun_after' },
         { kind: 'block', type: 'condition_sun_before' },
         { kind: 'block', type: 'condition_sun_offset' },
-        { kind: 'label', text: 'State' },
-        ...conditionStateBlocks,
+        { kind: 'label', text: 'Zone' },
+        { kind: 'block', type: 'condition_zone_membership' },
         { kind: 'label', text: 'Numeric State' },
         { kind: 'block', type: 'condition_numeric_state_entity' },
         { kind: 'block', type: 'condition_numeric_state_attribute' },
@@ -131,7 +134,21 @@ export function createToolbox() {
         { kind: 'block', type: 'action_if_else' },
         { kind: 'block', type: 'action_if_then' },
         { kind: 'label', text: 'Notify' },
-        { kind: 'block', type: 'action_notify' },
+        {
+          kind: 'block',
+          type: 'action_notify',
+          // A notification message is required by notify.send_message.
+          // Seed a connected text block only for newly dragged Toolbox blocks;
+          // YAML import creates its own text child from data.message instead.
+          inputs: {
+            MESSAGE_BLOCKS: {
+              block: {
+                type: 'action_notify_message_text',
+                fields: { TEXT: 'input message' },
+              },
+            },
+          },
+        },
         { kind: 'block', type: 'action_notify_message_text' },
         { kind: 'block', type: 'action_notify_message_template' },
         { kind: 'label', text: 'Notify Tag' },

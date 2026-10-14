@@ -142,42 +142,51 @@ code {
   opacity: 0.3 !important;
 }
 
-#btnBlockSearch {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  z-index: 2147483645;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: min(430px, calc(100vw - 28px));
-  min-height: 32px;
-  padding: 0 12px;
-  border: 1px solid rgba(120, 128, 138, 0.48);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.86);
-  color: #6b7280;
-  font: 400 16px/1.1 system-ui, sans-serif;
-  text-align: left;
-  cursor: pointer;
-}
-
-#btnBlockSearch:hover,
-#btnBlockSearch:focus-visible {
-  border-color: rgba(75, 85, 99, 0.7);
-  background: rgba(255, 255, 255, 0.98);
-}
-
 body.floating-buttons-hidden #btnDebug,
-body.floating-buttons-hidden #btnTaskAlt,
-body.floating-buttons-hidden #btnBlockSearch {
+body.floating-buttons-hidden #btnTaskAlt {
   opacity: 0 !important;
   pointer-events: none !important;
 }
 
+.block-search-launcher {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: min(430px, calc(100% - 28px));
+  height: 34px;
+  cursor: pointer;
+}
+
+.block-search-launcher-background {
+  fill: rgba(255, 255, 255, 0.86);
+  stroke: rgba(120, 128, 138, 0.48);
+  stroke-width: 1px;
+}
+
+.block-search-launcher-icon,
+.block-search-launcher-label {
+  fill: #6b7280;
+  font: 400 16px/1.1 system-ui, sans-serif;
+  pointer-events: none;
+}
+
+.block-search-launcher:hover .block-search-launcher-background,
+.block-search-launcher:focus .block-search-launcher-background {
+  fill: rgba(255, 255, 255, 0.98);
+  stroke: rgba(75, 85, 99, 0.7);
+}
+
+/* `input message` is an instructional prompt inside the notify text field,
+   rather than notification content. Real user-entered text keeps Blockly's
+   ordinary field colour. */
+.notify-message-placeholder text {
+  fill: #8b8b8b !important;
+}
+
 .block-search-flyout-header {
   position: fixed;
-  z-index: 2147483648;
+  /* Kept just above its own SVG search flyout while Search is open. */
+  z-index: 21;
   top: 10px;
   right: 10px;
   display: flex;
@@ -190,8 +199,7 @@ body.floating-buttons-hidden #btnBlockSearch {
   background: transparent;
 }
 
-.block-search-flyout-header.hidden,
-#btnBlockSearch.hidden {
+.block-search-flyout-header.hidden {
   display: none;
 }
 

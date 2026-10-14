@@ -1,12 +1,39 @@
 import * as Blockly from 'blockly';
 import { dummyEntities } from '../../data/entities_index.js';
-import { STATE_DOMAINS, getStates } from '../../data/options.js';
+import { STATE_DOMAINS, getBinarySensorStateOptions, getStates } from '../../data/options.js';
 
 function getEntitiesByDomain(domain) {
   const filtered = dummyEntities.filter(e => e.entity_id.startsWith(`${domain}.`));
   if (!filtered.length) return [['(No entities)', '']];
   return filtered.map(e => [e.attributes?.friendly_name || e.entity_id, e.entity_id]);
 }
+
+function binarySensorConditionStateOptions() {
+  const entityId = this.getSourceBlock()?.getFieldValue('ENTITY_ID') || '';
+  return getBinarySensorStateOptions(entityId);
+}
+
+Blockly.Extensions.register('binary_sensor_condition_semantic_states', function () {
+  const entityField = this.getField('ENTITY_ID');
+  const stateField = this.getField('STATE');
+  if (!entityField || !stateField) return;
+
+  const refresh = () => {
+    const options = stateField.getOptions?.(false) || [];
+    const currentValue = stateField.getValue();
+    const nextValue = options.some(([, value]) => value === currentValue)
+      ? currentValue
+      : options[0]?.[1];
+    if (nextValue !== undefined) stateField.setValue(nextValue, false);
+    stateField.forceRerender?.();
+  };
+
+  entityField.setValidator((newValue) => {
+    queueMicrotask(refresh);
+    return newValue;
+  });
+  refresh();
+});
 
 const coverStateKindOptions = [
   ['open', 'open'],
@@ -72,7 +99,13 @@ export const conditionStateBlocks =
         message0: `${domain} %1 is %2 %3`,
         args0: [
           { type: 'field_dropdown', name: 'ENTITY_ID', options: () => getEntitiesByDomain(domain) },
-          { type: 'field_dropdown', name: 'STATE', options: () => getStates(domain) },
+          {
+            type: 'field_dropdown',
+            name: 'STATE',
+            options: domain === 'binary_sensor'
+              ? binarySensorConditionStateOptions
+              : () => getStates(domain),
+          },
           { type: 'input_value', name: 'MOD', check: 'HA_CONDITION_MOD' },
         ],
         previousStatement: 'HA_CONDITION',
@@ -81,6 +114,7 @@ export const conditionStateBlocks =
         tooltip: `Checks the state of the selected ${domain} entity.`,
         helpUrl: '',
         mutator: 'ha_condition_optional_data',
+        extensions: domain === 'binary_sensor' ? ['binary_sensor_condition_semantic_states'] : undefined,
       }))
   );
 

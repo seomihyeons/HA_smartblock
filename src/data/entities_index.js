@@ -1,6 +1,6 @@
 import {
   filterStudyEntities,
-  normalizeRuntimeEntities,
+  sanitizeStudyRuntimeEntities,
   STUDY_ENTITY_IDS,
 } from './study_entity_filter.js';
 
@@ -17,12 +17,14 @@ export let dummyEntities = [];
 export let notifyDevices = [];
 
 export function setStudyRuntimeEntities(sourceEntities) {
-  runtimeEntities = normalizeRuntimeEntities(sourceEntities).entities;
+  runtimeEntities = sanitizeStudyRuntimeEntities(sourceEntities).entities;
   dummyEntities = runtimeEntities;
 
   const result = filterStudyEntities(runtimeEntities);
   studyEntities = result.entities;
-  notifyDevices = [];
+  notifyDevices = runtimeEntities
+    .filter((entity) => entity.entity_id === 'notify.test_user')
+    .map((entity) => entity.entity_id);
 
   return {
     ...result,
