@@ -3,12 +3,17 @@ import * as Blockly from 'blockly';
 import { dummyEntities } from '../../data/entities_index.js';
 
 function getNumericEntities() {
-  return dummyEntities
+  const options = dummyEntities
     .filter((e) => {
       const v = parseFloat(e.state);
       return !isNaN(v);
     })
     .map((e) => [e.attributes?.friendly_name || e.entity_id, e.entity_id]);
+
+  // Blockly rejects an empty option array during FieldDropdown construction.
+  // Runtime Home Assistant data may temporarily have no numeric states (for
+  // example while a sensor is unavailable), so keep the toolbox/flyout usable.
+  return options.length ? options : [['(No numeric entities)', '']];
 }
 
 Blockly.Blocks['condition_numeric_state_entity'] = {

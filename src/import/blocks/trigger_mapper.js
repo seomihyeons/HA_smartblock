@@ -41,7 +41,17 @@ function connectNextChain(prevBlock, nextBlock) {
 function z2(n) { return String(Math.max(0, Number(n) || 0)).padStart(2, '0'); }
 function toHMSString(forObj) {
   if (!forObj || typeof forObj !== 'object') return null;
-  return `${z2(forObj.hours)}:${z2(forObj.minutes)}:${z2(forObj.seconds)}`;
+  const hours = Math.max(0, Number(forObj.hours) || 0);
+  const minutes = Math.max(0, Number(forObj.minutes) || 0);
+  const seconds = Math.max(0, Number(forObj.seconds) || 0);
+  if (hours === 0 && minutes === 0 && seconds === 0) return null;
+  return `${z2(hours)}:${z2(minutes)}:${z2(seconds)}`;
+}
+
+function getNonZeroDuration(value) {
+  const duration = parseDurationValue(value);
+  if (!duration) return null;
+  return (duration.hours || duration.minutes || duration.seconds) ? duration : null;
 }
 
 // dropdown(field_dropdown)에 set을 시도한 뒤, 실제로 값이 반영됐는지 확인.
@@ -244,12 +254,13 @@ function makeStateTriggerBlock(workspace, t, eid) {
   }
 
   // FOR (값 블록)
-  if (t.for && canCreate('ha_event_for_hms') && b.getInput && b.getInput('FOR')) {
+  const duration = getNonZeroDuration(t.for);
+  if (duration && canCreate('ha_event_for_hms') && b.getInput && b.getInput('FOR')) {
     const sub = workspace.newBlock('ha_event_for_hms');
-    set(sub, 'H', t.for.hours ?? 0);
-    set(sub, 'M', t.for.minutes ?? 0);
-    set(sub, 'S', t.for.seconds ?? 0);
-    sub.initSvg(); sub.render();
+    set(sub, 'H', duration.hours);
+    set(sub, 'M', duration.minutes);
+    set(sub, 'S', duration.seconds);
+    sub.initSvg?.(); sub.render?.();
     b.getInput('FOR').connection.connect(sub.outputConnection);
   }
 
@@ -291,12 +302,13 @@ function makeNumericStateTriggerBlock(workspace, t, eid) {
   set(b, 'ABOVE', t.above);
   set(b, 'BELOW', t.below);
 
-  if (t.for && canCreate('ha_event_for_hms') && b.getInput && b.getInput('FOR')) {
+  const duration = getNonZeroDuration(t.for);
+  if (duration && canCreate('ha_event_for_hms') && b.getInput && b.getInput('FOR')) {
     const sub = workspace.newBlock('ha_event_for_hms');
-    set(sub, 'H', t.for.hours ?? 0);
-    set(sub, 'M', t.for.minutes ?? 0);
-    set(sub, 'S', t.for.seconds ?? 0);
-    sub.initSvg(); sub.render();
+    set(sub, 'H', duration.hours);
+    set(sub, 'M', duration.minutes);
+    set(sub, 'S', duration.seconds);
+    sub.initSvg?.(); sub.render?.();
     b.getInput('FOR').connection.connect(sub.outputConnection);
   }
 
@@ -395,12 +407,13 @@ function makeSunStateTriggerBlock(workspace, t) {
     ]);
   }
 
-  if (t.for && canCreate('ha_event_for_hms') && b.getInput && b.getInput('FOR')) {
+  const duration = getNonZeroDuration(t.for);
+  if (duration && canCreate('ha_event_for_hms') && b.getInput && b.getInput('FOR')) {
     const sub = workspace.newBlock('ha_event_for_hms');
-    set(sub, 'H', t.for.hours ?? 0);
-    set(sub, 'M', t.for.minutes ?? 0);
-    set(sub, 'S', t.for.seconds ?? 0);
-    sub.initSvg(); sub.render();
+    set(sub, 'H', duration.hours);
+    set(sub, 'M', duration.minutes);
+    set(sub, 'S', duration.seconds);
+    sub.initSvg?.(); sub.render?.();
     b.getInput('FOR').connection.connect(sub.outputConnection);
   }
 
@@ -602,7 +615,8 @@ function makeTemplateTriggerBlock(workspace, t) {
   const b = workspace.newBlock('ha_event_template');
   set(b, 'TEMPLATE', stripTemplateExpressionBraces(t.value_template));
 
-  const dur = parseDurationValue(t.for);
+  const parsedDuration = parseDurationValue(t.for);
+  const dur = getNonZeroDuration(t.for);
   if (dur && canCreate('ha_event_for_hms') && b.getInput?.('FOR')) {
     const sub = workspace.newBlock('ha_event_for_hms');
     set(sub, 'H', dur.hours);
@@ -611,7 +625,7 @@ function makeTemplateTriggerBlock(workspace, t) {
     sub.initSvg?.();
     sub.render?.();
     b.getInput('FOR').connection.connect(sub.outputConnection);
-  } else if (t.for != null) {
+  } else if (t.for != null && !parsedDuration) {
     disposeIfPossible(b);
     return safeRaw(workspace, 'event', triggerToRawLines(t));
   }

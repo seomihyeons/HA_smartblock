@@ -13,6 +13,7 @@ Blockly.common.defineBlocks(eventEntityBlocks);
 Blockly.common.defineBlocks(conditionStateBlocks);
 
 const DOOR_ID = 'binary_sensor.front_door';
+const MOTION_ID = 'binary_sensor.entrance_motion';
 const GENERIC_ID = 'binary_sensor.night_mode';
 const LIGHT_ID = 'light.entrance';
 
@@ -24,12 +25,17 @@ async function flushEntitySelection() {
   await Promise.resolve();
 }
 
-test('door binary sensors show semantic labels while preserving Home Assistant on/off values', async () => {
+test('door and motion binary sensors show semantic labels while preserving Home Assistant on/off values', async () => {
   setStudyRuntimeEntities([
     {
       entity_id: DOOR_ID,
       state: 'off',
       attributes: { friendly_name: 'Front Door', device_class: 'door' },
+    },
+    {
+      entity_id: MOTION_ID,
+      state: 'off',
+      attributes: { friendly_name: 'Entrance Motion', device_class: 'motion' },
     },
     {
       entity_id: GENERIC_ID,
@@ -47,6 +53,10 @@ test('door binary sensors show semantic labels while preserving Home Assistant o
   assert.deepEqual(
     getBinarySensorStateOptions(DOOR_ID, { includeAny: true }),
     [['opened', 'on'], ['closed', 'off'], ['(any)', '']]
+  );
+  assert.deepEqual(
+    getBinarySensorStateOptions(MOTION_ID, { includeAny: true }),
+    [['detected', 'on'], ['cleared', 'off'], ['(any)', '']]
   );
 
   const workspace = new Blockly.Workspace();
@@ -77,6 +87,27 @@ test('door binary sensors show semantic labels while preserving Home Assistant o
     [['opened', 'on'], ['closed', 'off']]
   );
   condition.setFieldValue('off', 'STATE');
+  assert.match(yamlGenerator.blockToCode(condition), /state: 'off'/);
+
+  trigger.setFieldValue(MOTION_ID, 'ENTITY_ID');
+  condition.setFieldValue(MOTION_ID, 'ENTITY_ID');
+  await flushEntitySelection();
+
+  assert.deepEqual(
+    optionPairs(trigger.getField('FROM')),
+    [['(any)', ''], ['detected', 'on'], ['cleared', 'off']]
+  );
+  assert.deepEqual(
+    optionPairs(trigger.getField('TO')),
+    [['detected', 'on'], ['cleared', 'off'], ['(any)', '']]
+  );
+  assert.deepEqual(
+    optionPairs(condition.getField('STATE')),
+    [['detected', 'on'], ['cleared', 'off']]
+  );
+  trigger.setFieldValue('on', 'TO');
+  condition.setFieldValue('off', 'STATE');
+  assert.match(yamlGenerator.blockToCode(trigger), /to: 'on'/);
   assert.match(yamlGenerator.blockToCode(condition), /state: 'off'/);
 
   trigger.setFieldValue(GENERIC_ID, 'ENTITY_ID');

@@ -12,6 +12,7 @@ import { actionEntityBlocks } from '../../src/blocks/action/action_entity.js';
 import { actionDataBlocks } from '../../src/blocks/action/action_data.js';
 import { yamlGenerator } from '../../src/generators/yaml.js';
 import { yamlTextToInternalJson } from '../../src/import/yaml_import.js';
+import { renderAutomationToWorkspace } from '../../src/import/yamlToBlocks.js';
 
 Blockly.common.defineBlocks(ruleBlocks);
 Blockly.common.defineBlocks(ruleMetadataBlocks);
@@ -53,6 +54,63 @@ test('YAML generation works when a compact rule has no metadata input', () => {
   workspace.newBlock('event_action');
 
   assert.doesNotThrow(() => yamlGenerator.workspaceToCode(workspace));
+});
+
+test('import keeps a rule compact when mode single and an empty description are its only metadata', () => {
+  const workspace = new Blockly.Workspace();
+  renderAutomationToWorkspace(workspace, {
+    alias: 'Default execution mode',
+    mode: 'single',
+    description: '',
+    triggers: [],
+    conditions: [],
+    actions: [],
+  });
+
+  const rule = workspace.getTopBlocks(true).find((block) => block.type === 'event_condition_action');
+  assert.ok(rule);
+  assert.equal(rule.getInput('METADATA'), null);
+  assert.equal(workspace.getAllBlocks(false).some((block) => block.type === 'ha_rule_execution'), false);
+
+  const generated = yamlGenerator.workspaceToCode(workspace);
+  assert.doesNotMatch(generated, /^\s*mode: single$/m);
+  workspace.dispose();
+});
+
+test('import keeps non-default execution modes as editable Metadata', () => {
+  const workspace = new Blockly.Workspace();
+  renderAutomationToWorkspace(workspace, {
+    alias: 'Queued execution mode',
+    mode: 'queued',
+    max: 3,
+    triggers: [],
+    conditions: [],
+    actions: [],
+  });
+
+  const rule = workspace.getTopBlocks(true).find((block) => block.type === 'event_condition_action');
+  const execution = workspace.getAllBlocks(false).find((block) => block.type === 'ha_rule_execution');
+  assert.ok(rule?.getInput('METADATA'));
+  assert.equal(execution?.getFieldValue('MODE'), 'queued');
+  assert.equal(execution?.getFieldValue('MAX'), 3);
+  workspace.dispose();
+});
+
+test('import preserves a non-empty description as Metadata', () => {
+  const workspace = new Blockly.Workspace();
+  renderAutomationToWorkspace(workspace, {
+    alias: 'Documented automation',
+    description: 'Turns on the entrance light after dark.',
+    triggers: [],
+    conditions: [],
+    actions: [],
+  });
+
+  const rule = workspace.getTopBlocks(true).find((block) => block.type === 'event_condition_action');
+  const metadata = workspace.getAllBlocks(false).find((block) => block.type === 'ha_metadata_raw_lines');
+  assert.ok(rule?.getInput('METADATA'));
+  assert.match(metadata?.getFieldValue('RAW_LINES') || '', /description:/);
+  workspace.dispose();
 });
 
 test('raw metadata is emitted as a valid top-level YAML mapping', () => {
