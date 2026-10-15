@@ -463,12 +463,16 @@ export function getStates(domain) {
 // device_class determines the human-facing meaning. Keep the stored values
 // unchanged so generators and importers continue to use Home Assistant's
 // canonical YAML values.
+const BINARY_SENSOR_SEMANTIC_STATES = {
+  door: [['opened', 'on'], ['closed', 'off']],
+  motion: [['detected', 'on'], ['cleared', 'off']],
+};
+
 export function getBinarySensorStateOptions(entityId, { includeAny = false } = {}) {
   const entity = (dummyEntities || []).find((candidate) => candidate?.entity_id === entityId);
   const deviceClass = String(entity?.attributes?.device_class || '').trim().toLowerCase();
-  const options = deviceClass === 'door'
-    ? [['opened', 'on'], ['closed', 'off']]
-    : [...getStates('binary_sensor')];
+  const semanticOptions = BINARY_SENSOR_SEMANTIC_STATES[deviceClass];
+  const options = semanticOptions ? [...semanticOptions] : [...getStates('binary_sensor')];
 
   return includeAny ? [...options, ['(any)', '']] : options;
 }
