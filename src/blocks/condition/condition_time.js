@@ -150,7 +150,7 @@ Blockly.Blocks.condition_time = {
 Blockly.Blocks.condition_time_weekly = {
   init() {
     this.appendDummyInput('ROW')
-      .appendField('time weekday')
+      .appendField('day of week')
       .appendField('mon').appendField(new Blockly.FieldCheckbox('FALSE'), 'MON')
       .appendField('tue').appendField(new Blockly.FieldCheckbox('FALSE'), 'TUE')
       .appendField('wed').appendField(new Blockly.FieldCheckbox('FALSE'), 'WED')
@@ -161,7 +161,7 @@ Blockly.Blocks.condition_time_weekly = {
     this.setPreviousStatement(true, 'HA_CONDITION');
     this.setNextStatement(true, 'HA_CONDITION');
     this.setColour('#AECA3E');
-    this.setTooltip('Time condition: select weekdays.');
+    this.setTooltip('Checks whether today is one of the selected days of the week.');
     this.setHelpUrl('');
   },
 };
