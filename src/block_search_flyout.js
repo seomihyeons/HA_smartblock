@@ -1,6 +1,6 @@
 import * as Blockly from 'blockly';
 import { toolbox } from './toolbox.js';
-import { DOMAIN_SPEC } from './data/options.js';
+import { DOMAIN_SPEC, getBinarySensorStateOptions } from './data/options.js';
 import { dummyEntities } from './data/entities_index.js';
 import { setModalOpenState } from './utils/floating_modal_state.js';
 
@@ -32,6 +32,66 @@ const BLOCK_SEARCH_ALIASES = {
   condition_zone_membership: 'zone home away presence location in not',
 };
 
+// Static terms are taken from the actual Blockly block definition, rather
+// than requiring every visible word to be copied into BLOCK_SEARCH_ALIASES.
+// Cache by definition object so a block registered later is indexed on its
+// first available search.
+const BLOCK_STATIC_SEARCH_TERMS = new Map();
+const BLOCK_INDEX_WARNINGS = new Set();
+
+function addSearchTerm(terms, value) {
+  if (value == null) return;
+  const text = String(value).trim();
+  if (text) terms.add(text);
+}
+
+function collectFieldSearchTerms(field, terms) {
+  try {
+    addSearchTerm(terms, field.getText?.());
+    const options = field.getOptions?.(false);
+    if (Array.isArray(options)) {
+      options.forEach(([label, value]) => {
+        addSearchTerm(terms, label);
+        addSearchTerm(terms, value);
+      });
+    }
+  } catch {
+    // A custom field must not make the complete Search drawer unavailable.
+  }
+}
+
+function buildStaticBlockSearchTerms(type) {
+  const definition = Blockly.Blocks[type];
+  if (!definition) return '';
+
+  const cached = BLOCK_STATIC_SEARCH_TERMS.get(type);
+  if (cached?.definition === definition) return cached.terms;
+
+  let workspace;
+  try {
+    workspace = new Blockly.Workspace();
+    const block = workspace.newBlock(type);
+    const terms = new Set();
+
+    block.inputList.forEach((input) => {
+      (input.fieldRow || []).forEach((field) => collectFieldSearchTerms(field, terms));
+    });
+    addSearchTerm(terms, block.getTooltip?.());
+
+    const joined = [...terms].join(' ');
+    BLOCK_STATIC_SEARCH_TERMS.set(type, { definition, terms: joined });
+    return joined;
+  } catch (error) {
+    if (!BLOCK_INDEX_WARNINGS.has(type)) {
+      BLOCK_INDEX_WARNINGS.add(type);
+      console.warn(`[HA-SmartBlock Search] Could not index block ${type}; using fallback terms.`, error);
+    }
+    return '';
+  } finally {
+    workspace?.dispose();
+  }
+}
+
 function actionSearchTerms(type) {
   const domain = String(type || '').replace(/^action_/, '');
   const actions = DOMAIN_SPEC[domain]?.actions || [];
@@ -55,7 +115,7 @@ function runtimeEntitySearchTerms(type) {
   const domain = blockDomain(type);
   if (!domain) return '';
 
-  return (dummyEntities || [])
+  const entityTerms = (dummyEntities || [])
     .filter((entity) => String(entity?.entity_id || '').startsWith(`${domain}.`))
     .flatMap((entity) => [
       entity.entity_id,
@@ -65,6 +125,18 @@ function runtimeEntitySearchTerms(type) {
     ])
     .filter(Boolean)
     .join(' ');
+
+  // Some state labels are meaningful only after a runtime entity has been
+  // selected (for example motion: detected/cleared). Include those labels in
+  // the applicable binary-sensor Trigger and Condition search documents.
+  const semanticStateTerms = domain === 'binary_sensor'
+    ? (dummyEntities || [])
+      .filter((entity) => String(entity?.entity_id || '').startsWith('binary_sensor.'))
+      .flatMap((entity) => getBinarySensorStateOptions(entity.entity_id)
+        .flatMap(([label, value]) => [label, value]))
+    : [];
+
+  return [entityTerms, ...semanticStateTerms].filter(Boolean).join(' ');
 }
 
 function searchScore(query, searchable) {
@@ -120,6 +192,7 @@ export function getBlockSearchResults(query) {
           category.name,
           section,
           BLOCK_SEARCH_ALIASES[item.type],
+          buildStaticBlockSearchTerms(item.type),
           item.type.startsWith('action_') ? actionSearchTerms(item.type) : '',
           runtimeEntitySearchTerms(item.type),
         ].join(' ');
