@@ -388,7 +388,9 @@ function normalizeFor(v) {
     if (/^\d+$/.test(v)) {
       const s = +v; return { hours: (s / 3600) | 0, minutes: ((s % 3600) / 60) | 0, seconds: s % 60 };
     }
-    return { hours: 0, minutes: 0, seconds: 0 };
+    // A malformed duration must stay available to the raw fallback instead of
+    // silently becoming the default 00:00:00.
+    return null;
   }
   if (typeof v === 'number') {
     const s = v | 0; return { hours: (s / 3600) | 0, minutes: ((s % 3600) / 60) | 0, seconds: s % 60 };
@@ -406,6 +408,14 @@ function normalizeFor(v) {
     };
   }
   return null;
+}
+
+function isNonZeroDuration(value) {
+  return !!value && (
+    Number(value.hours || 0) !== 0 ||
+    Number(value.minutes || 0) !== 0 ||
+    Number(value.seconds || 0) !== 0
+  );
 }
 
 // "-HH:MM:SS" | "+HH:MM:SS" | "HH:MM:SS" | "H:MM:SS" | {sign,hours,minutes,seconds}
@@ -490,6 +500,60 @@ function normalizeTarget(t) {
   }
 
   return out;
+}
+
+// Home Assistant's newer device-trigger editor places duration under
+// `options.for`.  Blockly's existing state-trigger blocks represent it as the
+// legacy root-level `for`, so promote only a valid, non-zero duration.  Keep
+// unknown options intact so they can fall back to Raw rather than be lost.
+function normalizeTriggerOptions(out) {
+  if (!out?.options || typeof out.options !== 'object' || Array.isArray(out.options)) return;
+
+  const options = { ...out.options };
+  if (Object.prototype.hasOwnProperty.call(options, 'for')) {
+    const duration = normalizeFor(options.for);
+    // Valid zero is the HA editor's default and intentionally omitted.  An
+    // invalid value is retained for Raw fallback instead of being discarded.
+    if (duration) {
+      if (out.for == null && isNonZeroDuration(duration)) out.for = duration;
+      delete options.for;
+    }
+  }
+
+  if (Object.keys(options).length) out.options = options;
+  else delete out.options;
+}
+
+// The Study Home Assistant UI emits these device triggers.  The corresponding
+// SmartBlock blocks are state triggers, so normalize the subset that has an
+// exact on/off state equivalent.  `behavior: each` is HA's default and does
+// not need a separate block.  Any other option is preserved for Raw fallback.
+function normalizeStateLikeDeviceTrigger(out) {
+  const source = String(out.trigger || out.platform || out.type || '');
+  const stateByDeviceTrigger = {
+    'door.opened': 'on',
+    'door.closed': 'off',
+    'motion.detected': 'on',
+    'motion.cleared': 'off',
+  };
+  const to = stateByDeviceTrigger[source];
+  if (!to) return;
+
+  const remainingOptions = out.options || {};
+  if (Object.keys(remainingOptions).some((key) => key !== 'behavior' || remainingOptions[key] !== 'each')) {
+    return;
+  }
+
+  const entityIds = normalizeEntityList(out.target?.entity_id ?? out.entity_id);
+  if (entityIds.length !== 1 || !String(entityIds[0]).includes('.')) return;
+
+  out.trigger = 'state';
+  delete out.platform;
+  delete out.type;
+  out.entity_id = entityIds;
+  out.to = to;
+  delete out.target;
+  delete out.options;
 }
 
 function normalizeMediaContentIdValue(v) {
@@ -611,6 +675,9 @@ export function normalizeAutomationObject(obj) {
 
     if (out.for != null) out.for = normalizeFor(out.for);
     if (out.target) out.target = normalizeTarget(out.target);
+
+    normalizeTriggerOptions(out);
+    normalizeStateLikeDeviceTrigger(out);
 
     if (out.entity_id != null) {
       out.entity_id = normalizeEntityList(out.entity_id);

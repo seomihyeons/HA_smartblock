@@ -190,9 +190,11 @@ function ensureRoot(ws, aliasText, autoJson) {
   let root = ws.getTopBlocks(true).find((b) => b.type === ROOT_BLOCK_TYPE);
   if (!root && canCreate(ROOT_BLOCK_TYPE)) {
     root = ws.newBlock(ROOT_BLOCK_TYPE);
-    root.initSvg();
-    root.render();
-    root.moveBy(520, 100);
+    // Headless workspaces used by importer tests have no SVG methods.
+    // The browser workspace still initializes and renders the root normally.
+    root.initSvg?.();
+    root.render?.();
+    root.moveBy?.(520, 100);
   }
   if (root) {
     const aliasField = firstField(root, ['Name', 'ALIAS', 'TITLE']);
@@ -363,7 +365,14 @@ function extractAutomationMetadata(autoJson) {
     'alias', 'id', 'triggers', 'trigger', 'conditions', 'condition', 'actions', 'action',
   ]);
   return Object.fromEntries(
-    Object.entries(autoJson).filter(([key, value]) => !structuralKeys.has(key) && value !== undefined),
+    Object.entries(autoJson).filter(([key, value]) => {
+      if (structuralKeys.has(key) || value === undefined) return false;
+      // Home Assistant commonly emits an empty description for a newly
+      // created automation. It has no behavioral effect and should not turn
+      // on the optional Metadata UI just to preserve a default placeholder.
+      if (key === 'description' && value === '') return false;
+      return true;
+    }),
   );
 }
 
@@ -390,14 +399,10 @@ export function renderAutomationToWorkspace(ws, autoJson, opts = {}) {
 
   const metadata = extractAutomationMetadata(autoJson);
   if (Object.keys(metadata).length) {
-    // Metadata is opt-in in the normal Rule UI. Imports that need it turn on
-    // the mutator before attaching the preservation block.
-    if (typeof root?.setMetadataVisible_ === 'function') {
-      root.setMetadataVisible_(true);
-    }
-    const metadataInput = root ? findStmtInput(root, ['Metadata', 'METADATA']) : null;
     // Execution settings have closed Home Assistant vocabularies, so preserve
     // them as an editable typed block. Everything else remains Raw Metadata.
+    // `single` is Home Assistant's default mode, so it does not need to make
+    // an otherwise compact imported rule expose Metadata.
     const remainingMetadata = { ...metadata };
     const mode = remainingMetadata.mode;
     const max = remainingMetadata.max;
@@ -406,7 +411,45 @@ export function renderAutomationToWorkspace(ws, autoJson, opts = {}) {
     delete remainingMetadata.max;
     delete remainingMetadata.max_exceeded;
 
-    if (SUPPORTED_RULE_MODES.has(String(mode)) && canCreate('ha_rule_execution')) {
+    const isImplicitSingleMode = String(mode) === 'single';
+    const hasTypedExecution =
+      !isImplicitSingleMode &&
+      SUPPORTED_RULE_MODES.has(String(mode)) &&
+      canCreate('ha_rule_execution');
+    const hasTypedMaxExceeded =
+      SUPPORTED_MAX_EXCEEDED.has(String(maxExceeded)) &&
+      canCreate('ha_rule_max_exceeded');
+
+    if (max !== undefined) {
+      const supportsMax = String(mode) === 'queued' || String(mode) === 'parallel';
+      const validMax = supportsMax && Number.isInteger(Number(max)) && Number(max) >= 1;
+      if (!validMax) {
+        // `max` is invalid for this mode or malformed; preserve it exactly.
+        remainingMetadata.max = max;
+      }
+    }
+    if (mode !== undefined && !isImplicitSingleMode && !hasTypedExecution) {
+      // Do not silently coerce a future or custom Home Assistant mode.
+      remainingMetadata.mode = mode;
+    }
+    if (maxExceeded !== undefined && !hasTypedMaxExceeded) {
+      // Do not coerce an unknown future log level.
+      remainingMetadata.max_exceeded = maxExceeded;
+    }
+
+    const needsMetadata = hasTypedExecution || hasTypedMaxExceeded || Object.keys(remainingMetadata).length;
+    if (!needsMetadata) {
+      // A lone `mode: single` is semantically the same as omitting mode.
+      // Keep the normal compact Rule UI intact.
+    } else {
+      // Metadata is opt-in in the normal Rule UI. Imports that need it turn on
+      // the mutator before attaching an editable or preservation block.
+      if (typeof root?.setMetadataVisible_ === 'function') {
+        root.setMetadataVisible_(true);
+      }
+      const metadataInput = root ? findStmtInput(root, ['Metadata', 'METADATA']) : null;
+
+    if (hasTypedExecution) {
       const executionBlock = ws.newBlock('ha_rule_execution');
       executionBlock.setFieldValue(String(mode), 'MODE');
       executionBlock.updateShape_?.();
@@ -418,30 +461,21 @@ export function renderAutomationToWorkspace(ws, autoJson, opts = {}) {
         executionBlock.setFieldValue('TRUE', 'USE_MAX');
         executionBlock.updateShape_?.();
         executionBlock.setFieldValue(String(Number(max)), 'MAX');
-      } else if (max !== undefined) {
-        // `max` is invalid for this mode or malformed; preserve it exactly.
-        remainingMetadata.max = max;
       }
 
       executionBlock.initSvg?.();
       executionBlock.render?.();
       if (root && metadataInput) appendChild(root, executionBlock, metadataInput);
       else executionBlock.moveBy(80, 80);
-    } else if (mode !== undefined) {
-      // Do not silently coerce a future or custom Home Assistant mode.
-      remainingMetadata.mode = mode;
     }
 
-    if (SUPPORTED_MAX_EXCEEDED.has(String(maxExceeded)) && canCreate('ha_rule_max_exceeded')) {
+    if (hasTypedMaxExceeded) {
       const maxExceededBlock = ws.newBlock('ha_rule_max_exceeded');
       maxExceededBlock.setFieldValue(String(maxExceeded), 'MAX_EXCEEDED');
       maxExceededBlock.initSvg?.();
       maxExceededBlock.render?.();
       if (root && metadataInput) appendChild(root, maxExceededBlock, metadataInput);
       else maxExceededBlock.moveBy(80, 80);
-    } else if (maxExceeded !== undefined) {
-      // Do not coerce an unknown future log level.
-      remainingMetadata.max_exceeded = maxExceeded;
     }
 
     if (Object.keys(remainingMetadata).length) {
@@ -452,6 +486,7 @@ export function renderAutomationToWorkspace(ws, autoJson, opts = {}) {
       );
       if (root && metadataInput) appendChild(root, rawMetadata, metadataInput);
       else rawMetadata.moveBy(80, 80);
+    }
     }
   }
 
