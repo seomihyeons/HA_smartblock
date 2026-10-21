@@ -1,0 +1,24 @@
+{
+  "commit": "1f28769c28d1cc02f9c0c3bf4b76e99d0b0b216b",
+  "passed": [
+    "npm ci",
+    "node 151",
+    "python dependencies",
+    "python 18",
+    "cloud SDK imports",
+    "webpack"
+  ],
+  "live_ha_or_llm_calls": false,
+  "date": "2026-10-21",
+  "node_tests": 151,
+  "python_tests": 18,
+  "corpus_files": 877,
+  "new_corpus_regressions": 0,
+  "inherited_corpus_failures": 11,
+  "isolated_container_api_tests": 4,
+  "isolated_container_python_tests": 18,
+  "isolated_container_startup": "passed",
+  "webpack_warnings": 3,
+  "cloud_sdk_image_variant": "not tested",
+  "real_provider_or_ha_operation": "not tested"
+}

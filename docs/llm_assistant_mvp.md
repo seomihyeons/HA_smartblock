@@ -101,3 +101,5 @@ All model/service behavior in these tests is injected or mocked. HTTP tests cove
 The prototype implements natural-language automation planning, explicit-confirmation control and request-time state/attribute/list/count queries. It retains visual editing and optional conflict analysis. Live model correctness, physical-device operation, latency and HA automation saving have not been verified by the integration tests. Do not describe request-time REST reads as continuous real-time monitoring.
 
 Area registry joins, full HA syntax coverage, unrestricted multi-step routines, factuality checks on generated final prose, and generic attribute-effect verification remain future work. Final-response failures use deterministic factual templates; successful model-generated prose is prompted to use tool facts but is not formally checked. No performance, multilingual accuracy, safety guarantee or usability improvement is established by mock tests.
+
+The retained Gemini SDK currently emits an end-of-support warning. Dependency installation/imports were checked in a fresh venv, but migration to `google.genai` and live provider compatibility remain follow-up work.

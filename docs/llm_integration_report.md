@@ -44,11 +44,12 @@ Main's `src/data`, `src/blocks`, `src/import`, `src/generators`, block search, t
 | Network-isolated core container Python tests | 18 passed |
 | Network-isolated core container HTTP/add-on proxy tests | 4 passed |
 | Actual default container startup, `--network none` | HTML on 8099 -> Node proxy on 8787 -> Python provider catalog on 8792 connected; temporary container stopped afterwards |
+| Clean committed-source snapshot, separate `npm ci` and fresh Python venv | Node 151/151, Python 18/18, four cloud SDK imports and Webpack passed without the original node_modules or ignored source |
 | Original worktree and pre-existing branch refs | Unchanged |
 
 The corpus comparison uses the same synthetic dropdown context and existing study filters for both versions. The 11 failures are inherited outcomes in this context, not 11 new LLM failures and not a claim that all corpus automations work in a connected home. They are retained in `llm_regression_results.json`; no changes to main conversion behavior were made to force this comparison to pass.
 
-No real Home Assistant state request, service call, automation save or live model/provider request was made. Docker runtime checks blocked external networking. Mock test counts are not model accuracy or physical-device success rates. Real cloud SDK image installation, ARM image builds, real model generation, live FastEmbed downloads, performance and actual HA operation remain unverified. The cloud transports/dependencies are present; the optional cloud image variant is a separate verification task.
+No real Home Assistant state request, service call, automation save or live model/provider request was made. Docker runtime checks blocked external networking. Mock test counts are not model accuracy or physical-device success rates. The retained Gemini transport imports successfully but its `google.generativeai` SDK emits an end-of-support warning; migration to `google.genai` remains follow-up work rather than an untested transport replacement during integration. Real cloud SDK image installation, ARM image builds, real model generation, live FastEmbed downloads, performance and actual HA operation remain unverified. The cloud transports/dependencies are present; the optional cloud image variant is a separate verification task.
 
 ## Remaining work and poster claims
 
