@@ -20,3 +20,12 @@ SERP4IoT_talk_notes.md
 test/test_raw_demo/
 test/test_xhome_demo/1_xhome_demo_entrance_evening_scene.yaml
 test/test_xhome_demo/2_xhome_demo_entrance_mood_lamp.yaml
+
+# Local research reports and verification records are not published.
+/docs/*report*.md
+/docs/repro_*.md
+/docs/*results*.json
+/docs/*verification*.json
+/docs/*sources*.json
+/docs/sage_dependency_resolution.md
+/docs/sasha_dataset_schema.md
