@@ -83,6 +83,18 @@
     </div>
   </div>
 
+
+  <button id="btnAiAssistant" class="floating-btn" type="button" title="AI Assistant" aria-label="AI Assistant">AI</button>
+  <div id="aiAssistantPanel" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="aiAssistantTitle">
+    <div id="aiAssistantBackdrop" class="modal-backdrop"></div>
+    <div class="modal-panel">
+      <div class="modal-header"><div class="modal-title" id="aiAssistantTitle">AI Assistant</div><div class="modal-actions"><button id="aiAssistantClose" type="button" aria-label="Close">×</button></div></div>
+      <div class="ai-assistant-meta"><label class="ai-assistant-provider">Provider <select id="aiAssistantProvider" aria-label="LLM provider"></select></label><span id="aiAssistantStatus" class="ai-assistant-status">Ready</span></div>
+      <div id="aiAssistantMessages" class="ai-assistant-messages"></div>
+      <form id="aiAssistantForm" class="ai-assistant-form"><textarea id="aiAssistantInput" aria-label="Smart home request" placeholder="Describe an automation, request device control, or ask for its state" rows="2"></textarea><button id="aiAssistantSend" type="submit">Send</button></form>
+    </div>
+  </div>
+
   <!-- script is last -->
   <script src="./index.js"></script>
 </body>

@@ -37,7 +37,7 @@ jobs:
             exit 1
           fi
 
-          if [ "$IMAGE_TAG" = "0.1.1" ]; then
+          if [ "$IMAGE_TAG" = "0.1.1" ] || [ "$IMAGE_TAG" = "latest" ]; then
             echo "Tag 0.1.1 is reserved for the existing production image." >&2
             exit 1
           fi
@@ -49,25 +49,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          context="$RUNNER_TEMP/ha-smartblock-ghcr-context"
-          mkdir -p "$context"
-
-          # Keep add-on packaging/runtime files, but take all application code
-          # and build inputs from the repository root at this exact commit.
-          cp ha_smartblock/Dockerfile "$context/Dockerfile"
-          cp ha_smartblock/run.sh ha_smartblock/config.yaml "$context/"
-          cp -a ha_smartblock/server "$context/server"
-          cp -a src test "$context/"
-          cp package.json package-lock.json webpack.config.js "$context/"
-
-          test -f "$context/Dockerfile"
-          test -f "$context/run.sh"
-          test -f "$context/server/addon_server.js"
-          test -f "$context/src/index.js"
-          test -f "$context/test/task_alt/run_task_alt.js"
-          test -f "$context/package-lock.json"
-          test -f "$context/webpack.config.js"
-          test ! -e "$context/ha_smartblock/src"
+          node scripts/prepare_addon_context.mjs "$RUNNER_TEMP/ha-smartblock-ghcr-context"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

@@ -1,0 +1,5 @@
+# Core assistant and the four existing cloud-provider SDK transports.
+-r requirements-core.txt
+openai>=1.50,<3
+anthropic>=0.40,<1
+google-generativeai>=0.8,<1

@@ -5,9 +5,17 @@
   "main": "index.js",
   "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test --test-concurrency=2 test/ir/*.test.mjs server/tests/*.test.mjs",
     "build": "webpack --mode production",
-    "start": "webpack serve --mode development --open --hot"
+    "start": "webpack serve --mode development --open --hot",
+    "test:ir": "node --test --test-concurrency=2 test/ir/*.test.mjs",
+    "test:llm": "node --test --test-concurrency=2 server/tests/*.test.mjs",
+    "test:python": "python -B -m unittest discover -s ha_llm_control/llm_assistant/tests -v",
+    "test:roundtrip": "node --test test/ir/llm_roundtrip.test.mjs",
+    "server": "node server/analyze_server.js",
+    "benchmark:llm": "node server/benchmarks/run_automation_ab.mjs",
+    "prepare:addon": "node scripts/prepare_addon_context.mjs",
+    "test:corpus": "node scripts/run_roundtrip_regression.mjs"
   },
   "keywords": [
     "blockly",
@@ -20,7 +28,8 @@
     "blockly": "^11.0.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "js-yaml": "^4.3.1"
+    "js-yaml": "^4.3.1",
+    "ajv": "^8.17.1"
   },
   "overrides": {
     "form-data": "4.0.6",
@@ -33,6 +42,7 @@
     "style-loader": "^3.3.1",
     "webpack": "^5.102.1",
     "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^4.15.2"
+    "webpack-dev-server": "^4.15.2",
+    "jsdom": "^25.0.1"
   }
 }

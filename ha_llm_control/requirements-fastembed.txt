@@ -1,0 +1,2 @@
+# Optional local embedding transport; lexical/Ollama retrieval work without it.
+fastembed==0.8.0

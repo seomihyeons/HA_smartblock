@@ -15,6 +15,7 @@ import './blocks/extensions.js';
 
 import { initConflictAnalyzerUI } from "./homeassistant/conflict_analyzer/debug_ui";
 import { setupHaPullPanel } from './homeassistant/ha_pull_panel';
+import { initAiAssistantUI } from './homeassistant/llm_assistant/assistant_ui';
 import { initTaskAltUI } from '../test/task_alt/task_alt_ui';
 import { initBlockSearchFlyout } from './block_search_flyout.js';
 
@@ -213,6 +214,7 @@ setupHaPullPanel({ ws });
 const initWorkspaceTools = () => {
   initConflictAnalyzerUI();
   initTaskAltUI({ ws });
+  initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspaceYaml: () => yamlGenerator.workspaceToCode(ws) });
   initBlockSearchFlyout({ workspace: ws });
 };
 initWorkspaceTools();

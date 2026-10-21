@@ -20,3 +20,12 @@ SERP4IoT_talk_notes.md
 test/test_raw_demo/
 test/test_xhome_demo/1_xhome_demo_entrance_evening_scene.yaml
 test/test_xhome_demo/2_xhome_demo_entrance_mood_lamp.yaml
+
+# LLM research runtime artifacts
+__pycache__/
+*.py[cod]
+*.log
+hf_cache/
+.env.*
+!.env.example
+/server/benchmarks/results/

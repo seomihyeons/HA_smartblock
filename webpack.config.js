@@ -258,6 +258,9 @@ module.exports = (env, argv) => {
     // endpoint to a running add-on image instead of duplicating its server.
     const addonApiUrl = String(process.env.SMARTBLOCK_ADDON_URL || 'http://localhost:8080').trim();
     const proxy = {
+      '/api/assistant': { target: 'http://127.0.0.1:8787', changeOrigin: true },
+      '/api/llm': { target: 'http://127.0.0.1:8787', changeOrigin: true },
+      '/api/control-now': { target: 'http://127.0.0.1:8787', changeOrigin: true },
       '/analyze': {
         target: 'http://localhost:8787',
         changeOrigin: true,
@@ -309,7 +312,7 @@ module.exports = (env, argv) => {
 
         app.use((req, res, next) => {
           const url = String(req.url || '');
-          if (url.startsWith('/ha/api') || url.startsWith('/analyze')) {
+          if (url.startsWith('/ha/api') || url.startsWith('/analyze') || url.startsWith('/api/assistant') || url.startsWith('/api/llm') || url.startsWith('/api/control-now')) {
             const addr = String(req.socket?.remoteAddress || '');
             if (!isLocalAddress(addr)) {
               sendJson(res, 403, { error: 'forbidden' });

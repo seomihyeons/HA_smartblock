@@ -1,3 +1,4 @@
+const { proxyAssistantRequest } = require('./assistant_proxy.cjs');
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
@@ -470,8 +471,14 @@ async function handleBaseline(req, res) {
   }
 }
 
-const server = http.createServer(async (req, res) => {
+function createAddonServer({ assistantUrl = process.env.LLM_NODE_API_URL || 'http://127.0.0.1:8787' } = {}) {
+return http.createServer(async (req, res) => {
   const url = req.url || '/';
+
+  if (['/api/assistant/', '/api/llm/', '/api/control-now/'].some((prefix) => url.startsWith(prefix))) {
+    proxyAssistantRequest(req, res, assistantUrl);
+    return;
+  }
 
   if (url.startsWith('/ha/api')) {
     proxyHomeAssistant(req, res);
@@ -496,6 +503,13 @@ const server = http.createServer(async (req, res) => {
   serveStatic(req, res);
 });
 
+}
+
+module.exports = { createAddonServer };
+if (require.main === module) {
+const server = createAddonServer();
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`HA SmartBlock add-on server listening on port ${PORT}`);
 });
+
+}

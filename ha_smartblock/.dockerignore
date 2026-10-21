@@ -11,3 +11,11 @@ geekof_automation
 **/geekof_automation
 **/entities_geekofweek.js
 **/fetch_GOW.py
+
+**/.env
+**/.env.*
+**/__pycache__
+**/.venv
+**/hf_cache
+**/*.pyc
+**/*.log

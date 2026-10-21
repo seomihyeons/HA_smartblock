@@ -1,0 +1,31 @@
+{
+  "base_main": "d1bf5ae748b76c54ea8c3fa4cc4fc09f0213bbb7",
+  "context": "synthetic public-corpus dropdowns, with existing study filtering",
+  "total": 877,
+  "main_counts": {
+    "PASS": 372,
+    "PASS_WITH_RAW": 170,
+    "PASS_WITH_NORMALIZATION": 324,
+    "FAIL": 11
+  },
+  "research_counts": {
+    "PASS": 372,
+    "PASS_WITH_RAW": 170,
+    "PASS_WITH_NORMALIZATION": 324,
+    "FAIL": 11
+  },
+  "new_regressions": [],
+  "existing_failures": [
+    "test/test_camera/21_camera_person_detected_in_front_door.yaml",
+    "test/test_camera/22_camera_person_detected_in_front_porch.yaml",
+    "test/test_camera/23_camera_person_detected_in_front_yard.yaml",
+    "test/test_camera/24_camera_person_detected_in_backyard.yaml",
+    "test/test_camera/25_camera_person_detected_at_backyard_gate.yaml",
+    "test/test_camera/26_camera_person_detected_in_side_yard.yaml",
+    "test/test_camera/27_camera_person_detected_in_garage.yaml",
+    "test/test_garage/9_garage_USER2_home_close_garage.yaml",
+    "test/test_lights/73_lights_bedroom_closet_lights_decrease_brightness_pico_remote.yaml",
+    "test/test_lights/74_lights_bedroom_lamps_dimmer.yaml",
+    "test/test_xhome_demo/test.yaml"
+  ]
+}
