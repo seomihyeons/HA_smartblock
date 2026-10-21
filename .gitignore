@@ -29,3 +29,12 @@ hf_cache/
 .env.*
 !.env.example
 /server/benchmarks/results/
+
+# Local research reports and verification records are not published.
+/docs/*report*.md
+/docs/repro_*.md
+/docs/*results*.json
+/docs/*verification*.json
+/docs/*sources*.json
+/docs/sage_dependency_resolution.md
+/docs/sasha_dataset_schema.md

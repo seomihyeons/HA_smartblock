@@ -191,4 +191,4 @@ Third-party components retain their respective licenses.
 
 ## LLM research branch
 
-`research/llm-agent` integrates natural-language automation drafts, explicit-confirmation device control and read-only information queries on the current main foundation. See [research architecture and setup](docs/llm_assistant_mvp.md) and [integration verification](docs/llm_integration_report.md). This research branch does not replace the stable main release.
+`research/llm-agent` integrates natural-language automation drafts, explicit-confirmation device control and read-only information queries on the current main foundation. See [research architecture and setup](docs/llm_assistant_mvp.md). This research branch does not replace the stable main release.

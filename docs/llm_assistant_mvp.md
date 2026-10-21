@@ -94,7 +94,7 @@ npm run build
 
 All model/service behavior in these tests is injected or mocked. HTTP tests cover Node routes and the add-on proxy; DOM tests exercise the actual Assistant UI including explicit Execute. Python tests cover provider-neutral orchestration, recursive validation, mocked Ollama and cached embedding behavior. No test in these suites needs HA credentials, an installed Ollama model or a live provider.
 
-`npm run test:corpus -- --output=<report.json>` runs the existing Regression Test function headlessly over the public YAML corpus with synthetic dropdown entities. `--baseline=<report.json>` reports only new regressions relative to a run in the same context. Existing main study filters still apply; this context is not a connected real-home conversion experiment. See `llm_integration_report.md` for measured results and limits.
+`npm run test:corpus -- --output=<report.json>` runs the existing Regression Test function headlessly over the public YAML corpus with synthetic dropdown entities. `--baseline=<report.json>` reports only new regressions relative to a run in the same context. Existing main study filters still apply; this context is not a connected real-home conversion experiment. Store generated reports outside the repository.
 
 ## Current limits and research claims
 
