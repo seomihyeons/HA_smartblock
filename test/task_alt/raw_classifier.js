@@ -1,4 +1,4 @@
-import { ACTION_DOMAINS } from '../../src/data/options';
+import { ACTION_DOMAINS } from '../../src/data/options.js';
 
 const supportedConditionTypes = new Set([
   'state',

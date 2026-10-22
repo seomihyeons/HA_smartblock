@@ -1,91 +1,31 @@
-import {
-  filterStudyEntities,
-  sanitizeStudyRuntimeEntities,
-  STUDY_ENTITY_IDS,
-} from './study_entity_filter.js';
+import { dummyEntities as haEntities, notifyDevices as haNotify } from './entities_homeassistant.js';
+import { dummyEntities as geekEntities, notifyDevices as geekNotify } from './entities_geekofweek.js';
+import { dummyEntities as staticEntities, notifyDevices as staticNotify } from './entities_static.js';
 
-// Runtime Home Assistant entities are kept separately from the controlled
-// 17-entity study set. Generic/domain blocks should mirror the connected HA
-// instance, while studyEntities remains available for study validation/reset/
-// evaluator code.
-//
-// dummyEntities is retained as the legacy live binding consumed by existing
-// block option providers. It now represents the full runtime entity set.
-export let runtimeEntities = [];
-export let studyEntities = [];
-export let dummyEntities = [];
-export let notifyDevices = [];
-
-export function setStudyRuntimeEntities(sourceEntities) {
-  runtimeEntities = sanitizeStudyRuntimeEntities(sourceEntities).entities;
-  dummyEntities = runtimeEntities;
-
-  const result = filterStudyEntities(runtimeEntities);
-  studyEntities = result.entities;
-  notifyDevices = runtimeEntities
-    .filter((entity) => entity.entity_id === 'notify.test_user')
-    .map((entity) => entity.entity_id);
-
-  return {
-    ...result,
-    runtimeEntities,
-  };
+function mergeByEntityId(...sources) {
+  const merged = new Map();
+  for (const source of sources) {
+    for (const entity of source || []) {
+      if (!entity?.entity_id) continue;
+      merged.set(entity.entity_id, entity);
+    }
+  }
+  return Array.from(merged.values());
 }
 
-export async function loadStudyRuntimeEntities(fetchImpl = globalThis.fetch) {
-  // Do not fall back to bundled GeekOfWeek, XHome, static, or old HA fixtures.
-  // The live HA runtime is the only source for UI entity selectors.
-  runtimeEntities = [];
-  studyEntities = [];
-  dummyEntities = [];
-  notifyDevices = [];
-
-  if (typeof fetchImpl !== 'function') {
-    const error = new Error('Runtime entity loading is unavailable: fetch is not defined.');
-    console.error(error);
-    return {
-      ok: false,
-      entities: [],
-      runtimeEntities: [],
-      missing: [...STUDY_ENTITY_IDS],
-      error,
-    };
-  }
-
-  try {
-    const response = await fetchImpl('/api/entities');
-    if (!response?.ok) {
-      throw new Error(`Runtime entity request failed (${response?.status ?? 'no response'}).`);
-    }
-
-    const payload = await response.json();
-    const result = setStudyRuntimeEntities(payload?.entities);
-
-    if (result.missing.length) {
-      console.warn(
-        `[HA-SmartBlock Study] Expected study entities: ${STUDY_ENTITY_IDS.length}; ` +
-        `loaded study entities: ${result.entities.length}; missing: ${result.missing.join(', ')}`
-      );
-    } else {
-      console.info(
-        `[HA-SmartBlock Study] Loaded ${result.runtimeEntities.length} runtime entities; ` +
-        `all ${result.entities.length} study entities are present.`
-      );
-    }
-
-    return { ok: true, ...result };
-  } catch (error) {
-    runtimeEntities = [];
-    studyEntities = [];
-    dummyEntities = [];
-    notifyDevices = [];
-    console.error('[HA-SmartBlock Study] Failed to load runtime entities.', error);
-    return {
-      ok: false,
-      entities: [],
-      runtimeEntities: [],
-      missing: [...STUDY_ENTITY_IDS],
-      error,
-    };
-  }
+function mergeUnique(...sources) {
+  return Array.from(new Set(sources.flatMap((source) => source || [])));
 }
+
+// Corpus fixtures load first. Static Synthetic Home/user fixtures and then
+// saved Home Assistant snapshots win when an entity ID overlaps.
+export const dummyEntities = mergeByEntityId(
+  geekEntities,
+  staticEntities,
+  haEntities,
+);
+export const notifyDevices = mergeUnique(
+  geekNotify,
+  staticNotify,
+  haNotify,
+);

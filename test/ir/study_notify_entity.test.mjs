@@ -3,7 +3,7 @@ import test from 'node:test';
 import * as Blockly from 'blockly';
 
 import { actionNotifyBlocks } from '../../src/blocks/action/action_notify.js';
-import { setStudyRuntimeEntities } from '../../src/data/entities_index.js';
+import { setFixtureEntities } from './entity_fixture.mjs';
 import { yamlGenerator } from '../../src/generators/yaml.js';
 import { createActionNode } from '../../src/import/blocks/action_mapper.js';
 import { toolbox } from '../../src/toolbox.js';
@@ -11,7 +11,7 @@ import { toolbox } from '../../src/toolbox.js';
 Blockly.common.defineBlocks(actionNotifyBlocks);
 
 function setStudyEntities() {
-  setStudyRuntimeEntities([
+  setFixtureEntities([
     { entity_id: 'notify.test_user', state: 'unknown', attributes: { friendly_name: 'Test User' } },
     { entity_id: 'notify.other_user', state: 'unknown', attributes: { friendly_name: 'Other User' } },
   ]);

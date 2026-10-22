@@ -477,20 +477,19 @@ export function getBinarySensorStateOptions(entityId, { includeAny = false } = {
   return includeAny ? [...options, ['(any)', '']] : options;
 }
 
-function getExactRuntimeEntityOptions(entityId, emptyLabel) {
-  const entity = (dummyEntities || []).find((candidate) => candidate?.entity_id === entityId);
-  if (!entity) return [[emptyLabel, '']];
-  return [[entity.attributes?.friendly_name || entity.name || entity.entity_id, entity.entity_id]];
+function getCatalogDomainOptions(domain, emptyLabel) {
+  const entities = (dummyEntities || []).filter((entity) => entity.entity_id.startsWith(`${domain}.`));
+  return entities.length
+    ? entities.map((entity) => [entity.attributes?.friendly_name || entity.name || entity.entity_id, entity.entity_id])
+    : [[emptyLabel, '']];
 }
 
-// Study-only targets: they are runtime-backed, but deliberately constrained
-// to the one participant and one home zone used by the study tasks.
-export function getStudyPersonOptions() {
-  return getExactRuntimeEntityOptions('person.test_user', '(No study user)');
+export function getPersonOptions() {
+  return getCatalogDomainOptions('person', '(No people)');
 }
 
-export function getStudyZoneOptions() {
-  return getExactRuntimeEntityOptions('zone.home', '(No home zone)');
+export function getZoneOptions() {
+  return getCatalogDomainOptions('zone', '(No zones)');
 }
 
 /* ============================================================
@@ -605,18 +604,22 @@ export const PRESET_NOTIFY_SERVICES = [
 
 export function buildDeviceTargets() {
   return (notifyDevices || [])
-    .map((entityId) => String(entityId || '').trim())
-    .filter((entityId) => entityId.startsWith('notify.'));
+    .map((target) => String(target || '').trim())
+    .filter(Boolean)
+    .map((target) => target.startsWith('notify.') ? target : slug(target));
 }
 
 export function getNotifyTargetOptions() {
-  // Study notifications are runtime entities, not legacy notify service-name
-  // suffixes. This intentionally exposes only notify.test_user.
-  const devices = buildDeviceTargets();
-  if (devices.length) {
-    return devices.map((entityId) => [entityId, entityId]);
-  }
-  return [['(no notification entity)', '']];
+  // Keep modern notify entity targets and the legacy notify service suffixes.
+  // The YAML generator already handles both forms without a live HA request.
+  const entities = (dummyEntities || [])
+    .filter((entity) => entity.entity_id.startsWith('notify.'))
+    .map((entity) => entity.entity_id);
+  const targets = new Set([
+    ...entities, 'notify', ...CUSTOM_NOTIFY_TARGETS,
+    ...buildDeviceTargets(), ...PRESET_NOTIFY_SERVICES,
+  ]);
+  return [...targets].map((target) => [target, target]);
 }
 
 export const NOTIFY_TEMPLATE_KINDS = [

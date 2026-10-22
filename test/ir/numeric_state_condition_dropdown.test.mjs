@@ -3,10 +3,10 @@ import test from 'node:test';
 import * as Blockly from 'blockly';
 
 import '../../src/blocks/condition/condition_numeric_state_entity.js';
-import { setStudyRuntimeEntities } from '../../src/data/entities_index.js';
+import { setFixtureEntities } from './entity_fixture.mjs';
 
 test('numeric state condition remains constructible when runtime HA has no numeric state', () => {
-  setStudyRuntimeEntities([
+  setFixtureEntities([
     {
       entity_id: 'binary_sensor.entrance_door',
       state: 'off',
@@ -29,7 +29,7 @@ test('numeric state condition remains constructible when runtime HA has no numer
 });
 
 test('numeric state condition lists numeric runtime entities when available', () => {
-  setStudyRuntimeEntities([
+  setFixtureEntities([
     {
       entity_id: 'sensor.living_room_humidity',
       state: '72.5',

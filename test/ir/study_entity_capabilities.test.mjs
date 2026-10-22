@@ -10,7 +10,8 @@ import { conditionZoneBlocks } from '../../src/blocks/condition/condition_zone.j
 import { actionEntityBlocks } from '../../src/blocks/action/action_entity.js';
 import { actionNotifyBlocks } from '../../src/blocks/action/action_notify.js';
 import { STUDY_ENTITY_IDS } from '../../src/data/study_entity_filter.js';
-import { loadStudyRuntimeEntities } from '../../src/data/entities_index.js';
+import { dummyEntities } from '../../src/data/entities_index.js';
+import { setFixtureEntities } from './entity_fixture.mjs';
 import { getActions, getStates } from '../../src/data/options.js';
 import { setToolboxEntities, toolbox } from '../../src/toolbox.js';
 
@@ -65,25 +66,19 @@ function dropdownIds(workspace, blockType) {
   return ids;
 }
 
-test('all Study task entities expose their required Event, Condition, and Action selectors', async () => {
-  const result = await loadStudyRuntimeEntities(async () => ({
-    ok: true,
-    json: async () => ({
-      entities: [
-        ...STUDY_ENTITY_IDS.map(runtimeEntity),
-        runtimeEntity('sun.sun'),
-        runtimeEntity('zone.home'),
-        runtimeEntity('weather.home'),
-        runtimeEntity('person.someone'),
-        runtimeEntity('device_tracker.someone_else'),
-        runtimeEntity('notify.someone_else'),
-        runtimeEntity('light.sb_test_light'),
-        runtimeEntity('switch.runtime_switch'),
-      ],
-    }),
-  }));
+test('catalog fixture entities expose their required Event, Condition, and Action selectors', async () => {
+  setFixtureEntities([
+    ...STUDY_ENTITY_IDS.map(runtimeEntity),
+    runtimeEntity('sun.sun'),
+    runtimeEntity('zone.home'),
+    runtimeEntity('weather.home'),
+    runtimeEntity('person.someone'),
+    runtimeEntity('device_tracker.someone_else'),
+    runtimeEntity('notify.someone_else'),
+    runtimeEntity('light.sb_test_light'),
+    runtimeEntity('switch.runtime_switch'),
+  ]);
 
-  assert.equal(result.ok, true);
   assert.ok(STUDY_ENTITY_IDS.includes('sensor.living_room_humidity'));
   assert.ok(STUDY_ENTITY_IDS.includes('notify.test_user'));
 
@@ -123,25 +118,21 @@ test('all Study task entities expose their required Event, Condition, and Action
   assert.ok(sunEventIds.includes('sun.sun'));
   assert.ok(sunConditionIds.includes('sun.sun'));
   assert.ok(weatherConditionIds.includes('weather.home'));
-  assert.deepEqual(personConditionIds, ['person.test_user']);
+  assert.deepEqual(personConditionIds, ['person.test_user', 'person.someone']);
   assert.ok(numericIds.includes('sensor.living_room_humidity'));
-  assert.deepEqual(notifyIds, ['notify.test_user']);
-  assert.deepEqual(zoneUsers, ['person.test_user']);
+  assert.ok(notifyIds.includes('notify.test_user'));
+  assert.ok(notifyIds.includes('notify.someone_else'));
+  assert.deepEqual(zoneUsers, ['person.test_user', 'person.someone']);
   assert.deepEqual(zones, ['zone.home']);
 });
 
-test('runtime-aware toolbox exposes applicable blocks for every loaded runtime domain', async () => {
-  const result = await loadStudyRuntimeEntities(async () => ({
-    ok: true,
-    json: async () => ({
-      entities: [
-        ...STUDY_ENTITY_IDS.map(runtimeEntity),
-        runtimeEntity('weather.home'),
-        runtimeEntity('switch.runtime_switch'),
-      ],
-    }),
-  }));
-  setToolboxEntities(result.runtimeEntities);
+test('catalog-backed toolbox exposes applicable blocks for every loaded runtime domain', async () => {
+  setFixtureEntities([
+    ...STUDY_ENTITY_IDS.map(runtimeEntity),
+    runtimeEntity('weather.home'),
+    runtimeEntity('switch.runtime_switch'),
+  ]);
+  setToolboxEntities(dummyEntities);
 
   const category = (name) => toolbox.contents.find((item) => item.name === name);
   const blockTypes = (name) => category(name).contents

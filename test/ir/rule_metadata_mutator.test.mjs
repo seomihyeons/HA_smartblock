@@ -1,7 +1,7 @@
-import test from 'node:test';
+import test, { beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import * as Blockly from 'blockly';
-import { setStudyRuntimeEntities } from '../../src/data/entities_index.js';
+import { setFixtureEntities } from './entity_fixture.mjs';
 
 import '../../src/blocks/extensions.js';
 import { ruleBlocks } from '../../src/blocks/rule_blocks.js';
@@ -21,7 +21,7 @@ Blockly.common.defineBlocks(eventGroupBlocks);
 Blockly.common.defineBlocks(actionEntityBlocks);
 Blockly.common.defineBlocks(actionDataBlocks);
 
-setStudyRuntimeEntities([
+beforeEach(() => setFixtureEntities([
   'binary_sensor.front_door',
   'light.entrance',
   'siren.test_siren',
@@ -29,7 +29,7 @@ setStudyRuntimeEntities([
   entity_id,
   state: 'off',
   attributes: { friendly_name: entity_id },
-})));
+}))));
 
 test('EA and ECA rules hide metadata by default and expose it only through their mutator', () => {
   const workspace = new Blockly.Workspace();

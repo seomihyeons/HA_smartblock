@@ -20,7 +20,7 @@ import { initBlockSearchFlyout } from './block_search_flyout.js';
 
 import './index.css';
 import { yamlGenerator } from './generators/yaml';
-import { loadStudyRuntimeEntities } from './data/entities_index.js';
+import { dummyEntities } from './data/entities_index.js';
 
 import { toolbox, setToolboxEntities } from './toolbox';
 import { customTheme } from './utils/custom_theme.js';
@@ -64,36 +64,9 @@ import { actionNotifyTagBlocks } from './blocks/action/action_notify_tag.js';
 import { actionDataBlocks } from './blocks/action/action_data.js';
 import { actionMqttBlocks } from './blocks/action/action_mqtt.js';
 
-function showStudyEntityLoadError(error) {
-  const message = document.createElement('div');
-  message.setAttribute('role', 'alert');
-  message.textContent =
-    'Study entities could not be loaded from Home Assistant. Entity selectors are empty. ' +
-    'Check the Home Assistant connection and reload.';
-  message.style.cssText = [
-    'position:fixed',
-    'top:12px',
-    'left:50%',
-    'transform:translateX(-50%)',
-    'z-index:10000',
-    'max-width:720px',
-    'padding:10px 14px',
-    'border:1px solid #a33',
-    'border-radius:6px',
-    'background:#fff3f3',
-    'color:#7a1515',
-    'font:14px sans-serif',
-  ].join(';');
-  document.body.prepend(message);
-  console.error('[HA-SmartBlock Study] Blockly started with no selectable entities.', error);
-}
-
-async function bootstrap() {
-  const runtimeEntities = await loadStudyRuntimeEntities();
-  if (!runtimeEntities.ok) showStudyEntityLoadError(runtimeEntities.error);
-  // Entity-specific toolbox entries must reflect the runtime Home Assistant
-  // entities, not every domain in the development fixture corpus.
-  setToolboxEntities(runtimeEntities.runtimeEntities);
+function bootstrap() {
+  // The bundled catalog is ready before blocks, dropdowns and Search are built.
+  setToolboxEntities(dummyEntities);
 
 Blockly.common.defineBlocks(rawLinesBlocks);
 Blockly.common.defineBlocks(ruleBlocks);
@@ -207,9 +180,7 @@ ws.addChangeListener((e) => {
 
 setupHaPullPanel({ ws });
 
-// The async entity fetch may complete after DOMContentLoaded. Initialise the
-// controls directly once the workspace exists instead of registering a late
-// DOMContentLoaded handler that would never fire.
+// Initialise the controls directly once the workspace exists.
 const initWorkspaceTools = () => {
   initConflictAnalyzerUI();
   initTaskAltUI({ ws });
@@ -219,7 +190,4 @@ initWorkspaceTools();
 
 }
 
-bootstrap().catch((error) => {
-  console.error('[HA-SmartBlock Study] Initialization failed.', error);
-  showStudyEntityLoadError(error);
-});
+bootstrap();
