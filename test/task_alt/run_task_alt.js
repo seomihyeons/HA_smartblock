@@ -1,11 +1,11 @@
 import * as Blockly from 'blockly';
-import { yamlTextToInternalJson } from '../../src/import/yaml_import';
-import { renderAutomationToWorkspace } from '../../src/import/yamlToBlocks';
-import { yamlGenerator } from '../../src/generators/yaml';
-import { compareSemantic } from './semantic_compare';
-import { classifyRawBlocks } from './raw_classifier';
-import { formatOneReport, statusFromResult } from './report_formatter';
-import { detectTaskAltKeyword } from './baseline_keywords';
+import { yamlTextToInternalJson } from '../../src/import/yaml_import.js';
+import { renderAutomationToWorkspace } from '../../src/import/yamlToBlocks.js';
+import { yamlGenerator } from '../../src/generators/yaml.js';
+import { compareSemantic } from './semantic_compare.js';
+import { classifyRawBlocks } from './raw_classifier.js';
+import { formatOneReport, statusFromResult } from './report_formatter.js';
+import { detectTaskAltKeyword } from './baseline_keywords.js';
 
 const RAW_TYPES = new Set([
   'ha_metadata_raw_lines',

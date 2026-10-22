@@ -5,7 +5,7 @@ import * as Blockly from 'blockly';
 import '../../src/blocks/extensions.js';
 import { eventEntityBlocks } from '../../src/blocks/event/event_entity.js';
 import { conditionStateBlocks } from '../../src/blocks/condition/condition_entity_state.js';
-import { setStudyRuntimeEntities } from '../../src/data/entities_index.js';
+import { setFixtureEntities } from './entity_fixture.mjs';
 import { getBinarySensorStateOptions, getStates } from '../../src/data/options.js';
 import { yamlGenerator } from '../../src/generators/yaml.js';
 
@@ -26,7 +26,7 @@ async function flushEntitySelection() {
 }
 
 test('door and motion binary sensors show semantic labels while preserving Home Assistant on/off values', async () => {
-  setStudyRuntimeEntities([
+  setFixtureEntities([
     {
       entity_id: DOOR_ID,
       state: 'off',

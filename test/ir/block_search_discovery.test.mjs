@@ -5,7 +5,7 @@ import * as Blockly from 'blockly';
 import { getBlockSearchResults } from '../../src/block_search_flyout.js';
 import { conditionSunBlocks } from '../../src/blocks/condition/condition_sun.js';
 import '../../src/blocks/condition/condition_time.js';
-import { setStudyRuntimeEntities } from '../../src/data/entities_index.js';
+import { setFixtureEntities } from './entity_fixture.mjs';
 import { createToolbox, setToolboxEntities } from '../../src/toolbox.js';
 
 Blockly.common.defineBlocks(conditionSunBlocks);
@@ -46,7 +46,7 @@ test('partial and infix terms discover blocks while the user is typing', () => {
 });
 
 test('runtime entity IDs and friendly names discover their applicable domain blocks', () => {
-  setStudyRuntimeEntities([
+  setFixtureEntities([
     {
       entity_id: 'light.entrance',
       state: 'off',
@@ -72,7 +72,7 @@ test('visible block dropdown choices are automatically searchable', () => {
 });
 
 test('runtime semantic state labels are searchable for binary sensors', () => {
-  setStudyRuntimeEntities([
+  setFixtureEntities([
     {
       entity_id: 'binary_sensor.entrance_motion',
       state: 'off',

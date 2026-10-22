@@ -24,7 +24,7 @@ YAML ⇄ Visual Blocks ⇄ YAML.
 
 ## Key Features
 - Visual block editor for Home Assistant triggers, conditions, and actions
-- Entity dropdowns populated from the user's Home Assistant instance in add-on mode
+- Entity dropdowns populated from bundled Home Assistant snapshots and example fixtures
 - Bidirectional transformation between YAML and visual blocks
 - Import normalization with fallback preservation for unsupported syntax
 - Home Assistant integration for automation import/export
@@ -67,6 +67,17 @@ cd HA_smartblock
 
 
 ### Environment Variables (for Home Assistant Integration)
+Entity selection on `main` works without a running Home Assistant instance.
+The editor merges `src/data/entities_geekofweek.js`, `src/data/entities_static.js`,
+and `src/data/entities_homeassistant.js` by Entity ID, in that order. Static test
+fixtures override corpus entries, and the saved Home Assistant snapshot has
+highest priority. The catalog is available immediately to Blockly dropdowns
+and Block Search; startup does not request `/api/entities`.
+
+The separate `feature/user-study` branch loads entities from Home Assistant at
+runtime. The planned `study-v1.0.0` release targets that unchanged branch,
+separately from the static-catalog edition described here.
+
 To enable integration with your Home Assistant instance,
 create a local `.env` file in the project root before starting the program.
 
@@ -156,6 +167,10 @@ node server/analyze_server.js
 - [Analyzer Repository](https://github.com/kwanghoon/haanalyzer)
 
 ## Regression Verification
+For local automated checks, run `npm test`, `npm run test:roundtrip`, and
+`npm run build`. These checks use bundled data and do not control HA devices
+or save automations to Home Assistant.
+
 UI entry: `⛏`
 
 The regression workflow helps ensure backward compatibility and semantic stability when extending the block system by verifying that newly added blocks or conversion logic changes do not introduce unintended side effects on existing automation assets.

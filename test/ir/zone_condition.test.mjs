@@ -4,7 +4,7 @@ import * as Blockly from 'blockly';
 
 import { conditionZoneBlocks } from '../../src/blocks/condition/condition_zone.js';
 import { rawLinesBlocks } from '../../src/blocks/raw_lines.js';
-import { setStudyRuntimeEntities } from '../../src/data/entities_index.js';
+import { setFixtureEntities } from './entity_fixture.mjs';
 import { yamlGenerator } from '../../src/generators/yaml.js';
 import { createConditionsRoot } from '../../src/import/blocks/condition_mapper.js';
 
@@ -12,7 +12,7 @@ Blockly.common.defineBlocks(conditionZoneBlocks);
 Blockly.common.defineBlocks(rawLinesBlocks);
 
 function loadZoneStudyEntities() {
-  setStudyRuntimeEntities([
+  setFixtureEntities([
     {
       entity_id: 'person.test_user',
       state: 'home',
@@ -50,8 +50,8 @@ test('zone membership block generates the current Home Assistant in/not-in zone 
   const workspace = new Blockly.Workspace();
   const block = workspace.newBlock('condition_zone_membership');
 
-  assert.deepEqual(block.getField('USER').getOptions(false), [['Test User', 'person.test_user']]);
-  assert.deepEqual(block.getField('ZONE').getOptions(false), [['Home', 'zone.home']]);
+  assert.deepEqual(block.getField('USER').getOptions(false), [['Test User', 'person.test_user'], ['Other User', 'person.other_user']]);
+  assert.deepEqual(block.getField('ZONE').getOptions(false), [['Home', 'zone.home'], ['Work', 'zone.work']]);
 
   for (const condition of ['zone.in_zone', 'zone.not_in_zone']) {
     block.setFieldValue(condition, 'MEMBERSHIP');

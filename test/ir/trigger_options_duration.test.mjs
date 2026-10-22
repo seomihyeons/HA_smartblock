@@ -5,14 +5,14 @@ import * as Blockly from 'blockly';
 import '../../src/blocks/extensions.js';
 import { eventEntityBlocks } from '../../src/blocks/event/event_entity.js';
 import { eventForBlocks } from '../../src/blocks/event/event_for.js';
-import { setStudyRuntimeEntities } from '../../src/data/entities_index.js';
+import { setFixtureEntities } from './entity_fixture.mjs';
 import { yamlTextToInternalJson } from '../../src/import/yaml_import.js';
 import { createTriggerBlock } from '../../src/import/blocks/trigger_mapper.js';
 
 Blockly.common.defineBlocks(eventEntityBlocks);
 Blockly.common.defineBlocks(eventForBlocks);
 
-setStudyRuntimeEntities([
+setFixtureEntities([
   {
     entity_id: 'binary_sensor.front_door',
     state: 'off',
