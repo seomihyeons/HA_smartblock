@@ -74,6 +74,11 @@ fixtures override corpus entries, and the saved Home Assistant snapshot has
 highest priority. The catalog is available immediately to Blockly dropdowns
 and Block Search; startup does not request `/api/entities`.
 
+The bundled catalog currently has no `zone` entries. To create a typed Zone
+condition, add the required person and zone to a bundled Entity source first.
+When imported YAML references a zone absent from the catalog, the editor keeps
+that condition as Raw YAML for export, preserving its targets and zone ID.
+
 The separate `feature/user-study` branch loads entities from Home Assistant at
 runtime. The planned `study-v1.0.0` release targets that unchanged branch,
 separately from the static-catalog edition described here.
