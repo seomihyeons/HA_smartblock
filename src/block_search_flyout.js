@@ -1,10 +1,11 @@
 import * as Blockly from 'blockly';
 import { toolbox } from './toolbox.js';
+import { refreshFlyoutAvailabilityStyles } from './toolbox.js';
 import { DOMAIN_SPEC, getBinarySensorStateOptions } from './data/options.js';
 import { dummyEntities } from './data/entities_index.js';
 import { setModalOpenState } from './utils/floating_modal_state.js';
 
-const SEARCHABLE_CATEGORIES = new Set(['Rule', 'Event', 'Condition', 'Action']);
+const SEARCHABLE_CATEGORIES = new Set(['Rule', 'Trigger', 'Condition', 'Action']);
 
 function normalize(value) {
   return String(value || '').trim().toLowerCase();
@@ -156,7 +157,7 @@ function searchScore(query, searchable) {
     }
 
     // Every typed term must occur somewhere, but it may be an infix match:
-    // `eve` finds Event and `d` finds door-related blocks.
+    // `eve` finds event-related blocks and `d` finds door-related blocks.
     if (!tokenScore) return -1;
     score += tokenScore;
   }
@@ -203,9 +204,10 @@ export function getBlockSearchResults(query) {
       });
 
       if (!matches.length) return;
-      // Preserve category order, but make exact/prefix/entity matches appear
-      // before broad infix matches within each category.
-      matches.sort((a, b) => b.score - a.score || a.type.localeCompare(b.type));
+      // `toolbox` is already ordered by conceptual section, runtime
+      // availability, and English A-Z. Keep that order in Search as well so
+      // no-target blocks stay after usable blocks instead of jumping ahead on
+      // a text-score tie.
       result.push(...matches);
     });
 
@@ -350,7 +352,10 @@ export function initBlockSearchFlyout({ workspace } = {}) {
   const launcher = createSvgSearchLauncher(workspace);
   if (!launcher) return;
 
-  const render = () => searchFlyout.show(getSearchDefinition(input.value));
+  const render = () => {
+    searchFlyout.show(getSearchDefinition(input.value));
+    refreshFlyoutAvailabilityStyles(searchFlyout);
+  };
   let isSearchOpen = false;
 
   // Search is one surface: its HTML header and custom Blockly flyout must

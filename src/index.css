@@ -72,29 +72,10 @@ code {
   text-align: right;
 }
 
-#importDebugPanel {
-  margin-top: 0;
-}
-
-#importDebugPanel > .import-debug-label {
-  display: list-item;
-  color: #111827;
-  font-size: 0.82rem;
-  font-weight: 400;
-  letter-spacing: 0.01em;
-  text-align: left;
-  cursor: pointer;
-  list-style-position: inside;
-}
-
-#importDebugPanel > .import-debug-label::marker {
-  color: #111827;
-  font-size: 0.72rem;
-}
-
-#importDebugPanel > .import-debug-label::-webkit-details-marker {
-  color: #111827;
-  font-size: 0.72rem;
+/* The source blocks in Blockly's flyout only. Workspace blocks never receive
+ * this class, so imported and user-created automations remain fully opaque. */
+.ha-toolbox-unavailable {
+  opacity: 0.55;
 }
 
 /* btnDebug: Blockly 위로 올리고 클릭 가능하게 강제 */

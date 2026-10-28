@@ -39,6 +39,33 @@ function normalizeRuntimeEntity(entity) {
   };
 }
 
+// Entity dropdowns show a friendly name when Home Assistant provides one.
+// Keep the backing runtime list in that same visual order so every block that
+// filters `dummyEntities` presents Entity selectors consistently.
+export function getEntityDisplayName(entity) {
+  return String(
+    entity?.attributes?.friendly_name ||
+    entity?.name ||
+    entity?.friendly_name ||
+    entity?.entity_id ||
+    ''
+  ).trim();
+}
+
+function compareEntitiesByDisplayName(left, right) {
+  const byName = getEntityDisplayName(left).localeCompare(
+    getEntityDisplayName(right),
+    'en',
+    { sensitivity: 'base', numeric: true }
+  );
+  if (byName !== 0) return byName;
+  return String(left?.entity_id || '').localeCompare(
+    String(right?.entity_id || ''),
+    'en',
+    { sensitivity: 'base', numeric: true }
+  );
+}
+
 // Runtime Home Assistant is the selector source of truth.  This normalizes
 // every returned state without consulting the Study task fixture above.
 export function normalizeRuntimeEntities(runtimeEntities) {
@@ -51,7 +78,7 @@ export function normalizeRuntimeEntities(runtimeEntities) {
   }
 
   return {
-    entities: [...byId.values()].sort((a, b) => a.entity_id.localeCompare(b.entity_id)),
+    entities: [...byId.values()].sort(compareEntitiesByDisplayName),
   };
 }
 

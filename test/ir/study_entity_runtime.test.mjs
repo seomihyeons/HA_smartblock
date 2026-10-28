@@ -83,6 +83,22 @@ test('runtime sanitization removes every non-test user and notification device',
   ]);
 });
 
+test('Entity selectors use visible names in English A-Z order with entity ID as a tie-breaker', () => {
+  setStudyRuntimeEntities([
+    { entity_id: 'light.zebra', state: 'on', attributes: { friendly_name: 'Alpha Lamp' } },
+    { entity_id: 'light.beta', state: 'on', attributes: {} },
+    { entity_id: 'light.alpha', state: 'on', attributes: { friendly_name: 'Zulu Lamp' } },
+    { entity_id: 'light.alpha_2', state: 'on', attributes: { friendly_name: 'Zulu Lamp' } },
+  ]);
+
+  assert.deepEqual(dummyEntities.map((entity) => entity.entity_id), [
+    'light.zebra',
+    'light.beta',
+    'light.alpha',
+    'light.alpha_2',
+  ]);
+});
+
 test('runtime fetch keeps non-study Home Assistant entities for generic selectors', async () => {
   const extras = Array.from({ length: 300 }, (_, index) => runtimeEntity(`sensor.extra_${index}`));
   const result = await loadStudyRuntimeEntities(async () => ({

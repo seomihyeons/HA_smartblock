@@ -6,7 +6,6 @@ import {
   compareResultsWithBaseline,
 } from './run_task_alt';
 import { renderAutomationToWorkspace } from '../../src/import/yamlToBlocks';
-import { showImportDebugJson } from '../../src/import/import_debug_panel';
 import { setModalOpenState } from '../../src/utils/floating_modal_state';
 import { readBaselineFile, appendBaselineSnapshot, clearBaselineFile } from './baseline_io';
 
@@ -190,14 +189,9 @@ export function initTaskAltUI({ ws }) {
 
   const readEditorState = () => {
     const codeEl = $('generatedCode');
-    const debugPanel = $('importDebugPanel');
-    const debugPre = $('importDebugPre');
     return {
       workspace: Blockly.serialization.workspaces.save(ws),
       yamlText: codeEl ? codeEl.innerText : '',
-      hadDebugPanel: Boolean(debugPanel),
-      debugPanelOpen: Boolean(debugPanel?.open),
-      debugPanelText: debugPre ? debugPre.textContent : '',
     };
   };
 
@@ -212,21 +206,6 @@ export function initTaskAltUI({ ws }) {
 
     const codeEl = $('generatedCode');
     if (codeEl) codeEl.innerText = state.yamlText || '';
-
-    let debugPanel = $('importDebugPanel');
-    if (!state.hadDebugPanel) {
-      debugPanel?.remove();
-      return;
-    }
-
-    if (!debugPanel) {
-      showImportDebugJson({});
-      debugPanel = $('importDebugPanel');
-    }
-
-    const debugPre = $('importDebugPre');
-    if (debugPre) debugPre.textContent = state.debugPanelText || '';
-    if (debugPanel) debugPanel.open = Boolean(state.debugPanelOpen);
   };
 
   const getPreviewPayload = (res, mode = previewMode) => {
@@ -246,7 +225,6 @@ export function initTaskAltUI({ ws }) {
       renderAutomationToWorkspace(ws, jsonToRender, { clearBefore: true });
       const codeEl = $('generatedCode');
       if (codeEl) codeEl.innerText = yamlToShow;
-      showImportDebugJson(jsonToRender);
       return true;
     } catch (e) {
       out.textContent = `ERROR\n${String(e?.message || e)}`;

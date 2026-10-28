@@ -9,7 +9,6 @@ import { save, load } from './serialization';
 import { setupYamlExportButtons } from './export_code';
 import { setupYamlImportButton } from './import/import_button';
 import { yamlTextToInternalJson } from './import/yaml_import';
-import { showImportDebugJson } from './import/import_debug_panel';
 import { renderAutomationToWorkspace } from './import/yamlToBlocks';
 import './blocks/extensions.js';
 
@@ -22,7 +21,11 @@ import './index.css';
 import { yamlGenerator } from './generators/yaml';
 import { loadStudyRuntimeEntities } from './data/entities_index.js';
 
-import { toolbox, setToolboxEntities } from './toolbox';
+import {
+  toolbox,
+  setToolboxEntities,
+  refreshToolboxAvailabilityStyles,
+} from './toolbox';
 import { customTheme } from './utils/custom_theme.js';
 
 import './blocks/extensions';
@@ -165,8 +168,6 @@ document.addEventListener('yaml-imported', (e) => {
     const yamlText = e.detail.text;
     const internal = yamlTextToInternalJson(yamlText);
 
-    showImportDebugJson(internal);
-
     renderAutomationToWorkspace(ws, internal, { clearBefore: true });
   } catch (err) {
     console.error(err);
@@ -204,6 +205,13 @@ ws.addChangeListener((e) => {
   }
   runCode();
 });
+
+ws.addChangeListener((e) => {
+  if (e.type === Blockly.Events.TOOLBOX_ITEM_SELECT) {
+    refreshToolboxAvailabilityStyles(ws);
+  }
+});
+refreshToolboxAvailabilityStyles(ws);
 
 setupHaPullPanel({ ws });
 

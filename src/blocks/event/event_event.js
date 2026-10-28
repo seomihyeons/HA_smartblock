@@ -185,11 +185,13 @@ Blockly.Blocks['ha_event_event'] = {
 
 Blockly.Blocks['ha_event_event_data_call_service'] = {
   init() {
-    this.appendDummyInput('ROW')
+    this.appendDummyInput('DOMAIN_ROW')
       .appendField('domain')
       .appendField(new Blockly.FieldDropdown([['dropdown', 'DROPDOWN'], ['text', 'TEXT']]), 'DOMAIN_MODE')
       .appendField(new Blockly.FieldDropdown(getAllServiceDomains), 'DOMAIN')
-      .appendField(new Blockly.FieldTextInput('cover'), 'DOMAIN_TEXT')
+      .appendField(new Blockly.FieldTextInput('cover'), 'DOMAIN_TEXT');
+
+    this.appendDummyInput('SERVICE_ROW')
       .appendField('service')
       .appendField(new Blockly.FieldDropdown([['dropdown', 'DROPDOWN'], ['text', 'TEXT']]), 'SERVICE_MODE')
       .appendField(new Blockly.FieldDropdown(getCallServiceServiceOptions), 'SERVICE')
@@ -206,7 +208,7 @@ Blockly.Blocks['ha_event_event_data_call_service'] = {
     this.setColour(180);
     this.setTooltip('call_service event_data');
     this.setHelpUrl('');
-    this.setInputsInline(true);
+    this.setInputsInline(false);
 
     this.updateShape_();
     this.normalizeServiceSelection_();

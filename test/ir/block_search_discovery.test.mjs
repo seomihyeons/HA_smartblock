@@ -88,8 +88,25 @@ test('runtime semantic state labels are searchable for binary sensors', () => {
 test('supported entity blocks remain in the toolbox when runtime has no entities', () => {
   const emptyRuntimeToolbox = createToolbox([]);
 
-  assert.ok(categoryBlockTypes(emptyRuntimeToolbox, 'Event').includes('event_binary_sensor_state'));
+  assert.ok(categoryBlockTypes(emptyRuntimeToolbox, 'Trigger').includes('event_binary_sensor_state'));
   assert.ok(categoryBlockTypes(emptyRuntimeToolbox, 'Condition').includes('condition_state_binary_sensor'));
   assert.ok(categoryBlockTypes(emptyRuntimeToolbox, 'Action').includes('action_light'));
   assert.ok(categoryBlockTypes(emptyRuntimeToolbox, 'Action').includes('action_lock'));
+});
+
+test('search preserves Toolbox availability ordering for matching blocks', () => {
+  setToolboxEntities([
+    { entity_id: 'light.entrance', state: 'on', attributes: {} },
+  ]);
+
+  const conditionStateTypes = getBlockSearchResults('state')
+    .filter((result) => result.category === 'Condition' && result.section === 'State')
+    .map((result) => result.type);
+
+  assert.ok(conditionStateTypes.includes('condition_state_light'));
+  assert.ok(conditionStateTypes.includes('condition_state_climate'));
+  assert.ok(
+    conditionStateTypes.indexOf('condition_state_light') < conditionStateTypes.indexOf('condition_state_climate'),
+    'a matching entity block must precede a no-entity block in Search'
+  );
 });
