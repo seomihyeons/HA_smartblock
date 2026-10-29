@@ -2,13 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as Blockly from 'blockly';
 
-import { getBlockSearchResults } from '../../src/block_search_flyout.js';
+import { getBlockSearchResults, getSearchDefinition } from '../../src/block_search_flyout.js';
 import { conditionSunBlocks } from '../../src/blocks/condition/condition_sun.js';
+import { eventEntityBlocks } from '../../src/blocks/event/event_entity.js';
 import '../../src/blocks/condition/condition_time.js';
 import { setStudyRuntimeEntities } from '../../src/data/entities_index.js';
 import { createToolbox, setToolboxEntities } from '../../src/toolbox.js';
 
 Blockly.common.defineBlocks(conditionSunBlocks);
+Blockly.common.defineBlocks(eventEntityBlocks);
 
 function categoryBlockTypes(toolbox, categoryName) {
   const category = toolbox.contents.find((item) => item.name === categoryName);
@@ -83,6 +85,44 @@ test('runtime semantic state labels are searchable for binary sensors', () => {
   const detectedTypes = getBlockSearchResults('detected').map((result) => result.type);
   assert.ok(detectedTypes.includes('event_binary_sensor_state'));
   assert.ok(detectedTypes.includes('condition_state_binary_sensor'));
+});
+
+test('Search Flyout seeds one matching Entity without duplicating the block result', () => {
+  const runtimeEntities = [
+    {
+      entity_id: 'binary_sensor.entrance_motion',
+      state: 'off',
+      attributes: { friendly_name: 'Entrance Motion', device_class: 'motion' },
+    },
+    {
+      entity_id: 'binary_sensor.bedroom_motion',
+      state: 'off',
+      attributes: { friendly_name: 'Bedroom Motion', device_class: 'motion' },
+    },
+  ];
+  setStudyRuntimeEntities(runtimeEntities);
+  setToolboxEntities(runtimeEntities);
+
+  const matches = getBlockSearchResults('motion')
+    .filter((result) => result.type === 'event_binary_sensor_state');
+  assert.equal(matches.length, 1);
+  assert.equal(matches[0].entitySelection?.entityId, 'binary_sensor.bedroom_motion');
+
+  const definition = getSearchDefinition('Entrance Motion')
+    .find((item) => item.kind === 'block' && item.type === 'event_binary_sensor_state');
+  assert.equal(definition?.fields?.ENTITY_ID, 'binary_sensor.entrance_motion');
+
+  const workspace = new Blockly.Workspace();
+  try {
+    Blockly.serialization.blocks.append(definition, workspace);
+    assert.equal(
+      workspace.getTopBlocks(false)[0]?.getFieldValue('ENTITY_ID'),
+      'binary_sensor.entrance_motion',
+      'the Search Flyout block state must preserve the preselected Entity'
+    );
+  } finally {
+    workspace.dispose();
+  }
 });
 
 test('supported entity blocks remain in the toolbox when runtime has no entities', () => {

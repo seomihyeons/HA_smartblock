@@ -78,6 +78,10 @@ code {
   opacity: 0.55;
 }
 
+.ha-rule-section-label-text {
+  fill: #000000 !important;
+}
+
 /* btnDebug: Blockly 위로 올리고 클릭 가능하게 강제 */
 #btnDebug {
   position: fixed !important;
@@ -903,4 +907,108 @@ body.floating-buttons-hidden #btnTaskAlt {
 .taskalt-filter-btn.active {
   border-color: #4b5563;
   font-weight: 700;
+}
+
+.ha-unsaved-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.46);
+}
+
+.ha-unsaved-dialog {
+  width: min(460px, 100%);
+  box-sizing: border-box;
+  padding: 24px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #111827;
+  font-family: Arial, sans-serif;
+}
+
+.ha-unsaved-dialog h2 {
+  margin: 0 0 12px;
+  font-size: 20px;
+  line-height: 1.3;
+}
+
+.ha-unsaved-dialog p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.ha-unsaved-dialog .ha-unsaved-dialog-detail {
+  margin-top: 8px;
+  color: #4b5563;
+}
+
+.ha-unsaved-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 22px;
+}
+
+.ha-unsaved-dialog-actions button {
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.ha-unsaved-dialog-keep {
+  border: 1px solid #1d4ed8;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.ha-unsaved-dialog-discard {
+  border: 1px solid #dc2626;
+  background: #ffffff;
+  color: #b91c1c;
+}
+
+.ha-push-dialog-details {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 14px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.ha-push-dialog-details dt {
+  color: #4b5563;
+}
+
+.ha-push-dialog-details dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ha-push-dialog-cancel {
+  border: 1px solid #9ca3af;
+  background: #ffffff;
+  color: #374151;
+}
+
+.ha-push-dialog-confirm {
+  border: 1px solid #1d4ed8;
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.ha-unsaved-dialog-actions button:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 2px;
 }

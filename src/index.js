@@ -27,6 +27,9 @@ import {
   refreshToolboxAvailabilityStyles,
 } from './toolbox';
 import { customTheme } from './utils/custom_theme.js';
+import { createWorkspaceDirtyTracker } from './utils/workspace_dirty_tracker.js';
+import { replaceWorkspaceSafely } from './utils/safe_workspace_replace.js';
+import { confirmDiscardUnsavedChanges } from './utils/unsaved_changes_dialog.js';
 
 import './blocks/extensions';
 
@@ -159,16 +162,30 @@ const ws = Blockly.inject(blocklyDiv, {
 window.Blockly = Blockly;
 window.ws = ws;
 
-setupYamlExportButtons('generatedCode', ws);
+// This starts with an empty baseline deliberately. If `load(ws)` restores a
+// browser-local workspace later, it is not assumed to have been saved to HA.
+const workspaceChangeTracker = createWorkspaceDirtyTracker(ws);
+
+setupYamlExportButtons('generatedCode', ws, {
+  onPushSuccess: () => workspaceChangeTracker.markClean(),
+});
 setupYamlImportButton({ outputId: 'generatedCode', ws: ws });
 
 
-document.addEventListener('yaml-imported', (e) => {
+document.addEventListener('yaml-imported', async (e) => {
   try {
     const yamlText = e.detail.text;
     const internal = yamlTextToInternalJson(yamlText);
 
-    renderAutomationToWorkspace(ws, internal, { clearBefore: true });
+    if (!await workspaceChangeTracker.confirmBeforeReplace(() =>
+      confirmDiscardUnsavedChanges({
+        loadingDescription: 'Importing this YAML will replace your current blocks.',
+      })
+    )) return;
+    replaceWorkspaceSafely(ws, () => {
+      renderAutomationToWorkspace(ws, internal, { clearBefore: true });
+    });
+    workspaceChangeTracker.markClean();
   } catch (err) {
     console.error(err);
     alert('An error occurred while parsing or normalizing YAML. Check the console for details.');
@@ -213,7 +230,7 @@ ws.addChangeListener((e) => {
 });
 refreshToolboxAvailabilityStyles(ws);
 
-setupHaPullPanel({ ws });
+setupHaPullPanel({ ws, workspaceChangeTracker });
 
 // The async entity fetch may complete after DOMContentLoaded. Initialise the
 // controls directly once the workspace exists instead of registering a late

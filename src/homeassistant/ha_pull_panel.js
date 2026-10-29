@@ -1,6 +1,9 @@
 import { pullAutomationIndexWithEditability, pullAutomationConfig } from './pull_automation';
 import { renderAutomationToWorkspace } from '../import/yamlToBlocks';
 import { normalizeAutomationObject } from '../import/yaml_import';
+import { filterAutomations } from './automation_search.js';
+import { replaceWorkspaceSafely } from '../utils/safe_workspace_replace.js';
+import { confirmDiscardUnsavedChanges } from '../utils/unsaved_changes_dialog.js';
 
 const arrify = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
 
@@ -50,7 +53,7 @@ function summarizeReason(reason) {
     return s.slice(0, 120);
 }
 
-export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
+export function setupHaPullPanel({ ws, outputId = 'generatedCode', workspaceChangeTracker = null } = {}) {
     function ensurePanel() {
         const yamlButtons = document.getElementById('yamlButtons');
         const host = document.getElementById(outputId);
@@ -97,7 +100,24 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
         status.style.marginBottom = '8px';
         status.style.minHeight = '16px';
 
+        const searchInput = el('input', {
+            id: 'haAutomationSearch',
+            type: 'search',
+            placeholder: 'Search automations...',
+            autocomplete: 'off',
+        });
+        searchInput.style.display = 'none';
+        searchInput.style.width = '100%';
+        searchInput.style.boxSizing = 'border-box';
+        searchInput.style.marginBottom = '8px';
+        searchInput.style.padding = '6px 8px';
+        searchInput.style.border = '1px solid #d1d5db';
+        searchInput.style.borderRadius = '6px';
+        searchInput.style.fontSize = '12px';
+
         const listBox = el('div', { id: 'haAutomationList' });
+        listBox.style.flex = '1 1 auto';
+        listBox.style.minHeight = '0';
         listBox.style.overflow = 'auto';
         listBox.style.border = '1px solid #e5e7eb';
         listBox.style.borderRadius = '6px';
@@ -106,6 +126,7 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
         panel.appendChild(title);
         panel.appendChild(row);
         panel.appendChild(status);
+        panel.appendChild(searchInput);
         panel.appendChild(listBox);
 
         if (yamlButtons) {
@@ -129,7 +150,17 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
                 return;
             }
 
-            cache.forEach((item) => {
+            const visibleItems = filterAutomations(cache, searchInput.value);
+            if (!visibleItems.length) {
+                const empty = el('div', { innerText: 'No matching automations' });
+                empty.style.padding = '8px';
+                empty.style.color = '#6b7280';
+                empty.style.fontSize = '12px';
+                listBox.appendChild(empty);
+                return;
+            }
+
+            visibleItems.forEach((item) => {
                 const id = item.id;
                 const name = item.name || item.entity_id || '(no name)';
 
@@ -167,6 +198,12 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
 
                     rowEl.addEventListener('click', async () => {
                         if (!id) return;
+                        if (ws && !await workspaceChangeTracker?.confirmBeforeReplace?.(() =>
+                            confirmDiscardUnsavedChanges({
+                                loadingDescription: `Loading “${name}” will replace your current blocks.`,
+                            })
+                        )) return;
+
                         selectedId = id;
                         renderList();
 
@@ -185,7 +222,10 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
                                 return;
                             }
 
-                            renderAutomationToWorkspace(ws, internal, { clearBefore: true });
+                            replaceWorkspaceSafely(ws, () => {
+                                renderAutomationToWorkspace(ws, internal, { clearBefore: true });
+                            });
+                            workspaceChangeTracker?.markClean?.();
 
                             setStatus(status, `Loaded: ${internal.alias || internal.id}`);
                         } catch (e) {
@@ -216,6 +256,7 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
 
                 btnRefresh.disabled = false;
                 btnRefresh.style.opacity = '1';
+                searchInput.style.display = '';
 
                 setStatus(status, `Loaded ${cache.length}. Editable: ${okCount}. Click an editable item to open.`);
                 renderList();
@@ -227,6 +268,7 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
 
         btnLoad.addEventListener('click', loadList);
         btnRefresh.addEventListener('click', loadList);
+        searchInput.addEventListener('input', renderList);
     }
 
     if (document.readyState === 'loading') {

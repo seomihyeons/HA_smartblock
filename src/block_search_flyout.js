@@ -3,6 +3,7 @@ import { toolbox } from './toolbox.js';
 import { refreshFlyoutAvailabilityStyles } from './toolbox.js';
 import { DOMAIN_SPEC, getBinarySensorStateOptions } from './data/options.js';
 import { dummyEntities } from './data/entities_index.js';
+import { selectSearchEntity } from './block_search_entity_matcher.js';
 import { setModalOpenState } from './utils/floating_modal_state.js';
 
 const SEARCHABLE_CATEGORIES = new Set(['Rule', 'Trigger', 'Condition', 'Action']);
@@ -199,7 +200,16 @@ export function getBlockSearchResults(query) {
         ].join(' ');
         const score = searchText ? searchScore(searchText, searchable) : 0;
         if (!searchText || score >= 0) {
-          matches.push({ type: item.type, category: category.name, section, item, score });
+          matches.push({
+            type: item.type,
+            category: category.name,
+            section,
+            item,
+            score,
+            entitySelection: searchText
+              ? selectSearchEntity(item.type, searchText, dummyEntities)
+              : null,
+          });
         }
       });
 
@@ -224,7 +234,7 @@ export function getSearchDefinition(query) {
   let lastCategory = null;
   let lastSection = null;
 
-  matches.forEach(({ item, category, section }) => {
+  matches.forEach(({ item, category, section, entitySelection }) => {
     if (category !== lastCategory) {
       lastCategory = category;
       lastSection = null;
@@ -233,7 +243,14 @@ export function getSearchDefinition(query) {
       result.push({ kind: 'label', text: section });
       lastSection = section;
     }
-    result.push(cloneFlyoutItem(item));
+    const searchItem = cloneFlyoutItem(item);
+    if (entitySelection) {
+      searchItem.fields = {
+        ...(searchItem.fields || {}),
+        [entitySelection.field]: entitySelection.entityId,
+      };
+    }
+    result.push(searchItem);
   });
 
   if (!matches.length) {

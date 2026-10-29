@@ -1,5 +1,6 @@
 import { pushYamlToHomeAssistant } from './homeassistant/push_automation';
 import { yamlGenerator } from './generators/yaml';
+import { confirmPushToHomeAssistant } from './utils/unsaved_changes_dialog.js';
 
 function getYamlText(outputId) {
   const el = document.getElementById(outputId);
@@ -13,6 +14,14 @@ function toSafeFilename(name, fallback = 'automation') {
 
 function extractAliasForFilename(yaml) {
   const m = yaml.match(/^\s*-?\s*alias:\s*['"]?(.+?)['"]?\s*$/m);
+  return m ? m[1].replace(/^['"]|['"]$/g, '') : null;
+}
+
+function extractIdForPushPreview(yaml) {
+  // The YAML generator writes top-level fields in a list item with two spaces
+  // of indentation (for example, `  id: 'sb_example'`). Do not match nested
+  // trigger/action IDs here.
+  const m = yaml.match(/^ {2}id:\s*['"]?(.+?)['"]?\s*$/m);
   return m ? m[1].replace(/^['"]|['"]$/g, '') : null;
 }
 
@@ -55,7 +64,7 @@ function downloadYamlFile(yaml, filename) {
   }, 0);
 }
 
-export function setupYamlExportButtons(outputId = 'generatedCode', ws = null) {
+export function setupYamlExportButtons(outputId = 'generatedCode', ws = null, { onPushSuccess } = {}) {
   function ensureExportButtons() {
     const host = document.getElementById(outputId);
     if (!host) return;
@@ -116,6 +125,12 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null) {
       const yaml = getYamlText(outputId);
       if (!yaml.trim()) return alert('There is no YAML to push.');
 
+      const confirmed = await confirmPushToHomeAssistant({
+        name: extractAliasForFilename(yaml),
+        id: extractIdForPushPreview(yaml),
+      });
+      if (!confirmed) return;
+
       pushBtn.disabled = true;
       const prev = pushBtn.textContent;
       pushBtn.textContent = 'Pushing...';
@@ -127,7 +142,7 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null) {
         }
         pushBtn.textContent = 'Pushed!';
         setTimeout(() => (pushBtn.textContent = prev), 1200);
-        alert(`Successfully pushed to Home Assistant\n\n- Alias: ${result.alias}\n- ID: ${result.id}`);
+        onPushSuccess?.();
       } catch (e) {
         console.error(e);
         alert(`Failed to push to Home Assistant\n${e?.message || e}`);
