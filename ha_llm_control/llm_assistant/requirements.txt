@@ -1,2 +1,0 @@
-# Local multilingual Entity Card retrieval (ONNX Runtime via FastEmbed)
-fastembed==0.8.0

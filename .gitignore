@@ -38,3 +38,6 @@ hf_cache/
 /docs/*sources*.json
 /docs/sage_dependency_resolution.md
 /docs/sasha_dataset_schema.md
+
+# Local-only code; never publish.
+/ha_llm_control/
