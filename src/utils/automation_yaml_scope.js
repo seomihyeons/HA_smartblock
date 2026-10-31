@@ -26,6 +26,51 @@ function getScopedRoots(workspace) {
   return rules.length ? rules.filter(hasRuleContent) : topBlocks;
 }
 
+function collectBlocksFromRoots(roots) {
+  const blocks = new Map();
+  for (const root of roots || []) {
+    for (const block of [root, ...(root?.getDescendants?.(false) || [])]) {
+      if (block?.id) blocks.set(block.id, block);
+    }
+  }
+  return [...blocks.values()];
+}
+
+function isThresholdEnabled(block, fieldName, valueName) {
+  const toggle = block?.getField?.(fieldName);
+  if (toggle) return block.getFieldValue(fieldName) === 'TRUE';
+
+  // Compatibility with workspaces created before the explicit threshold
+  // toggles existed. Explicit zero values remain valid when a toggle exists.
+  const value = Number(block?.getFieldValue?.(valueName));
+  return Number.isFinite(value) && value > 0;
+}
+
+function getNumericConditionIssue(block) {
+  const useAbove = isThresholdEnabled(block, 'USE_ABOVE', 'ABOVE');
+  const useBelow = isThresholdEnabled(block, 'USE_BELOW', 'BELOW');
+  if (!useAbove && !useBelow) {
+    return {
+      code: 'numeric-threshold-missing',
+      blockId: block.id,
+      message: 'Select an above, below, or between threshold.',
+    };
+  }
+
+  if (useAbove && useBelow) {
+    const above = Number(block.getFieldValue('ABOVE'));
+    const below = Number(block.getFieldValue('BELOW'));
+    if (Number.isFinite(above) && Number.isFinite(below) && below <= above) {
+      return {
+        code: 'numeric-threshold-range',
+        blockId: block.id,
+        message: 'For Between, the below value must be greater than the above value.',
+      };
+    }
+  }
+  return null;
+}
+
 function shouldTraceBlock(block) {
   return isRuleBlock(block) || Boolean(block?.previousConnection);
 }
@@ -130,6 +175,76 @@ export function getDisconnectedBlockGroups(workspace) {
   const topBlocks = workspace.getTopBlocks(true);
   if (!topBlocks.some(isRuleBlock)) return [];
   return topBlocks.filter((block) => !isRuleBlock(block));
+}
+
+/**
+ * Summarizes loose chains without conflating their number with the number of
+ * Blockly blocks they contain. Shadow blocks are implementation details and
+ * are not shown to the author.
+ */
+export function getDisconnectedBlockSummary(workspace) {
+  const groups = getDisconnectedBlockGroups(workspace);
+  const blockIds = new Set();
+  groups.forEach((group) => {
+    collectBlocksFromRoots([group]).forEach((block) => {
+      if (!block.isShadow?.()) blockIds.add(block.id);
+    });
+  });
+  return {
+    groups,
+    groupCount: groups.length,
+    blockCount: blockIds.size,
+  };
+}
+
+/** Returns true only for a loose chain that is excluded because a Rule exists. */
+export function isBlockExcludedFromScopedYaml(workspace, block) {
+  if (!workspace || !block) return false;
+  const root = block.getRootBlock?.() || block;
+  return getDisconnectedBlockGroups(workspace).some((group) => group.id === root.id);
+}
+
+/** Returns Rule roots that represent complete automation candidates. */
+export function getAutomationRuleRoots(workspace) {
+  if (!workspace?.getTopBlocks) return [];
+  return workspace.getTopBlocks(true).filter(isRuleBlock).filter(hasRuleContent);
+}
+
+/**
+ * Validates only blocks that participate in the YAML currently being output.
+ * This avoids blocking Export/Push because of an intentionally loose block
+ * that is already excluded from the generated automation.
+ */
+export function getOutputValidationIssues(workspace, { requireSingleRule = false } = {}) {
+  if (!workspace?.getTopBlocks) return [];
+
+  const issues = [];
+  const outputBlocks = collectBlocksFromRoots(getScopedRoots(workspace));
+  outputBlocks
+    .filter((block) => (
+      block.type === 'condition_numeric_state_entity'
+      || block.type === 'condition_numeric_state_attribute'
+    ))
+    .forEach((block) => {
+      const issue = getNumericConditionIssue(block);
+      if (issue) issues.push(issue);
+    });
+
+  if (requireSingleRule) {
+    const rules = getAutomationRuleRoots(workspace);
+    if (rules.length === 0) {
+      issues.push({
+        code: 'push-rule-missing',
+        message: 'Add a Rule block with Trigger, Condition, or Action content before pushing to Home Assistant.',
+      });
+    } else if (rules.length > 1) {
+      issues.push({
+        code: 'push-rule-multiple',
+        message: 'Push supports one automation Rule at a time.',
+      });
+    }
+  }
+  return issues;
 }
 
 /**

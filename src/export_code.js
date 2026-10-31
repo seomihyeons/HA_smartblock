@@ -1,6 +1,14 @@
 import { pushYamlToHomeAssistant } from './homeassistant/push_automation';
-import { generateScopedYaml, getDisconnectedBlockGroups } from './utils/automation_yaml_scope.js';
-import { confirmDisconnectedBlocks, confirmPushToHomeAssistant } from './utils/unsaved_changes_dialog.js';
+import {
+  generateScopedYaml,
+  getDisconnectedBlockSummary,
+  getOutputValidationIssues,
+} from './utils/automation_yaml_scope.js';
+import {
+  confirmDisconnectedBlocks,
+  confirmPushToHomeAssistant,
+  showOutputValidationIssues,
+} from './utils/unsaved_changes_dialog.js';
 
 function getYamlText(outputId) {
   const el = document.getElementById(outputId);
@@ -12,8 +20,15 @@ function getScopedYamlText(ws, outputId) {
 }
 
 async function confirmDisconnectedBlocksBeforeOutput(ws) {
-  const count = getDisconnectedBlockGroups(ws).length;
-  return count === 0 || confirmDisconnectedBlocks({ count });
+  const summary = getDisconnectedBlockSummary(ws);
+  return summary.groupCount === 0 || confirmDisconnectedBlocks(summary);
+}
+
+async function validateBeforeOutput(ws, options) {
+  const issues = getOutputValidationIssues(ws, options);
+  if (!issues.length) return true;
+  await showOutputValidationIssues(issues);
+  return false;
 }
 
 function toSafeFilename(name, fallback = 'automation') {
@@ -108,6 +123,7 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null, { 
     host.parentNode.insertBefore(wrap, host.nextSibling);
 
     exportBtn.addEventListener('click', async () => {
+      if (!await validateBeforeOutput(ws)) return;
       if (!await confirmDisconnectedBlocksBeforeOutput(ws)) return;
       const yaml = getScopedYamlText(ws, outputId);
       if (!yaml.trim()) {
@@ -137,13 +153,15 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null, { 
     });
 
     pushBtn.addEventListener('click', async () => {
-      if (!await confirmDisconnectedBlocksBeforeOutput(ws)) return;
+      if (!await validateBeforeOutput(ws, { requireSingleRule: true })) return;
+      const disconnectedSummary = getDisconnectedBlockSummary(ws);
       const yaml = getScopedYamlText(ws, outputId);
       if (!yaml.trim()) return alert('There is no YAML to push.');
 
       const confirmed = await confirmPushToHomeAssistant({
         name: extractAliasForFilename(yaml),
         id: extractIdForPushPreview(yaml),
+        disconnectedSummary,
       });
       if (!confirmed) return;
 

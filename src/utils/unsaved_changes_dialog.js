@@ -15,6 +15,7 @@ function showConfirmationDialog({
   confirmLabel,
   confirmClass,
   initialFocus = 'cancel',
+  singleAction = false,
 }) {
   if (activeDialog) return activeDialog.promise;
 
@@ -45,7 +46,8 @@ function showConfirmationDialog({
   confirmButton.className = confirmClass;
   confirmButton.textContent = confirmLabel;
 
-  actions.append(cancelButton, confirmButton);
+  if (!singleAction) actions.appendChild(cancelButton);
+  actions.appendChild(confirmButton);
   dialog.append(title, ...content, actions);
   backdrop.appendChild(dialog);
 
@@ -88,7 +90,7 @@ function showConfirmationDialog({
   });
   document.addEventListener('keydown', onKeyDown, true);
   document.body.appendChild(backdrop);
-  (initialFocus === 'confirm' ? confirmButton : cancelButton).focus();
+  (singleAction || initialFocus === 'confirm' ? confirmButton : cancelButton).focus();
 
   activeDialog = { promise };
   return promise;
@@ -121,7 +123,16 @@ export function confirmDiscardUnsavedChanges({ loadingDescription } = {}) {
   });
 }
 
-export function confirmPushToHomeAssistant({ name, id } = {}) {
+function formatDisconnectedSummary({ groupCount = 0, blockCount = 0 } = {}) {
+  const groups = Math.max(0, Number(groupCount) || 0);
+  const blocks = Math.max(0, Number(blockCount) || 0);
+  if (!groups) return '';
+  const groupNoun = groups === 1 ? 'group' : 'groups';
+  const blockNoun = blocks === 1 ? 'block' : 'blocks';
+  return `${groups} disconnected block ${groupNoun} (${blocks} ${blockNoun}) will not be included in this automation.`;
+}
+
+export function confirmPushToHomeAssistant({ name, id, disconnectedSummary } = {}) {
   const details = document.createElement('dl');
   details.id = 'haPushDialogDetails';
   details.className = 'ha-push-dialog-details';
@@ -137,12 +148,24 @@ export function confirmPushToHomeAssistant({ name, id } = {}) {
   addDetail('Name', String(name || 'SmartBlock Automation'));
   addDetail('ID', String(id || '(generated on push)'));
 
+  const disconnectedText = formatDisconnectedSummary(disconnectedSummary);
+  const content = [details];
+  let describedBy = 'haPushDialogDetails';
+  if (disconnectedText) {
+    const warning = document.createElement('p');
+    warning.id = 'haPushDialogDisconnected';
+    warning.className = 'ha-unsaved-dialog-detail';
+    warning.textContent = disconnectedText;
+    content.push(warning);
+    describedBy += ' haPushDialogDisconnected';
+  }
+
   return showConfirmationDialog({
     dialogClass: 'ha-push-dialog',
     titleId: 'haPushDialogTitle',
-    describedBy: 'haPushDialogDetails',
+    describedBy,
     titleText: 'Push to Home Assistant?',
-    content: [details],
+    content,
     cancelLabel: 'Cancel',
     cancelClass: 'ha-push-dialog-cancel',
     confirmLabel: 'Push to Home Assistant',
@@ -151,13 +174,15 @@ export function confirmPushToHomeAssistant({ name, id } = {}) {
   });
 }
 
-export function confirmDisconnectedBlocks({ count = 0 } = {}) {
-  const safeCount = Math.max(0, Number(count) || 0);
-  const noun = safeCount === 1 ? 'block' : 'blocks';
+export function confirmDisconnectedBlocks({ groupCount = 0, blockCount = 0 } = {}) {
+  const safeGroups = Math.max(0, Number(groupCount) || 0);
+  const safeBlocks = Math.max(0, Number(blockCount) || 0);
+  const groupNoun = safeGroups === 1 ? 'group' : 'groups';
+  const blockNoun = safeBlocks === 1 ? 'block' : 'blocks';
 
   const description = document.createElement('p');
   description.id = 'haDisconnectedBlocksDescription';
-  description.textContent = `${safeCount} disconnected ${noun} will not be included in YAML.`;
+  description.textContent = `${safeGroups} disconnected block ${groupNoun} (${safeBlocks} ${blockNoun}) will not be included in YAML.`;
 
   const detail = document.createElement('p');
   detail.id = 'haDisconnectedBlocksDetail';
@@ -174,5 +199,36 @@ export function confirmDisconnectedBlocks({ count = 0 } = {}) {
     cancelClass: 'ha-push-dialog-cancel',
     confirmLabel: 'Continue anyway',
     confirmClass: 'ha-push-dialog-confirm',
+  });
+}
+
+/** Shows output validation errors without offering a route to bypass them. */
+export function showOutputValidationIssues(issues = []) {
+  const messages = [...new Set((issues || []).map((issue) => issue?.message).filter(Boolean))];
+  const description = document.createElement('p');
+  description.id = 'haOutputValidationDescription';
+  description.textContent = 'Resolve the following issue before continuing:';
+
+  const list = document.createElement('ul');
+  list.id = 'haOutputValidationList';
+  list.className = 'ha-output-validation-list';
+  messages.forEach((message) => {
+    const item = document.createElement('li');
+    item.textContent = message;
+    list.appendChild(item);
+  });
+
+  return showConfirmationDialog({
+    dialogClass: 'ha-output-validation-dialog',
+    titleId: 'haOutputValidationTitle',
+    describedBy: 'haOutputValidationDescription haOutputValidationList',
+    titleText: 'Automation cannot be output',
+    content: [description, list],
+    cancelLabel: 'Close',
+    cancelClass: 'ha-push-dialog-cancel',
+    confirmLabel: 'Back to editing',
+    confirmClass: 'ha-push-dialog-confirm',
+    initialFocus: 'confirm',
+    singleAction: true,
   });
 }

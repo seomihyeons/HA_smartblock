@@ -114,6 +114,12 @@ Blockly.Blocks['condition_numeric_state_attribute'] = {
     this.syncVisibleThresholdValues_(mode);
     this.getField('THRESHOLD_MODE_UI')?.syncFromBlock_?.();
 
+    if (mode === 'NONE') {
+      this.setWarningText('Select an above, below, or between threshold.', 'numeric-attribute-threshold');
+    } else {
+      this.setWarningText(null, 'numeric-attribute-threshold');
+    }
+
     const above = Number(this.getFieldValue('ABOVE'));
     const below = Number(this.getFieldValue('BELOW'));
     if (mode === 'BETWEEN' && Number.isFinite(above) && Number.isFinite(below) && below <= above) {
