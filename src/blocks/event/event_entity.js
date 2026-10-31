@@ -2,6 +2,7 @@
 import * as Blockly from 'blockly';
 import { dummyEntities } from '../../data/entities_index.js';
 import { STATE_DOMAINS, getBinarySensorStateOptions, getStates } from '../../data/options.js';
+import { updateInlineValidationWarning } from '../utils/validation_warning_field.js';
 
 function getEntityOptions(domain, { numericOnly = false } = {}) {
   const filtered = (dummyEntities || []).filter(e => {
@@ -420,6 +421,10 @@ Blockly.Blocks.event_sensor_numeric_state = {
       .forEach((fieldName) => input?.removeField(fieldName, true));
   },
 
+  updateValidationWarning_(message) {
+    updateInlineValidationWarning(this, 'FOR', message);
+  },
+
   rebuildThresholdUi_(mode) {
     this.clearThresholdUi_();
     if (mode === 'NONE') return;
@@ -459,20 +464,20 @@ Blockly.Blocks.event_sensor_numeric_state = {
     this.syncVisibleThresholdValues_(mode);
     this.getField('THRESHOLD_MODE_UI')?.syncFromBlock_?.();
 
+    let validationMessage = '';
     if (mode === 'NONE') {
-      this.setWarningText('Select an above, below, or between threshold.', 'numeric-trigger-threshold');
+      validationMessage = 'Select an above, below, or between threshold.';
     } else if (mode === 'BETWEEN') {
       const above = Number(this.getFieldValue('ABOVE'));
       const below = Number(this.getFieldValue('BELOW'));
-      this.setWarningText(
-        Number.isFinite(above) && Number.isFinite(below) && below <= above
-          ? 'For Between, the below value must be greater than the above value.'
-          : null,
-        'numeric-trigger-threshold',
-      );
-    } else {
-      this.setWarningText(null, 'numeric-trigger-threshold');
+      if (Number.isFinite(above) && Number.isFinite(below) && below <= above) {
+        validationMessage = 'For Between, the below value must be greater than the above value.';
+      }
     }
+    // Clear the previous native warning if this block was created before the
+    // inline warning implementation was hot-reloaded.
+    this.setWarningText(null, 'numeric-trigger-threshold');
+    this.updateValidationWarning_(validationMessage);
 
     if (this.rendered) this.render();
   },

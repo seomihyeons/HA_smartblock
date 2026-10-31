@@ -1,5 +1,6 @@
 // src/blocks/event_time_state.js
 import * as Blockly from 'blockly';
+import { updateInlineValidationWarning } from '../utils/validation_warning_field.js';
 
 const baseTimeBlocks =
   Blockly.common.createBlockDefinitionsFromJsonArray([
@@ -83,15 +84,27 @@ function validateTimePatternBlock(block) {
   const validM = isValidTimePatternField(m, 0, 59);
   const validS = isValidTimePatternField(s, 0, 59);
 
+  // Clear a native icon retained by a hot-reloaded workspace before updating
+  // the inline warning field below.
+  block.setWarningText(null);
+
   if (!hasAny) {
-    block.setWarningText('At least one of hours, minutes, or seconds must be provided.');
+    updateInlineValidationWarning(
+      block,
+      'ROW',
+      'At least one of hours, minutes, or seconds must be provided.',
+    );
     return;
   }
   if (!validH || !validM || !validS) {
-    block.setWarningText('The time_pattern format is invalid. Example: *, /5, 0, 1,15,30, 1-5');
+    updateInlineValidationWarning(
+      block,
+      'ROW',
+      'The time_pattern format is invalid. Example: *, /5, 0, 1,15,30, 1-5',
+    );
     return;
   }
-  block.setWarningText(null);
+  updateInlineValidationWarning(block, 'ROW', '');
 }
 
 const timePatternBlock = {

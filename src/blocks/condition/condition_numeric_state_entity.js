@@ -1,7 +1,7 @@
 // src/blocks/condition/condition_numeric_state_entity.js
 import * as Blockly from 'blockly';
 import { dummyEntities } from '../../data/entities_index.js';
-import { ValidationWarningField } from '../utils/validation_warning_field.js';
+import { updateInlineValidationWarning } from '../utils/validation_warning_field.js';
 
 const THRESHOLD_MODES = ['ABOVE', 'BELOW', 'BETWEEN'];
 const MODE_SEGMENTS = [
@@ -315,23 +315,7 @@ Blockly.Blocks.condition_numeric_state_entity = {
   },
 
   updateValidationWarning_(message) {
-    const input = this.getInput('ROW');
-    if (!input) return;
-    const nextMessage = String(message || '').trim();
-    let field = this.getField('VALIDATION_WARNING');
-
-    if (!nextMessage) {
-      // Removing the Field, instead of merely hiding it, also removes the
-      // renderer's between-field separator spacing before "numeric state".
-      if (field) input.removeField('VALIDATION_WARNING', true);
-      return;
-    }
-
-    if (!field) {
-      field = new ValidationWarningField();
-      input.insertFieldAt(0, field, 'VALIDATION_WARNING');
-    }
-    field.setMessage(nextMessage);
+    updateInlineValidationWarning(this, 'ROW', message);
   },
 
   rebuildThresholdUi_(mode, unit) {

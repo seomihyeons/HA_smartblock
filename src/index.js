@@ -33,6 +33,7 @@ import { customTheme } from './utils/custom_theme.js';
 import { createWorkspaceDirtyTracker } from './utils/workspace_dirty_tracker.js';
 import { replaceWorkspaceSafely } from './utils/safe_workspace_replace.js';
 import { confirmDiscardUnsavedChanges } from './utils/unsaved_changes_dialog.js';
+import { installEntityDropdownSearch } from './blocks/utils/searchable_entity_dropdown.js';
 
 import './blocks/extensions';
 
@@ -166,6 +167,7 @@ const ws = Blockly.inject(blocklyDiv, {
 
 window.Blockly = Blockly;
 window.ws = ws;
+const refreshEntityDropdownSearch = installEntityDropdownSearch(ws);
 
 // This starts with an empty baseline deliberately. If `load(ws)` restores a
 // browser-local workspace later, it is not assumed to have been saved to HA.
@@ -210,6 +212,7 @@ const runCode = () => {
 };
 
 load(ws);
+refreshEntityDropdownSearch();
 runCode();
 
 ws.addChangeListener((e) => {

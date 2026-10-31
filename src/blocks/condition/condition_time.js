@@ -1,5 +1,6 @@
 import * as Blockly from 'blockly';
 import { dummyEntities } from '../../data/entities_index.js';
+import { updateInlineValidationWarning } from '../utils/validation_warning_field.js';
 
 const toInt = (v, fallback = 0) => {
   const n = Number(v);
@@ -61,11 +62,16 @@ Blockly.Blocks.condition_time = {
   },
 
   updateWarning_() {
-    if (!this.hasAfter_ && !this.hasBefore_) {
-      this.setWarningText('You must select at least one of after or before.');
-      return;
-    }
+    // Clear any legacy native warning, then attach the shared inline warning
+    // to the newly rebuilt first row.
     this.setWarningText(null);
+    updateInlineValidationWarning(
+      this,
+      'ROW',
+      !this.hasAfter_ && !this.hasBefore_
+        ? 'You must select at least one of after or before.'
+        : '',
+    );
   },
 
   updateShape_() {

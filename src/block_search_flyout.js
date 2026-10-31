@@ -5,6 +5,7 @@ import { DOMAIN_SPEC, getBinarySensorStateOptions } from './data/options.js';
 import { dummyEntities } from './data/entities_index.js';
 import { selectSearchEntity } from './block_search_entity_matcher.js';
 import { setModalOpenState } from './utils/floating_modal_state.js';
+import { installEntityDropdownSearch } from './blocks/utils/searchable_entity_dropdown.js';
 
 const SEARCHABLE_CATEGORIES = new Set(['Rule', 'Trigger', 'Condition', 'Action']);
 
@@ -365,12 +366,19 @@ export function initBlockSearchFlyout({ workspace } = {}) {
   const searchFlyout = new StableWidthSearchFlyout(flyoutOptions);
   workspace.getParentSvg().append(searchFlyout.createDom('g'));
   searchFlyout.init(workspace);
-  searchFlyout.setAutoClose(false);
+  // Match Toolbox behavior: clicking or dragging a result creates its
+  // serialized copy in the editing workspace, rather than merely selecting
+  // the temporary preview in this Search flyout.
+  searchFlyout.setAutoClose(true);
+  const refreshSearchEntityDropdowns = installEntityDropdownSearch(searchFlyout.getWorkspace());
   const launcher = createSvgSearchLauncher(workspace);
   if (!launcher) return;
 
   const render = () => {
     searchFlyout.show(getSearchDefinition(input.value));
+    // show() recreates the temporary result blocks, so attach the same
+    // entity-only picker used by the editing workspace after every render.
+    refreshSearchEntityDropdowns();
     refreshFlyoutAvailabilityStyles(searchFlyout);
   };
   let isSearchOpen = false;
@@ -407,6 +415,18 @@ export function initBlockSearchFlyout({ workspace } = {}) {
 
   const open = () => setSearchOpen(true);
   const close = (options) => setSearchOpen(false, options);
+
+  // Blockly hides an auto-closing Flyout after creating a block, but its
+  // custom HTML search header is owned by this module.  Wrap creation once so
+  // a click and a drag both close the complete Search surface and leave the
+  // newly created editing block selected.
+  const createSearchResultBlock = searchFlyout.createBlock.bind(searchFlyout);
+  searchFlyout.createBlock = (flyoutBlock) => {
+    const createdBlock = createSearchResultBlock(flyoutBlock);
+    createdBlock?.select?.();
+    if (isSearchOpen) close({ returnFocus: false });
+    return createdBlock;
+  };
 
   const isInsideSearch = (target) =>
     target instanceof Node && (

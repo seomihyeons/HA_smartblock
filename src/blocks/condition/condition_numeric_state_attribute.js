@@ -6,7 +6,7 @@ import {
   getThresholdMode,
   SegmentedThresholdModeField,
 } from '../utils/segmented_numeric_threshold.js';
-import { ValidationWarningField } from '../utils/validation_warning_field.js';
+import { updateInlineValidationWarning } from '../utils/validation_warning_field.js';
 
 export function getEntitiesWithNumericAttributes(entities = dummyEntities) {
   return (entities || []).filter((entity) => {
@@ -83,23 +83,7 @@ Blockly.Blocks['condition_numeric_state_attribute'] = {
   },
 
   updateValidationWarning_: function (message) {
-    const input = this.getInput('ROW');
-    if (!input) return;
-    const nextMessage = String(message || '').trim();
-    let field = this.getField('VALIDATION_WARNING');
-
-    if (!nextMessage) {
-      // A hidden Field still leaves Blockly's separator spacing in this row.
-      // Remove it completely once the validation problem is resolved.
-      if (field) input.removeField('VALIDATION_WARNING', true);
-      return;
-    }
-
-    if (!field) {
-      field = new ValidationWarningField();
-      input.insertFieldAt(0, field, 'VALIDATION_WARNING');
-    }
-    field.setMessage(nextMessage);
+    updateInlineValidationWarning(this, 'ROW', message);
   },
 
   rebuildThresholdUi_: function (mode) {

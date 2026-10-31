@@ -413,7 +413,8 @@ body.floating-buttons-hidden #btnTaskAlt {
   margin: 8px 16px 0 16px;
   padding: 8px 10px;
   border-radius: 10px;
-  font-size: 12px;
+  /* Two points larger than Blockly's default 11pt block field text. */
+  font-size: 13pt;
   line-height: 1.4;
   border: 1px solid transparent;
   white-space: pre-wrap;
@@ -1076,7 +1077,7 @@ body.floating-buttons-hidden #btnTaskAlt {
 .ha-validation-warning-tooltip {
   position: fixed;
   z-index: 30000;
-  max-width: 320px;
+  max-width: none;
   box-sizing: border-box;
   padding: 3px 8px;
   border: 1px solid #e8aaaa;
@@ -1086,12 +1087,108 @@ body.floating-buttons-hidden #btnTaskAlt {
   font-family: Arial, sans-serif;
   font-size: 12px;
   line-height: 1.35;
+  white-space: nowrap;
   pointer-events: none;
   transform: translate(-50%, -100%);
 }
 
 .ha-validation-warning-tooltip[hidden] {
   display: none;
+}
+
+.ha-entity-search-dropdown {
+  --ha-entity-selected-bg: #fff4c2;
+  --ha-entity-selected-active-bg: #f7e39a;
+  width: min(240px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 4px;
+  background: #ffffff;
+  color: #000000;
+  font-family: Arial, sans-serif;
+}
+
+.ha-entity-search--trigger {
+  --ha-entity-selected-bg: #dceeee;
+  --ha-entity-selected-active-bg: #c8e2e2;
+}
+
+.ha-entity-search--condition {
+  --ha-entity-selected-bg: #edf4cd;
+  --ha-entity-selected-active-bg: #dfebaf;
+}
+
+.ha-entity-search--action {
+  --ha-entity-selected-bg: #fff4c2;
+  --ha-entity-selected-active-bg: #f7e39a;
+}
+
+.ha-entity-search-input {
+  width: 100%;
+  height: 26px;
+  box-sizing: border-box;
+  padding: 3px 6px;
+  border: 1px solid #000000;
+  border-radius: 4px;
+  color: #000000;
+  font: inherit;
+  font-size: 12px;
+}
+
+.ha-entity-search-input:focus,
+.ha-entity-search-input:focus-visible {
+  border-color: #000000;
+  box-shadow: none;
+  outline: none;
+}
+
+.ha-entity-search-results {
+  max-height: 180px;
+  margin-top: 3px;
+  overflow-y: auto;
+}
+
+.ha-entity-search-option {
+  display: block;
+  width: 100%;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.ha-entity-search-option:hover,
+.ha-entity-search-option.is-active {
+  background: #f1f3f5;
+}
+
+.ha-entity-search-option.is-selected {
+  background: var(--ha-entity-selected-bg);
+}
+
+.ha-entity-search-option.is-selected .ha-entity-search-name {
+  font-weight: 700;
+}
+
+.ha-entity-search-option.is-selected.is-active {
+  background: var(--ha-entity-selected-active-bg);
+}
+
+.ha-entity-search-name {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ha-entity-search-empty {
+  padding: 6px;
+  color: #64748b;
+  font-size: 12px;
 }
 
 

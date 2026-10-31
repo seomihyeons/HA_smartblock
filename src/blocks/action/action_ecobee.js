@@ -1,5 +1,6 @@
 import * as Blockly from 'blockly';
 import { dummyEntities } from '../../data/entities_index.js';
+import { updateInlineValidationWarning } from '../utils/validation_warning_field.js';
 
 const ECOBEE_SERVICE_OPTIONS = [
   ['resume_program', 'resume_program'],
@@ -117,7 +118,13 @@ Blockly.Extensions.register('action_ecobee_required_warning', function () {
       }
     }
 
-    this.setWarningText(warnings.length ? warnings.join('\n') : null);
+    // Remove a native warning that may remain in a hot-reloaded workspace,
+    // then show the shared inline warning in this action's first visible row.
+    this.setWarningText(null);
+    const mainInput = this.inputList.find((input) => (
+      input.fieldRow?.some((field) => field.name === 'SERVICE')
+    ));
+    updateInlineValidationWarning(this, mainInput, warnings.join('\n'));
   };
 
   const prevOnChange = this.onchange;
