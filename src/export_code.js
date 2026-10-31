@@ -1,10 +1,19 @@
 import { pushYamlToHomeAssistant } from './homeassistant/push_automation';
-import { yamlGenerator } from './generators/yaml';
-import { confirmPushToHomeAssistant } from './utils/unsaved_changes_dialog.js';
+import { generateScopedYaml, getDisconnectedBlockGroups } from './utils/automation_yaml_scope.js';
+import { confirmDisconnectedBlocks, confirmPushToHomeAssistant } from './utils/unsaved_changes_dialog.js';
 
 function getYamlText(outputId) {
   const el = document.getElementById(outputId);
   return el ? el.innerText : '';
+}
+
+function getScopedYamlText(ws, outputId) {
+  return ws ? generateScopedYaml(ws) : getYamlText(outputId);
+}
+
+async function confirmDisconnectedBlocksBeforeOutput(ws) {
+  const count = getDisconnectedBlockGroups(ws).length;
+  return count === 0 || confirmDisconnectedBlocks({ count });
 }
 
 function toSafeFilename(name, fallback = 'automation') {
@@ -28,7 +37,11 @@ function extractIdForPushPreview(yaml) {
 function findAutomationRootBlock(ws) {
   if (!ws || typeof ws.getTopBlocks !== 'function') return null;
   const roots = ws.getTopBlocks(true);
-  return roots.find((block) => block && (block.type === 'event_action' || block.type === 'event_condition_action')) || null;
+  return roots.find((block) => (
+    block
+    && (block.type === 'event_action' || block.type === 'event_condition_action')
+    && ['EVENT', 'CONDITION', 'ACTION'].some((inputName) => block.getInputTargetBlock?.(inputName))
+  )) || null;
 }
 
 function hasMeaningfulId(block) {
@@ -46,7 +59,7 @@ function persistGeneratedAutomationId(ws, outputId, id) {
 
   const host = document.getElementById(outputId);
   if (host) {
-    host.innerText = yamlGenerator.workspaceToCode(ws);
+    host.innerText = generateScopedYaml(ws);
   }
 }
 
@@ -94,8 +107,9 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null, { 
     wrap.appendChild(pushBtn);
     host.parentNode.insertBefore(wrap, host.nextSibling);
 
-    exportBtn.addEventListener('click', () => {
-      const yaml = getYamlText(outputId);
+    exportBtn.addEventListener('click', async () => {
+      if (!await confirmDisconnectedBlocksBeforeOutput(ws)) return;
+      const yaml = getScopedYamlText(ws, outputId);
       if (!yaml.trim()) {
         alert('There is no YAML to export.');
         return;
@@ -106,7 +120,8 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null, { 
     });
 
     copyBtn.addEventListener('click', async () => {
-      const yaml = getYamlText(outputId);
+      if (!await confirmDisconnectedBlocksBeforeOutput(ws)) return;
+      const yaml = getScopedYamlText(ws, outputId);
       if (!yaml.trim()) {
         alert('There is no YAML to copy.');
         return;
@@ -122,7 +137,8 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null, { 
     });
 
     pushBtn.addEventListener('click', async () => {
-      const yaml = getYamlText(outputId);
+      if (!await confirmDisconnectedBlocksBeforeOutput(ws)) return;
+      const yaml = getScopedYamlText(ws, outputId);
       if (!yaml.trim()) return alert('There is no YAML to push.');
 
       const confirmed = await confirmPushToHomeAssistant({

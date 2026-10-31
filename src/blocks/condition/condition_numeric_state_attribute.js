@@ -1,6 +1,11 @@
 // src/blocks/condition/condition_numeric_state_attribute.js
 import * as Blockly from 'blockly';
 import { dummyEntities } from '../../data/entities_index.js';
+import {
+  createVisibleThresholdNumber,
+  getThresholdMode,
+  SegmentedThresholdModeField,
+} from '../utils/segmented_numeric_threshold.js';
 
 export function getEntitiesWithNumericAttributes(entities = dummyEntities) {
   return (entities || []).filter((entity) => {
@@ -42,14 +47,22 @@ Blockly.Blocks['condition_numeric_state_attribute'] = {
       .appendField(new Blockly.FieldDropdown(getEntityOptions), 'ENTITY_ID')
       .appendField('attribute')
       .appendField(new Blockly.FieldDropdown(getAttributeOptions), 'ATTRIBUTE')
-      .appendField('above')
-      .appendField(new Blockly.FieldCheckbox('FALSE'), 'USE_ABOVE')
-      .appendField(new Blockly.FieldNumber(0), 'ABOVE')
-      .appendField('below')
-      .appendField(new Blockly.FieldCheckbox('FALSE'), 'USE_BELOW')
-      .appendField(new Blockly.FieldNumber(0), 'BELOW');
+      .appendField(new SegmentedThresholdModeField({
+        containerFill: '#E7EDC9',
+        unselectedText: '#6B7280',
+        ariaPrefix: 'Numeric attribute threshold',
+      }), 'THRESHOLD_MODE_UI');
 
-    this.setInputsInline(true);
+    // Preserve the existing field names for generators, importers, and saved
+    // workspaces. The visible fields below are a presentation of this state.
+    this.appendDummyInput('LEGACY_THRESHOLD_FIELDS')
+      .appendField(new Blockly.FieldCheckbox('FALSE'), 'USE_ABOVE')
+      .appendField(new Blockly.FieldNumber(0, null, null, 0.1), 'ABOVE')
+      .appendField(new Blockly.FieldCheckbox('FALSE'), 'USE_BELOW')
+      .appendField(new Blockly.FieldNumber(0, null, null, 0.1), 'BELOW')
+      .setVisible(false);
+
+    this.setInputsInline(false);
     this.setPreviousStatement(true, 'HA_CONDITION');
     this.setNextStatement(true, 'HA_CONDITION');
     this.setColour('#AECA3E');
@@ -57,17 +70,57 @@ Blockly.Blocks['condition_numeric_state_attribute'] = {
     this.setHelpUrl('');
 
     this.updateShape_();
-    this.setOnChange(() => this.updateShape_());
+    this.setOnChange(() => {
+      if (!this.isUpdatingThresholdMode_) this.updateShape_();
+    });
+  },
+
+  clearThresholdUi_: function () {
+    const input = this.getInput('ROW');
+    ['THRESHOLD_PRIMARY', 'THRESHOLD_AND', 'THRESHOLD_SECONDARY']
+      .forEach((fieldName) => input?.removeField(fieldName, true));
+  },
+
+  rebuildThresholdUi_: function (mode) {
+    this.clearThresholdUi_();
+    if (mode === 'NONE') return;
+    const input = this.getInput('ROW');
+    input.appendField(createVisibleThresholdNumber('PRIMARY'), 'THRESHOLD_PRIMARY');
+    if (mode === 'BETWEEN') {
+      input.appendField('and', 'THRESHOLD_AND');
+      input.appendField(createVisibleThresholdNumber('SECONDARY'), 'THRESHOLD_SECONDARY');
+    }
+  },
+
+  syncVisibleThresholdValues_: function (mode) {
+    if (this.isEditingThresholdVisual_) return;
+    this.isSyncingThresholdVisuals_ = true;
+    try {
+      const above = this.getField('ABOVE')?.getValue();
+      const below = this.getField('BELOW')?.getValue();
+      this.getField('THRESHOLD_PRIMARY')?.setValue(mode === 'BELOW' ? below : above);
+      this.getField('THRESHOLD_SECONDARY')?.setValue(below);
+    } finally {
+      this.isSyncingThresholdVisuals_ = false;
+    }
   },
 
   updateShape_: function () {
-    const useAbove = this.getFieldValue('USE_ABOVE') === 'TRUE';
-    const useBelow = this.getFieldValue('USE_BELOW') === 'TRUE';
+    const mode = getThresholdMode(this);
+    if (this.thresholdUiMode_ !== mode) {
+      this.rebuildThresholdUi_(mode);
+      this.thresholdUiMode_ = mode;
+    }
+    this.syncVisibleThresholdValues_(mode);
+    this.getField('THRESHOLD_MODE_UI')?.syncFromBlock_?.();
 
-    const fAbove = this.getField('ABOVE');
-    const fBelow = this.getField('BELOW');
-    if (fAbove) fAbove.setVisible(useAbove);
-    if (fBelow) fBelow.setVisible(useBelow);
+    const above = Number(this.getFieldValue('ABOVE'));
+    const below = Number(this.getFieldValue('BELOW'));
+    if (mode === 'BETWEEN' && Number.isFinite(above) && Number.isFinite(below) && below <= above) {
+      this.setWarningText('For Between, the below value must be greater than the above value.', 'numeric-attribute-range');
+    } else {
+      this.setWarningText(null, 'numeric-attribute-range');
+    }
 
     if (this.rendered) this.render();
   },

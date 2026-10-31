@@ -198,9 +198,16 @@ yamlGenerator.forBlock['event_sensor_numeric_state'] = function (block, generato
 
   const above = Number(block.getFieldValue('ABOVE'));
   const below = Number(block.getFieldValue('BELOW'));
+  const useAbove = block.getFieldValue('USE_ABOVE') === 'TRUE';
+  const useBelow = block.getFieldValue('USE_BELOW') === 'TRUE';
   const forValue = generator.valueToCode(block, 'FOR', 0) || '';
   const useId = block.getFieldValue('USE_ID') === 'TRUE';
   const id = String(block.getFieldValue('ID') || '').trim();
+
+  // A numeric_state trigger requires at least one threshold. More
+  // importantly, its value may legitimately be 0, so presence is controlled
+  // by USE_ABOVE/USE_BELOW rather than by checking the number itself.
+  if (!useAbove && !useBelow) return '';
 
   const i = yamlGenerator.INDENT;
   const lines = [
@@ -208,8 +215,8 @@ yamlGenerator.forBlock['event_sensor_numeric_state'] = function (block, generato
     `${i}entity_id: ${entityId}`,
   ];
 
-  if (!Number.isNaN(above) && above !== 0) lines.push(`${i}above: ${above}`);
-  if (!Number.isNaN(below) && below !== 0) lines.push(`${i}below: ${below}`);
+  if (useAbove && !Number.isNaN(above)) lines.push(`${i}above: ${above}`);
+  if (useBelow && !Number.isNaN(below)) lines.push(`${i}below: ${below}`);
   if (forValue.trim()) lines.push(`${i}for: ${forValue}`);
   if (useId && id) lines.push(`${i}id: ${JSON.stringify(id)}`);
 

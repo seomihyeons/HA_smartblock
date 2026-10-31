@@ -299,8 +299,15 @@ function makeNumericStateTriggerBlock(workspace, t, eid) {
     ]);
   }
 
-  set(b, 'ABOVE', t.above);
-  set(b, 'BELOW', t.below);
+  // 0 is a valid numeric-state threshold. Keep its explicit presence in YAML
+  // separate from the numeric value so round trips do not drop it.
+  const hasAbove = t.above != null && !Number.isNaN(Number(t.above));
+  const hasBelow = t.below != null && !Number.isNaN(Number(t.below));
+  set(b, 'USE_ABOVE', hasAbove ? 'TRUE' : 'FALSE');
+  set(b, 'USE_BELOW', hasBelow ? 'TRUE' : 'FALSE');
+  if (hasAbove) set(b, 'ABOVE', t.above);
+  if (hasBelow) set(b, 'BELOW', t.below);
+  b.updateShape_?.();
 
   const duration = getNonZeroDuration(t.for);
   if (duration && canCreate('ha_event_for_hms') && b.getInput && b.getInput('FOR')) {

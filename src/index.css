@@ -37,6 +37,63 @@ code {
   background-color: rgb(247, 240, 228);
 }
 
+.yaml-trace-line {
+  display: block;
+  box-sizing: border-box;
+  min-height: 1em;
+  white-space: pre;
+}
+
+.yaml-trace-highlight {
+  border-inline: 1px solid var(--yaml-trace-colour);
+  background: var(--yaml-trace-background);
+}
+
+.yaml-trace-start {
+  border-top: 1px solid var(--yaml-trace-colour);
+  border-radius: 7px 7px 0 0;
+  padding-top: 4px;
+}
+
+.yaml-trace-end {
+  border-bottom: 1px solid var(--yaml-trace-colour);
+  border-radius: 0 0 7px 7px;
+  padding-bottom: 4px;
+}
+
+.yaml-trace-single {
+  border: 1px solid var(--yaml-trace-colour);
+  border-radius: 7px;
+  padding-block: 4px;
+}
+
+.yaml-trace-start,
+.yaml-trace-middle,
+.yaml-trace-end,
+.yaml-trace-single {
+  padding-inline: 8px;
+}
+
+.yaml-trace-trigger {
+  --yaml-trace-colour: #7CB4B4;
+  --yaml-trace-background: rgba(124, 180, 180, 0.22);
+}
+
+.yaml-trace-condition {
+  --yaml-trace-colour: #AECA3E;
+  --yaml-trace-background: rgba(174, 202, 62, 0.22);
+}
+
+.yaml-trace-action {
+  --yaml-trace-colour: #E3CC57;
+  --yaml-trace-background: rgba(227, 204, 87, 0.22);
+}
+
+.yaml-trace-rule {
+  --yaml-trace-colour: #3B4574;
+  --yaml-trace-background: rgba(59, 69, 116, 0.14);
+}
+
 #output {
   height: 50%;
 }

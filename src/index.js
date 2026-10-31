@@ -18,7 +18,8 @@ import { initTaskAltUI } from '../test/task_alt/task_alt_ui';
 import { initBlockSearchFlyout } from './block_search_flyout.js';
 
 import './index.css';
-import { yamlGenerator } from './generators/yaml';
+import { generateScopedYamlWithSourceMap } from './utils/automation_yaml_scope.js';
+import { renderYamlPreview } from './utils/yaml_preview_trace.js';
 import { loadStudyRuntimeEntities } from './data/entities_index.js';
 
 import {
@@ -140,6 +141,8 @@ Blockly.common.defineBlocks(actionMqttBlocks);
 
 const codeDiv = document.getElementById('generatedCode');
 const blocklyDiv = document.getElementById('blocklyDiv');
+let latestYamlPreview = { yaml: '', ranges: new Map() };
+let selectedYamlBlockId = null;
 const ws = Blockly.inject(blocklyDiv, {
   toolbox,
   theme: customTheme,
@@ -195,9 +198,9 @@ document.addEventListener('yaml-imported', async (e) => {
 
 const runCode = () => {
   try {
-    const code = yamlGenerator.workspaceToCode(ws);
-    console.log('Generated YAML code:', code);
-    codeDiv.innerText = code;
+    latestYamlPreview = generateScopedYamlWithSourceMap(ws);
+    console.log('Generated YAML code:', latestYamlPreview.yaml);
+    renderYamlPreview(codeDiv, latestYamlPreview, selectedYamlBlockId ? ws.getBlockById(selectedYamlBlockId) : null);
   } catch (error) {
     console.error('Code generation failed:', error);
     codeDiv.innerText = 'Code generation failed: ' + error.message;
@@ -210,6 +213,12 @@ runCode();
 ws.addChangeListener((e) => {
   if (e.isUiEvent) return;
   save(ws);
+});
+
+ws.addChangeListener((e) => {
+  if (e.type !== Blockly.Events.SELECTED) return;
+  selectedYamlBlockId = e.newElementId || null;
+  renderYamlPreview(codeDiv, latestYamlPreview, selectedYamlBlockId ? ws.getBlockById(selectedYamlBlockId) : null);
 });
 
 ws.addChangeListener((e) => {

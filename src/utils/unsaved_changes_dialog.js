@@ -150,3 +150,29 @@ export function confirmPushToHomeAssistant({ name, id } = {}) {
     initialFocus: 'confirm',
   });
 }
+
+export function confirmDisconnectedBlocks({ count = 0 } = {}) {
+  const safeCount = Math.max(0, Number(count) || 0);
+  const noun = safeCount === 1 ? 'block' : 'blocks';
+
+  const description = document.createElement('p');
+  description.id = 'haDisconnectedBlocksDescription';
+  description.textContent = `${safeCount} disconnected ${noun} will not be included in YAML.`;
+
+  const detail = document.createElement('p');
+  detail.id = 'haDisconnectedBlocksDetail';
+  detail.className = 'ha-unsaved-dialog-detail';
+  detail.textContent = 'They will remain in your workspace, but will not be copied, exported, or sent to Home Assistant.';
+
+  return showConfirmationDialog({
+    dialogClass: 'ha-disconnected-blocks-dialog',
+    titleId: 'haDisconnectedBlocksTitle',
+    describedBy: 'haDisconnectedBlocksDescription haDisconnectedBlocksDetail',
+    titleText: 'Disconnected blocks detected',
+    content: [description, detail],
+    cancelLabel: 'Cancel',
+    cancelClass: 'ha-push-dialog-cancel',
+    confirmLabel: 'Continue anyway',
+    confirmClass: 'ha-push-dialog-confirm',
+  });
+}
