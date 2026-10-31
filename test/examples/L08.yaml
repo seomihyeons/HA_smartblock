@@ -1,9 +1,0 @@
-- alias: 'L08 Room Temp < 21 → Living Light On'
-  triggers:
-    - trigger: numeric_state
-      entity_id: sensor.living_room_temperature
-      below: 21.0
-  actions:
-    - action: light.turn_on
-      target:
-        entity_id: light.living_room_light

@@ -1,9 +1,0 @@
-- alias: 'L11 Zone Home Count > 0 → Living Light On'
-  triggers:
-    - trigger: numeric_state
-      entity_id: zone.home
-      above: 0
-  actions:
-    - action: light.turn_on
-      target:
-        entity_id: light.living_room_light

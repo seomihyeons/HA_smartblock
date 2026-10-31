@@ -14,7 +14,7 @@ import './blocks/extensions.js';
 
 import { initConflictAnalyzerUI } from "./homeassistant/conflict_analyzer/debug_ui";
 import { setupHaPullPanel } from './homeassistant/ha_pull_panel';
-import { initTaskAltUI } from '../test/task_alt/task_alt_ui';
+import { initTaskAltUI } from './study/task_alt/task_alt_ui';
 import { initBlockSearchFlyout } from './block_search_flyout.js';
 
 import './index.css';
