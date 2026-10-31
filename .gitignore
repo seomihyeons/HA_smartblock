@@ -8,3 +8,6 @@ src/data/test_entities.json
 security/
 geekof_automation/
 test/task_alt/baseline.json
+
+# Local-only code; never publish.
+/ha_llm_control/
