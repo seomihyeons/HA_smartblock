@@ -197,13 +197,6 @@ export function getDisconnectedBlockSummary(workspace) {
   };
 }
 
-/** Returns true only for a loose chain that is excluded because a Rule exists. */
-export function isBlockExcludedFromScopedYaml(workspace, block) {
-  if (!workspace || !block) return false;
-  const root = block.getRootBlock?.() || block;
-  return getDisconnectedBlockGroups(workspace).some((group) => group.id === root.id);
-}
-
 /** Returns Rule roots that represent complete automation candidates. */
 export function getAutomationRuleRoots(workspace) {
   if (!workspace?.getTopBlocks) return [];

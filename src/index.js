@@ -20,7 +20,6 @@ import { initBlockSearchFlyout } from './block_search_flyout.js';
 import './index.css';
 import {
   generateScopedYamlWithSourceMap,
-  isBlockExcludedFromScopedYaml,
 } from './utils/automation_yaml_scope.js';
 import { renderYamlPreview } from './utils/yaml_preview_trace.js';
 import { loadStudyRuntimeEntities } from './data/entities_index.js';
@@ -168,20 +167,6 @@ const ws = Blockly.inject(blocklyDiv, {
 window.Blockly = Blockly;
 window.ws = ws;
 
-const yamlExclusionNotice = document.createElement('div');
-yamlExclusionNotice.id = 'yamlExclusionNotice';
-yamlExclusionNotice.className = 'ha-yaml-exclusion-notice';
-yamlExclusionNotice.setAttribute('role', 'status');
-yamlExclusionNotice.setAttribute('aria-live', 'polite');
-yamlExclusionNotice.hidden = true;
-yamlExclusionNotice.innerHTML = '<strong>Not included in generated YAML</strong><span>This disconnected block remains in the workspace but is excluded from this automation.</span>';
-blocklyDiv.appendChild(yamlExclusionNotice);
-
-function updateYamlExclusionNotice() {
-  const selectedBlock = selectedYamlBlockId ? ws.getBlockById(selectedYamlBlockId) : null;
-  yamlExclusionNotice.hidden = !isBlockExcludedFromScopedYaml(ws, selectedBlock);
-}
-
 // This starts with an empty baseline deliberately. If `load(ws)` restores a
 // browser-local workspace later, it is not assumed to have been saved to HA.
 const workspaceChangeTracker = createWorkspaceDirtyTracker(ws);
@@ -218,7 +203,6 @@ const runCode = () => {
     latestYamlPreview = generateScopedYamlWithSourceMap(ws);
     console.log('Generated YAML code:', latestYamlPreview.yaml);
     renderYamlPreview(codeDiv, latestYamlPreview, selectedYamlBlockId ? ws.getBlockById(selectedYamlBlockId) : null);
-    updateYamlExclusionNotice();
   } catch (error) {
     console.error('Code generation failed:', error);
     codeDiv.innerText = 'Code generation failed: ' + error.message;
@@ -237,7 +221,6 @@ ws.addChangeListener((e) => {
   if (e.type !== Blockly.Events.SELECTED) return;
   selectedYamlBlockId = e.newElementId || null;
   renderYamlPreview(codeDiv, latestYamlPreview, selectedYamlBlockId ? ws.getBlockById(selectedYamlBlockId) : null);
-  updateYamlExclusionNotice();
 });
 
 ws.addChangeListener((e) => {

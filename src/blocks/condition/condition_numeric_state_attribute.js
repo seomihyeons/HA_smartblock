@@ -6,6 +6,7 @@ import {
   getThresholdMode,
   SegmentedThresholdModeField,
 } from '../utils/segmented_numeric_threshold.js';
+import { ValidationWarningField } from '../utils/validation_warning_field.js';
 
 export function getEntitiesWithNumericAttributes(entities = dummyEntities) {
   return (entities || []).filter((entity) => {
@@ -81,6 +82,26 @@ Blockly.Blocks['condition_numeric_state_attribute'] = {
       .forEach((fieldName) => input?.removeField(fieldName, true));
   },
 
+  updateValidationWarning_: function (message) {
+    const input = this.getInput('ROW');
+    if (!input) return;
+    const nextMessage = String(message || '').trim();
+    let field = this.getField('VALIDATION_WARNING');
+
+    if (!nextMessage) {
+      // A hidden Field still leaves Blockly's separator spacing in this row.
+      // Remove it completely once the validation problem is resolved.
+      if (field) input.removeField('VALIDATION_WARNING', true);
+      return;
+    }
+
+    if (!field) {
+      field = new ValidationWarningField();
+      input.insertFieldAt(0, field, 'VALIDATION_WARNING');
+    }
+    field.setMessage(nextMessage);
+  },
+
   rebuildThresholdUi_: function (mode) {
     this.clearThresholdUi_();
     if (mode === 'NONE') return;
@@ -114,19 +135,15 @@ Blockly.Blocks['condition_numeric_state_attribute'] = {
     this.syncVisibleThresholdValues_(mode);
     this.getField('THRESHOLD_MODE_UI')?.syncFromBlock_?.();
 
-    if (mode === 'NONE') {
-      this.setWarningText('Select an above, below, or between threshold.', 'numeric-attribute-threshold');
-    } else {
-      this.setWarningText(null, 'numeric-attribute-threshold');
-    }
-
     const above = Number(this.getFieldValue('ABOVE'));
     const below = Number(this.getFieldValue('BELOW'));
-    if (mode === 'BETWEEN' && Number.isFinite(above) && Number.isFinite(below) && below <= above) {
-      this.setWarningText('For Between, the below value must be greater than the above value.', 'numeric-attribute-range');
-    } else {
-      this.setWarningText(null, 'numeric-attribute-range');
+    let validationMessage = '';
+    if (mode === 'NONE') {
+      validationMessage = 'Select an above, below, or between threshold.';
+    } else if (mode === 'BETWEEN' && Number.isFinite(above) && Number.isFinite(below) && below <= above) {
+      validationMessage = 'For Between, the below value must be greater than the above value.';
     }
+    this.updateValidationWarning_(validationMessage);
 
     if (this.rendered) this.render();
   },
