@@ -197,3 +197,21 @@ test('Block Search returns the matching Entity and prioritizes its dedicated blo
     assert.equal(results.some((result) => result.type === 'condition_state_binary_sensor'), false, query);
   }
 });
+
+test('Numeric State trigger stays under Trigger State rather than Group', () => {
+  const trigger = createToolbox(ENTITIES).contents.find((category) => category.name === 'Trigger');
+  const placements = [];
+  let section = '';
+
+  for (const item of trigger.contents) {
+    if (item.kind === 'label') section = item.text;
+    if (item.kind === 'block' && item.type === 'event_sensor_numeric_state') {
+      placements.push(section);
+    }
+  }
+
+  assert.deepEqual(placements, ['State']);
+  const searchResult = getBlockSearchResults('numeric state')
+    .find((result) => result.category === 'Trigger' && result.type === 'event_sensor_numeric_state');
+  assert.equal(searchResult?.section, 'State');
+});
