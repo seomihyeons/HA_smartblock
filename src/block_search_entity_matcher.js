@@ -15,6 +15,10 @@ function tokenize(value) {
   return normalize(value).match(/[a-z0-9]+/g) || [];
 }
 
+function compact(value) {
+  return tokenize(value).join('');
+}
+
 function entityDomain(entity) {
   return String(entity?.entity_id || '').split('.', 1)[0];
 }
@@ -72,6 +76,14 @@ export function scoreEntitySearch(query, entity) {
   const joined = fields.join(' ');
   if (joined.includes(queryText)) return 800;
 
+  // Home Assistant accepts identifiers independently of their separators.
+  // Preserve the token matcher below, while also allowing a partial compact
+  // match such as `livingroommot` against `Living Room Motion`.
+  const compactQuery = compact(queryText);
+  const compactFields = fields.map(compact).filter(Boolean);
+  if (compactQuery && compactFields.some((field) => field === compactQuery)) return 900;
+  const hasCompactMatch = compactQuery.length >= 3 && compactFields.some((field) => field.includes(compactQuery));
+
   const searchableTokens = new Set(tokenize(joined));
   let score = 0;
   for (const queryToken of queryTokens) {
@@ -92,9 +104,16 @@ export function scoreEntitySearch(query, entity) {
       continue;
     }
 
+    // A single joined query token can span several field tokens. Do not use
+    // this for very short input, where an infix match would be too broad.
+    if (hasCompactMatch) {
+      score += 65;
+      continue;
+    }
+
     return -1;
   }
-  return score;
+  return score + (hasCompactMatch ? 150 : 0);
 }
 
 /**
@@ -103,6 +122,21 @@ export function scoreEntitySearch(query, entity) {
  * existing defaults because an inferred target would change their meaning.
  */
 export function getSearchEntityBinding(type) {
+  const binarySensorVariant = {
+    event_binary_sensor_motion_state: 'motion',
+    event_binary_sensor_door_state: 'door',
+    condition_state_binary_sensor_motion: 'motion',
+    condition_state_binary_sensor_door: 'door',
+  }[type];
+  if (binarySensorVariant) {
+    return {
+      field: ENTITY_FIELD,
+      accepts: (entity) =>
+        entityDomain(entity) === 'binary_sensor' &&
+        String(entity?.attributes?.device_class || '').trim().toLowerCase() === binarySensorVariant,
+    };
+  }
+
   const stateMatch = /^(?:event_(.+)_state|condition_state_(.+))$/.exec(type);
   const stateDomain = stateMatch?.[1] || stateMatch?.[2] || '';
   if (STATE_DOMAINS.includes(stateDomain)) {

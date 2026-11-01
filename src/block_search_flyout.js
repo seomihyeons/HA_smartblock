@@ -23,12 +23,30 @@ function tokenize(value) {
   return normalize(value).match(/[a-z0-9]+/g) || [];
 }
 
+function compact(value) {
+  return tokenize(value).join('');
+}
+
+function binarySensorBlockDeviceClass(type) {
+  if (type === 'event_binary_sensor_motion_state' || type === 'condition_state_binary_sensor_motion') {
+    return 'motion';
+  }
+  if (type === 'event_binary_sensor_door_state' || type === 'condition_state_binary_sensor_door') {
+    return 'door';
+  }
+  return '';
+}
+
 // Familiar Home Assistant terms improve block discovery without creating
 // duplicate block definitions. For example, `door` should find the binary
 // sensor state blocks used for doors, contacts, windows, and motion sensors.
 const BLOCK_SEARCH_ALIASES = {
   event_binary_sensor_state: 'sensor contact door window motion occupancy open opened closed',
   condition_state_binary_sensor: 'sensor contact door window motion occupancy open opened closed',
+  event_binary_sensor_motion_state: 'binary sensor motion detected cleared occupancy',
+  condition_state_binary_sensor_motion: 'binary sensor motion detected cleared occupancy',
+  event_binary_sensor_door_state: 'binary sensor door contact opened closed',
+  condition_state_binary_sensor_door: 'binary sensor door contact opened closed',
   action_lock: 'door lock unlock',
   action_cover: 'door garage shutter blind open close',
   condition_logic: 'and or logical',
@@ -102,6 +120,7 @@ function actionSearchTerms(type) {
 }
 
 function blockDomain(type) {
+  if (binarySensorBlockDeviceClass(type)) return 'binary_sensor';
   for (const domain of Object.keys(DOMAIN_SPEC)) {
     if (
       type === `event_${domain}_state` ||
@@ -118,13 +137,18 @@ function runtimeEntitySearchTerms(type) {
   const domain = blockDomain(type);
   if (!domain) return '';
 
-  const entityTerms = (dummyEntities || [])
+  const deviceClass = binarySensorBlockDeviceClass(type);
+  const matchingEntities = (dummyEntities || [])
     .filter((entity) => String(entity?.entity_id || '').startsWith(`${domain}.`))
+    .filter((entity) => !deviceClass || String(entity?.attributes?.device_class || '').trim().toLowerCase() === deviceClass);
+
+  const entityTerms = matchingEntities
     .flatMap((entity) => [
       entity.entity_id,
       entity.name,
       entity.friendly_name,
       entity.attributes?.friendly_name,
+      entity.attributes?.device_class,
     ])
     .filter(Boolean)
     .join(' ');
@@ -133,8 +157,7 @@ function runtimeEntitySearchTerms(type) {
   // selected (for example motion: detected/cleared). Include those labels in
   // the applicable binary-sensor Trigger and Condition search documents.
   const semanticStateTerms = domain === 'binary_sensor'
-    ? (dummyEntities || [])
-      .filter((entity) => String(entity?.entity_id || '').startsWith('binary_sensor.'))
+    ? matchingEntities
       .flatMap((entity) => getBinarySensorStateOptions(entity.entity_id)
         .flatMap(([label, value]) => [label, value]))
     : [];
@@ -148,7 +171,10 @@ function searchScore(query, searchable) {
 
   const text = normalize(searchable);
   const searchableTokens = [...new Set(tokenize(text))];
-  let score = text.includes(normalize(query)) ? 200 : 0;
+  const compactQuery = compact(query);
+  const compactText = compact(text);
+  const hasCompactMatch = compactQuery.length >= 3 && compactText.includes(compactQuery);
+  let score = text.includes(normalize(query)) ? 200 : (hasCompactMatch ? 180 : 0);
 
   for (const queryToken of queryTokens) {
     let tokenScore = 0;
@@ -158,12 +184,23 @@ function searchScore(query, searchable) {
       else if (searchableToken.includes(queryToken)) tokenScore = Math.max(tokenScore, 50);
     }
 
+    if (!tokenScore && compactQuery.length >= 3 && compactText.includes(queryToken)) {
+      tokenScore = 65;
+    }
+
     // Every typed term must occur somewhere, but it may be an infix match:
     // `eve` finds event-related blocks and `d` finds door-related blocks.
     if (!tokenScore) return -1;
     score += tokenScore;
   }
   return score;
+}
+
+function binarySensorSearchPriority(type, entitySelection) {
+  const selected = (dummyEntities || []).find((entity) => entity?.entity_id === entitySelection?.entityId);
+  const selectedClass = String(selected?.attributes?.device_class || '').trim().toLowerCase();
+  const blockClass = binarySensorBlockDeviceClass(type);
+  return selectedClass && blockClass && selectedClass === blockClass ? 1 : 0;
 }
 
 function cloneFlyoutItem(item) {
@@ -215,6 +252,12 @@ export function getBlockSearchResults(query) {
       });
 
       if (!matches.length) return;
+      // A matching motion/door Entity is most useful in its dedicated block.
+      // Keep ordinary toolbox ordering for every other result and tie.
+      matches.sort((left, right) =>
+        binarySensorSearchPriority(right.type, right.entitySelection)
+        - binarySensorSearchPriority(left.type, left.entitySelection)
+      );
       // `toolbox` is already ordered by conceptual section, runtime
       // availability, and English A-Z. Keep that order in Search as well so
       // no-target blocks stay after usable blocks instead of jumping ahead on

@@ -191,6 +191,13 @@ for (const domain of (STATE_DOMAINS || [])) {
   };
 }
 
+// Motion and door have dedicated Blockly types, but Home Assistant represents
+// both as ordinary binary_sensor state triggers with canonical on/off values.
+// Reuse the generic generator to keep YAML and old workspaces compatible.
+for (const type of ['event_binary_sensor_motion_state', 'event_binary_sensor_door_state']) {
+  yamlGenerator.forBlock[type] = yamlGenerator.forBlock.event_binary_sensor_state;
+}
+
 // Event: numeric_state (sensor)
 yamlGenerator.forBlock['event_sensor_numeric_state'] = function (block, generator) {
   const entityId = block.getFieldValue('ENTITY_ID') || '';
@@ -918,6 +925,10 @@ for (const domain of (STATE_DOMAINS || []).filter((d) => d !== 'cover')) {
     lines.push('');
     return lines.join('\n');
   };
+}
+
+for (const type of ['condition_state_binary_sensor_motion', 'condition_state_binary_sensor_door']) {
+  yamlGenerator.forBlock[type] = yamlGenerator.forBlock.condition_state_binary_sensor;
 }
 
 // Condition: numeric_state (entity)

@@ -4,10 +4,13 @@ import { dummyEntities } from '../../data/entities_index.js';
 import { STATE_DOMAINS, getBinarySensorStateOptions, getStates } from '../../data/options.js';
 import { updateInlineValidationWarning } from '../utils/validation_warning_field.js';
 
-function getEntityOptions(domain, { numericOnly = false } = {}) {
+function getEntityOptions(domain, { numericOnly = false, deviceClass = '' } = {}) {
   const filtered = (dummyEntities || []).filter(e => {
     const id = String(e.entity_id || '');
     if (!id.startsWith(`${domain}.`)) return false;
+    if (deviceClass && String(e.attributes?.device_class || '').trim().toLowerCase() !== deviceClass) {
+      return false;
+    }
     if (!numericOnly) return true;
     return !Number.isNaN(Number(e.state));
   });
@@ -67,7 +70,51 @@ Blockly.Extensions.register('binary_sensor_trigger_semantic_states', function ()
   refresh();
 });
 
-const labelOf = (domain) => (domain === 'binary_sensor' ? 'binary sensor' : domain);
+const BINARY_SENSOR_STATE_VARIANTS = [
+  { type: 'event_binary_sensor_state', label: 'binary sensor' },
+  { type: 'event_binary_sensor_motion_state', label: 'motion sensor', deviceClass: 'motion' },
+  { type: 'event_binary_sensor_door_state', label: 'door sensor', deviceClass: 'door' },
+];
+
+function createStateTriggerDefinition({ type, label, domain, deviceClass = '' }) {
+  const isBinarySensor = domain === 'binary_sensor';
+  return {
+    type,
+    message0: `${label} %1 from %2 to %3 id %4 %5 %6`,
+    args0: [
+      {
+        type: 'field_dropdown',
+        name: 'ENTITY_ID',
+        options: () => getEntityOptions(domain, { deviceClass }),
+      },
+      {
+        type: 'field_dropdown',
+        name: 'FROM',
+        options: isBinarySensor
+          ? binarySensorTriggerFromStateOptions
+          : () => withAny(getStates(domain), { anyFirst: true }),
+      },
+      {
+        type: 'field_dropdown',
+        name: 'TO',
+        options: isBinarySensor
+          ? binarySensorTriggerStateOptions
+          : () => withAny(getStates(domain)),
+      },
+      { type: 'field_checkbox', name: 'USE_ID', checked: false },
+      { type: 'field_input', name: 'ID', text: '' },
+      { type: 'input_value', name: 'FOR' },
+    ],
+    previousStatement: 'HA_EVENT',
+    nextStatement: 'HA_EVENT',
+    colour: 180,
+    tooltip: `Triggers when the selected ${label} changes state.`,
+    helpUrl: '',
+    extensions: isBinarySensor
+      ? ['event_trigger_optional_id', 'binary_sensor_trigger_semantic_states']
+      : ['event_trigger_optional_id'],
+  };
+}
 
 Blockly.Extensions.register('event_trigger_optional_id', function () {
   const sync = () => {
@@ -89,38 +136,17 @@ Blockly.Extensions.register('event_trigger_optional_id', function () {
 export const eventEntityBlocks =
   Blockly.common.createBlockDefinitionsFromJsonArray([
     ...STATE_DOMAINS
+      .filter((domain) => domain !== 'binary_sensor')
       .map(domain => ({
         type: `event_${domain}_state`,
-        message0: `${labelOf(domain)} %1 from %2 to %3 id %4 %5 %6`,
-        args0: [
-          { type: 'field_dropdown', name: 'ENTITY_ID', options: () => getEntityOptions(domain) },
-          {
-            type: 'field_dropdown',
-            name: 'FROM',
-            options: domain === 'binary_sensor'
-              ? binarySensorTriggerFromStateOptions
-              : () => withAny(getStates(domain), { anyFirst: true }),
-          },
-          {
-            type: 'field_dropdown',
-            name: 'TO',
-            options: domain === 'binary_sensor'
-              ? binarySensorTriggerStateOptions
-              : () => withAny(getStates(domain)),
-          },
-          { type: 'field_checkbox', name: 'USE_ID', checked: false },
-          { type: 'field_input', name: 'ID', text: '' },
-          { type: 'input_value', name: 'FOR' },
-        ],
-        previousStatement: 'HA_EVENT',
-        nextStatement: 'HA_EVENT',
-        colour: 180,
-        tooltip: `Triggers when the selected ${domain} entity changes state.`,
-        helpUrl: '',
-        extensions: domain === 'binary_sensor'
-          ? ['event_trigger_optional_id', 'binary_sensor_trigger_semantic_states']
-          : ['event_trigger_optional_id'],
-      })),
+        label: domain,
+        domain,
+      }))
+      .map(createStateTriggerDefinition),
+    ...BINARY_SENSOR_STATE_VARIANTS.map((variant) => createStateTriggerDefinition({
+      ...variant,
+      domain: 'binary_sensor',
+    })),
 
   ]);
 

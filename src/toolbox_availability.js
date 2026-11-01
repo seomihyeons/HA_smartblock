@@ -30,6 +30,10 @@ const SPECIAL_LABELS = {
   action_script_call: 'Script Call',
   action_script_target_entity: 'Script Target Entity',
   action_notify: 'Notify',
+  event_binary_sensor_motion_state: 'Motion Sensor',
+  event_binary_sensor_door_state: 'Door Sensor',
+  condition_state_binary_sensor_motion: 'Motion Sensor',
+  condition_state_binary_sensor_door: 'Door Sensor',
 };
 
 function titleCase(value) {
@@ -42,10 +46,17 @@ function domainLabel(domain) {
   return DOMAIN_LABELS[domain] || titleCase(domain);
 }
 
-function stateDomainForType(type) {
+function stateBlockTargetForType(type) {
+  if (type === 'event_binary_sensor_motion_state' || type === 'condition_state_binary_sensor_motion') {
+    return { domain: 'binary_sensor', deviceClass: 'motion' };
+  }
+  if (type === 'event_binary_sensor_door_state' || type === 'condition_state_binary_sensor_door') {
+    return { domain: 'binary_sensor', deviceClass: 'door' };
+  }
   if (type === 'event_sensor_numeric_state') return '';
   const match = /^(?:event_(.+)_state|condition_state_(.+))$/.exec(type);
-  return match?.[1] || match?.[2] || '';
+  const domain = match?.[1] || match?.[2] || '';
+  return domain ? { domain } : null;
 }
 
 function actionDomainForType(type) {
@@ -85,9 +96,16 @@ export function getRuntimeCapabilities(entities) {
  * they do not require an entity selector to be useful.
  */
 export function isToolboxBlockAvailable(type, entities) {
+  const rows = normalizeEntities(entities);
   const capabilities = getRuntimeCapabilities(entities);
-  const stateDomain = stateDomainForType(type);
-  if (stateDomain) return capabilities.domains.has(stateDomain);
+  const stateTarget = stateBlockTargetForType(type);
+  if (stateTarget) {
+    if (!stateTarget.deviceClass) return capabilities.domains.has(stateTarget.domain);
+    return rows.some((entity) =>
+      String(entity?.entity_id || '').startsWith(`${stateTarget.domain}.`) &&
+      String(entity?.attributes?.device_class || '').trim().toLowerCase() === stateTarget.deviceClass
+    );
+  }
 
   const actionDomain = actionDomainForType(type);
   if (actionDomain) return capabilities.domains.has(actionDomain);
@@ -127,8 +145,10 @@ export function isToolboxBlockAvailable(type, entities) {
 export function getToolboxBlockSortLabel(type) {
   if (SPECIAL_LABELS[type]) return SPECIAL_LABELS[type];
 
-  const stateDomain = stateDomainForType(type);
-  if (stateDomain) return domainLabel(stateDomain);
+  const stateTarget = stateBlockTargetForType(type);
+  if (stateTarget) return stateTarget.deviceClass
+    ? `${titleCase(stateTarget.deviceClass)} Sensor`
+    : domainLabel(stateTarget.domain);
 
   const actionDomain = actionDomainForType(type);
   if (actionDomain) return domainLabel(actionDomain);

@@ -1,6 +1,7 @@
 // src/import/blocks/condition_mapper.js
 import * as Blockly from 'blockly';
 import { createRawLinesBlock } from './raw_fallback.js';
+import { getBinarySensorStateBlockType } from '../../data/options.js';
 
 const canCreate = (t) => !!Blockly.Blocks?.[t];
 const set = (b, name, v) => { if (name && b.getField(name) && v != null) b.setFieldValue(String(v), name); };
@@ -247,13 +248,20 @@ function makeStateCondBlock(workspace, conditionObj, eid) {
 
   if (!domain) return rawStateLine();
 
-  const TYPE = `condition_state_${domain}`;
+  const TYPE = domain === 'binary_sensor'
+    ? getBinarySensorStateBlockType(eid, 'condition')
+    : `condition_state_${domain}`;
   if (!canCreate(TYPE)) return rawStateLine();
 
   const b = workspace.newBlock(TYPE);
 
   // ENTITY_ID dropdown 검증
-  const okEntity = setAndVerifyDropdown(b, 'ENTITY_ID', eid ?? '');
+  // A binary_sensor without runtime metadata must stay editable as the
+  // generic block rather than falling back to raw YAML. This also preserves
+  // imports made before Home Assistant entity data has finished loading.
+  const okEntity = setAndVerifyDropdown(b, 'ENTITY_ID', eid ?? '', {
+    allowUnknown: domain === 'binary_sensor',
+  });
   if (!okEntity) {
     b.dispose(true);
     return rawStateLine();

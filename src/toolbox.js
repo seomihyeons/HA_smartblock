@@ -66,10 +66,22 @@ function collectUnavailableBlockTypes(toolbox, entities) {
 export function createToolbox(entities = []) {
   const eventStateBlocks = (STATE_DOMAINS || [])
     .filter((domain) => domain !== 'sensor')
-    .map((domain) => ({ kind: 'block', type: `event_${domain}_state` }));
+    .flatMap((domain) => domain === 'binary_sensor'
+      ? [
+        { kind: 'block', type: 'event_binary_sensor_motion_state' },
+        { kind: 'block', type: 'event_binary_sensor_door_state' },
+        { kind: 'block', type: 'event_binary_sensor_state' },
+      ]
+      : [{ kind: 'block', type: `event_${domain}_state` }]);
 
   const conditionStateBlocks = (STATE_DOMAINS || [])
-    .map((domain) => ({ kind: 'block', type: `condition_state_${domain}` }));
+    .flatMap((domain) => domain === 'binary_sensor'
+      ? [
+        { kind: 'block', type: 'condition_state_binary_sensor_motion' },
+        { kind: 'block', type: 'condition_state_binary_sensor_door' },
+        { kind: 'block', type: 'condition_state_binary_sensor' },
+      ]
+      : [{ kind: 'block', type: `condition_state_${domain}` }]);
 
   const actionBlocks = (ACTION_DOMAINS || [])
     .filter((domain) => !['ecobee', 'script', 'python_script', 'mqtt'].includes(domain))

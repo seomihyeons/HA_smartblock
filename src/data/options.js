@@ -468,9 +468,32 @@ const BINARY_SENSOR_SEMANTIC_STATES = {
   motion: [['detected', 'on'], ['cleared', 'off']],
 };
 
+export function getBinarySensorDeviceClass(entityOrId) {
+  const entity = typeof entityOrId === 'string'
+    ? (dummyEntities || []).find((candidate) => candidate?.entity_id === entityOrId)
+    : entityOrId;
+  return String(entity?.attributes?.device_class || '').trim().toLowerCase();
+}
+
+export function getBinarySensorStateBlockType(entityId, kind) {
+  const deviceClass = getBinarySensorDeviceClass(entityId);
+  if (deviceClass === 'motion') {
+    return kind === 'event'
+      ? 'event_binary_sensor_motion_state'
+      : 'condition_state_binary_sensor_motion';
+  }
+  if (deviceClass === 'door') {
+    return kind === 'event'
+      ? 'event_binary_sensor_door_state'
+      : 'condition_state_binary_sensor_door';
+  }
+  return kind === 'event'
+    ? 'event_binary_sensor_state'
+    : 'condition_state_binary_sensor';
+}
+
 export function getBinarySensorStateOptions(entityId, { includeAny = false } = {}) {
-  const entity = (dummyEntities || []).find((candidate) => candidate?.entity_id === entityId);
-  const deviceClass = String(entity?.attributes?.device_class || '').trim().toLowerCase();
+  const deviceClass = getBinarySensorDeviceClass(entityId);
   const semanticOptions = BINARY_SENSOR_SEMANTIC_STATES[deviceClass];
   const options = semanticOptions ? [...semanticOptions] : [...getStates('binary_sensor')];
 

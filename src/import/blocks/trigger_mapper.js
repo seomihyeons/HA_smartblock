@@ -1,6 +1,7 @@
 // src/import/blocks/trigger_mapper.js
 import * as Blockly from 'blockly';
 import { createRawLinesBlock } from './raw_fallback.js';
+import { getBinarySensorStateBlockType } from '../../data/options.js';
 
 const canCreate = (t) => !!Blockly.Blocks?.[t];
 const set = (b, name, v) => { if (b && name && b.getField(name) && v != null) b.setFieldValue(String(v), name); };
@@ -190,7 +191,9 @@ function triggerToRawLines(t) {
 // state 패밀리: 엔티티 1개 기준 블록 생성 (통합: event_${domain}_state)
 function makeStateTriggerBlock(workspace, t, eid) {
   const domain = eid ? String(eid).split('.')[0] : null;
-  const TYPE = domain ? `event_${domain}_state` : null;
+  const TYPE = domain === 'binary_sensor'
+    ? getBinarySensorStateBlockType(eid, 'event')
+    : (domain ? `event_${domain}_state` : null);
 
   const fromVal =
     t.from === undefined || t.from === null || t.from === ''
@@ -1023,7 +1026,9 @@ function makeStateGroupTriggerBlock(workspace, group) {
 
   const createStateGroupItemBlock = (eid) => {
     const domain = String(group.domain || '').trim();
-    const preferredType = domain ? `event_${domain}_state` : '';
+    const preferredType = domain === 'binary_sensor'
+      ? getBinarySensorStateBlockType(eid, 'event')
+      : (domain ? `event_${domain}_state` : '');
     if (preferredType && canCreate(preferredType)) {
       const child = workspace.newBlock(preferredType);
       const ok = setAndVerifyDropdown(child, 'ENTITY_ID', eid, { allowUnknown: true });

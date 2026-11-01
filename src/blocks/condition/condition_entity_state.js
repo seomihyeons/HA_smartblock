@@ -2,8 +2,11 @@ import * as Blockly from 'blockly';
 import { dummyEntities } from '../../data/entities_index.js';
 import { STATE_DOMAINS, getBinarySensorStateOptions, getStates } from '../../data/options.js';
 
-function getEntitiesByDomain(domain) {
-  const filtered = dummyEntities.filter(e => e.entity_id.startsWith(`${domain}.`));
+function getEntitiesByDomain(domain, { deviceClass = '' } = {}) {
+  const filtered = dummyEntities.filter((e) => {
+    if (!e.entity_id.startsWith(`${domain}.`)) return false;
+    return !deviceClass || String(e.attributes?.device_class || '').trim().toLowerCase() === deviceClass;
+  });
   if (!filtered.length) return [['(No entities)', '']];
   return filtered.map(e => [e.attributes?.friendly_name || e.entity_id, e.entity_id]);
 }
@@ -53,6 +56,42 @@ const coverBooleanOptions = [
   ['false', 'false'],
 ];
 
+const BINARY_SENSOR_STATE_VARIANTS = [
+  { type: 'condition_state_binary_sensor', label: 'binary sensor' },
+  { type: 'condition_state_binary_sensor_motion', label: 'motion sensor', deviceClass: 'motion' },
+  { type: 'condition_state_binary_sensor_door', label: 'door sensor', deviceClass: 'door' },
+];
+
+function createStateConditionDefinition({ type, label, domain, deviceClass = '' }) {
+  const isBinarySensor = domain === 'binary_sensor';
+  return {
+    type,
+    message0: `${label} %1 is %2 %3`,
+    args0: [
+      {
+        type: 'field_dropdown',
+        name: 'ENTITY_ID',
+        options: () => getEntitiesByDomain(domain, { deviceClass }),
+      },
+      {
+        type: 'field_dropdown',
+        name: 'STATE',
+        options: isBinarySensor
+          ? binarySensorConditionStateOptions
+          : () => getStates(domain),
+      },
+      { type: 'input_value', name: 'MOD', check: 'HA_CONDITION_MOD' },
+    ],
+    previousStatement: 'HA_CONDITION',
+    nextStatement: 'HA_CONDITION',
+    colour: '#AECA3E',
+    tooltip: `Checks the state of the selected ${label} entity.`,
+    helpUrl: '',
+    mutator: 'ha_condition_optional_data',
+    extensions: isBinarySensor ? ['binary_sensor_condition_semantic_states'] : undefined,
+  };
+}
+
 Blockly.Blocks.condition_state_cover = {
   init: function () {
     this.appendDummyInput('HEAD')
@@ -93,29 +132,17 @@ Blockly.Blocks.condition_state_cover = {
 export const conditionStateBlocks =
   Blockly.common.createBlockDefinitionsFromJsonArray(
     STATE_DOMAINS
-      .filter((domain) => domain !== 'cover')
+      .filter((domain) => !['cover', 'binary_sensor'].includes(domain))
       .map(domain => ({
         type: `condition_state_${domain}`,
-        message0: `${domain} %1 is %2 %3`,
-        args0: [
-          { type: 'field_dropdown', name: 'ENTITY_ID', options: () => getEntitiesByDomain(domain) },
-          {
-            type: 'field_dropdown',
-            name: 'STATE',
-            options: domain === 'binary_sensor'
-              ? binarySensorConditionStateOptions
-              : () => getStates(domain),
-          },
-          { type: 'input_value', name: 'MOD', check: 'HA_CONDITION_MOD' },
-        ],
-        previousStatement: 'HA_CONDITION',
-        nextStatement: 'HA_CONDITION',
-        colour: '#AECA3E',
-        tooltip: `Checks the state of the selected ${domain} entity.`,
-        helpUrl: '',
-        mutator: 'ha_condition_optional_data',
-        extensions: domain === 'binary_sensor' ? ['binary_sensor_condition_semantic_states'] : undefined,
+        label: domain,
+        domain,
       }))
+      .map(createStateConditionDefinition)
+      .concat(BINARY_SENSOR_STATE_VARIANTS.map((variant) => createStateConditionDefinition({
+        ...variant,
+        domain: 'binary_sensor',
+      })))
   );
 
 Blockly.Blocks['condition_data_attribute'] = {
