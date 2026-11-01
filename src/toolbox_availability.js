@@ -30,9 +30,9 @@ const SPECIAL_LABELS = {
   action_script_call: 'Script Call',
   action_script_target_entity: 'Script Target Entity',
   action_notify: 'Notify',
-  event_binary_sensor_motion_state: 'Motion Sensor',
+  event_binary_sensor_motion_state: 'Motion',
   event_binary_sensor_door_state: 'Door Sensor',
-  condition_state_binary_sensor_motion: 'Motion Sensor',
+  condition_state_binary_sensor_motion: 'Motion',
   condition_state_binary_sensor_door: 'Door Sensor',
 };
 

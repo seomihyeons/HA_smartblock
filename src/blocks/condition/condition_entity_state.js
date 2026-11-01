@@ -58,7 +58,7 @@ const coverBooleanOptions = [
 
 const BINARY_SENSOR_STATE_VARIANTS = [
   { type: 'condition_state_binary_sensor', label: 'binary sensor' },
-  { type: 'condition_state_binary_sensor_motion', label: 'motion sensor', deviceClass: 'motion' },
+  { type: 'condition_state_binary_sensor_motion', label: 'motion', deviceClass: 'motion' },
   { type: 'condition_state_binary_sensor_door', label: 'door sensor', deviceClass: 'door' },
 ];
 

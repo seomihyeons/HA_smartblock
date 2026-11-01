@@ -70,7 +70,6 @@ export function createToolbox(entities = []) {
       ? [
         { kind: 'block', type: 'event_binary_sensor_motion_state' },
         { kind: 'block', type: 'event_binary_sensor_door_state' },
-        { kind: 'block', type: 'event_binary_sensor_state' },
       ]
       : [{ kind: 'block', type: `event_${domain}_state` }]);
 
@@ -79,7 +78,6 @@ export function createToolbox(entities = []) {
       ? [
         { kind: 'block', type: 'condition_state_binary_sensor_motion' },
         { kind: 'block', type: 'condition_state_binary_sensor_door' },
-        { kind: 'block', type: 'condition_state_binary_sensor' },
       ]
       : [{ kind: 'block', type: `condition_state_${domain}` }]);
 

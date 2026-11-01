@@ -72,7 +72,7 @@ Blockly.Extensions.register('binary_sensor_trigger_semantic_states', function ()
 
 const BINARY_SENSOR_STATE_VARIANTS = [
   { type: 'event_binary_sensor_state', label: 'binary sensor' },
-  { type: 'event_binary_sensor_motion_state', label: 'motion sensor', deviceClass: 'motion' },
+  { type: 'event_binary_sensor_motion_state', label: 'motion', deviceClass: 'motion' },
   { type: 'event_binary_sensor_door_state', label: 'door sensor', deviceClass: 'door' },
 ];
 

@@ -95,13 +95,15 @@ test('Motion and Door select dedicated types while unknown classes retain the ge
   ]);
 });
 
-test('toolbox exposes dedicated blocks only when their device class exists', () => {
+test('toolbox exposes dedicated blocks without exposing the generic Binary Sensor blocks', () => {
   const triggers = findBlockTypes('Trigger');
   const conditions = findBlockTypes('Condition');
   assert.ok(triggers.includes('event_binary_sensor_motion_state'));
   assert.ok(triggers.includes('event_binary_sensor_door_state'));
   assert.ok(conditions.includes('condition_state_binary_sensor_motion'));
   assert.ok(conditions.includes('condition_state_binary_sensor_door'));
+  assert.equal(triggers.includes('event_binary_sensor_state'), false);
+  assert.equal(conditions.includes('condition_state_binary_sensor'), false);
   assert.equal(isToolboxBlockAvailable('event_binary_sensor_motion_state', ENTITIES), true);
   assert.equal(isToolboxBlockAvailable('event_binary_sensor_door_state', ENTITIES), true);
   assert.equal(isToolboxBlockAvailable('event_binary_sensor_motion_state', [ENTITIES[1]]), false);
@@ -112,6 +114,7 @@ test('dedicated block dropdowns filter Entities and emit canonical on/off YAML',
   const motion = workspace.newBlock('event_binary_sensor_motion_state');
   const door = workspace.newBlock('condition_state_binary_sensor_door');
 
+  assert.equal(motion.inputList[0].fieldRow[0].getText(), 'motion');
   assert.deepEqual(motion.getField('ENTITY_ID').getOptions(false), [
     ['Living Room Motion', 'binary_sensor.living_motion'],
   ]);
@@ -185,10 +188,12 @@ test('Block Search returns the matching Entity and prioritizes its dedicated blo
     const results = searchBinaryResults(query, 'Trigger', 'event_binary_sensor');
     assert.equal(results[0].type, 'event_binary_sensor_motion_state', query);
     assert.equal(results[0].entitySelection.entityId, 'binary_sensor.living_motion', query);
+    assert.equal(results.some((result) => result.type === 'event_binary_sensor_state'), false, query);
   }
   for (const query of ['Entrance Door', 'entrancedoor', 'entrance_door', 'EntranceDoor']) {
     const results = searchBinaryResults(query, 'Condition', 'condition_state_binary_sensor');
     assert.equal(results[0].type, 'condition_state_binary_sensor_door', query);
     assert.equal(results[0].entitySelection.entityId, 'binary_sensor.entrance_door', query);
+    assert.equal(results.some((result) => result.type === 'condition_state_binary_sensor'), false, query);
   }
 });
