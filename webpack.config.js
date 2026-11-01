@@ -252,45 +252,6 @@ module.exports = (env, argv) => {
 
     config.devtool = 'eval-cheap-module-source-map';
 
-    const haBaseUrl = String(process.env.HA_BASE_URL || '').trim();
-    // The add-on server owns /api/entities and enriches Home Assistant's
-    // /api/states response for Blockly. In local development, proxy just that
-    // endpoint to a running add-on image instead of duplicating its server.
-    const addonApiUrl = String(process.env.SMARTBLOCK_ADDON_URL || 'http://localhost:8080').trim();
-    const proxy = {
-      '/analyze': {
-        target: 'http://localhost:8787',
-        changeOrigin: true,
-        secure: false,
-      },
-      '/api/entities': {
-        target: addonApiUrl,
-        changeOrigin: true,
-        secure: false,
-      },
-    };
-
-    // A local UI-only session does not need Home Assistant. Do not register a
-    // WebSocket proxy with an empty target: webpack-dev-server would attempt
-    // to access its undefined upgrade handler during startup.
-    if (haBaseUrl) {
-      proxy['/ha/api'] = {
-        target: haBaseUrl,
-        changeOrigin: true,
-        secure: false,
-        ws: true,
-        pathRewrite: { '^/ha': '' },
-        onProxyReq: (proxyReq) => {
-          const token = process.env.HA_TOKEN;
-          if (token) {
-            proxyReq.setHeader('Authorization', `Bearer ${token}`);
-          }
-        },
-      };
-    } else {
-      console.warn('[HA-SmartBlock] HA_BASE_URL is not set; /ha/api is disabled for this local UI session.');
-    }
-
     config.devServer = {
       host: process.env.DEV_SERVER_HOST || '127.0.0.1',
       port: 8080,
@@ -301,7 +262,44 @@ module.exports = (env, argv) => {
         { directory: path.resolve(__dirname, 'src', 'utils'), publicPath: '/utils', watch: false },
       ],
 
-      proxy,
+      proxy: {
+        '/ha/api': {
+          target: process.env.HA_BASE_URL,
+          changeOrigin: true,
+          secure: false,
+          ws: true,
+          pathRewrite: { '^/ha': '' },
+          onProxyReq: (proxyReq) => {
+            const token = process.env.HA_TOKEN;
+            if (token) {
+              proxyReq.setHeader('Authorization', `Bearer ${token}`);
+            }
+          },
+        },
+
+        '/analyze': {
+          target: 'http://localhost:8787',
+          changeOrigin: true,
+          secure: false,
+        },
+
+        '/api/llm': {
+          target: 'http://localhost:8787',
+          changeOrigin: true,
+          secure: false,
+        },
+
+        '/api/control-now': {
+          target: 'http://localhost:8787',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/api/assistant': {
+          target: 'http://localhost:8787',
+          changeOrigin: true,
+          secure: false,
+        },
+      },
 
       setupMiddlewares: (middlewares, devServer) => {
         const app = devServer?.app;
@@ -309,7 +307,7 @@ module.exports = (env, argv) => {
 
         app.use((req, res, next) => {
           const url = String(req.url || '');
-          if (url.startsWith('/ha/api') || url.startsWith('/analyze')) {
+          if (url.startsWith('/ha/api') || url.startsWith('/analyze') || url.startsWith('/api/llm') || url.startsWith('/api/control-now') || url.startsWith('/api/assistant')) {
             const addr = String(req.socket?.remoteAddress || '');
             if (!isLocalAddress(addr)) {
               sendJson(res, 403, { error: 'forbidden' });

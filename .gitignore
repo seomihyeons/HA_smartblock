@@ -17,6 +17,17 @@ SERP4IoT_presentation_outline.md
 SERP4IoT_talk_notes.md
 /revision_evidence/
 /open2026/
+/automations/
+/server/benchmarks/
+
+# Local-only research, provider implementations, and Home Assistant data.
+# They must never be staged on the public SmartBlock LLM branch.
+/ha_llm_control/llm_api/
+/ha_llm_control/ha_control_layer/
+/ha_llm_control/reproductions/
+/ha_llm_control/**/.env
+src/data/entities_basnijholt.js
+src/data/fetch_B.py
 test/test_raw_demo/
 test/test_xhome_demo/1_xhome_demo_entrance_evening_scene.yaml
 test/test_xhome_demo/2_xhome_demo_entrance_mood_lamp.yaml

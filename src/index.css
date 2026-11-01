@@ -142,11 +142,101 @@ code {
   opacity: 0.3 !important;
 }
 
+#btnAiAssistant {
+  position: fixed !important;
+  right: 28px !important;
+  bottom: 270px !important;
+  z-index: 2147483647 !important;
+  width: 70px !important;
+  height: 70px !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  cursor: pointer !important;
+  font-size: 42px !important;
+  line-height: 1 !important;
+  opacity: 0.35 !important;
+}
+
+#btnAiAssistant:hover,
+#btnAiAssistant:focus-visible {
+  opacity: 0.7 !important;
+}
+
 body.floating-buttons-hidden #btnDebug,
-body.floating-buttons-hidden #btnTaskAlt {
+body.floating-buttons-hidden #btnTaskAlt,
+body.floating-buttons-hidden #btnAiAssistant {
   opacity: 0 !important;
   pointer-events: none !important;
 }
+
+#aiAssistantPanel {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+#aiAssistantPanel.hidden {
+  display: none !important;
+}
+
+#aiAssistantPanel #aiAssistantBackdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+#aiAssistantPanel .modal-panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100vw - 48px));
+  max-height: min(720px, calc(100vh - 48px));
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+#aiAssistantPanel .modal-header,
+#aiAssistantPanel .ai-assistant-meta,
+#aiAssistantPanel .ai-assistant-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+#aiAssistantPanel .modal-header,
+#aiAssistantPanel .ai-assistant-meta {
+  justify-content: space-between;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+#aiAssistantPanel .modal-title { font-size: 18px; font-weight: 700; }
+#aiAssistantPanel .ai-assistant-provider { display: flex; align-items: center; gap: 8px; }
+#aiAssistantPanel .ai-assistant-status { color: #4b5563; font-size: 13px; }
+#aiAssistantPanel .ai-assistant-messages {
+  flex: 1;
+  min-height: 240px;
+  overflow: auto;
+  padding: 16px;
+  white-space: pre-wrap;
+}
+#aiAssistantPanel .ai-message { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; }
+#aiAssistantPanel .ai-message-user { margin-left: 15%; background: #e0f2fe; }
+#aiAssistantPanel .ai-message-assistant { margin-right: 15%; background: #f3f4f6; }
+#aiAssistantPanel .ai-assistant-form { border-top: 1px solid #e5e7eb; }
+#aiAssistantPanel #aiAssistantInput { flex: 1; min-height: 44px; resize: vertical; }
+#aiAssistantPanel button,
+#aiAssistantPanel select,
+#aiAssistantPanel textarea { font: inherit; }
 
 .block-search-launcher {
   position: absolute;
