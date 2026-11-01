@@ -104,6 +104,7 @@ export function createToolbox(entities = []) {
       contents: [
         { kind: 'label', text: 'State' },
         ...eventStateBlocks,
+        { kind: 'block', type: 'event_sensor_numeric_state' },
         { kind: 'label', text: 'Home Assistant' },
         { kind: 'block', type: 'ha_event_homeassistant' },
         { kind: 'label', text: 'Event' },
@@ -121,7 +122,6 @@ export function createToolbox(entities = []) {
         { kind: 'block', type: 'event_group_entities' },
         { kind: 'block', type: 'event_group_numeric_entities' },
         { kind: 'block', type: 'event_group_entity_item' },
-        { kind: 'block', type: 'event_sensor_numeric_state' },
         { kind: 'label', text: 'Time' },
         { kind: 'block', type: 'ha_event_time_state' },
         { kind: 'block', type: 'ha_event_time_pattern' },
