@@ -160,8 +160,20 @@ export function resolveConfiguredIcon(block, entity = null) {
   return {name:fallback,color:'#355469'};
 }
 
+function unknownActualIcon(domain, entityId) {
+  const special=entityId==='switch.dehumidifier'?'dehumidifier':domain;
+  const placeholders={
+    light:'lightbulb-outline', switch:'toggle-switch-outline',
+    person:'account-outline', device_tracker:'map-marker-outline',
+    lock:'lock-outline', alarm_control_panel:'shield-outline',
+    automation:'robot-outline', siren:'alarm-light-outline',
+    binary_sensor:'radiobox-blank',
+  };
+  return placeholders[special] || DOMAIN_ICONS[domain] || 'information-outline';
+}
+
 export function resolveActualIcon(entityId, entity) {
-  if (!entityId || !entity || entity.entity_id !== entityId) return {name:'information-outline',color:'#69747D',unknown:true};
+  if (!entityId || !entity || entity.entity_id !== entityId) return {name:unknownActualIcon(entityId?.split('.')[0]||'',entityId||''),color:'#69747D',unknown:true};
   const domain=String(entity.domain || entityId.split('.')[0]);
   let kind=domain;
   if (domain==='binary_sensor') {
@@ -170,7 +182,7 @@ export function resolveActualIcon(entityId, entity) {
   }
   if (entityId==='switch.dehumidifier') kind='dehumidifier';
   const raw=String(entity.state || '').toLowerCase();
-  if (raw==='unknown' || raw==='unavailable' || !raw) return {name:DOMAIN_ICONS[domain] || 'information-outline',color:'#69747D',unknown:true};
+  if (raw==='unknown' || raw==='unavailable' || !raw) return {name:unknownActualIcon(domain,entityId),color:'#69747D',unknown:true};
   const meaning=normalizeConfiguredState(kind,raw);
   const pair=STATE_ICON_PAIRS[kind]?.[meaning];
   return {name:pair?.[1] || DOMAIN_ICONS[domain] || 'information-outline',color:'#62727D',unknown:false};

@@ -39,6 +39,7 @@ export function enhanceEntityDropdownIcon(field) {
       iconImage.setAttribute('height',String(SIZE));
       iconImage.setAttribute('pointer-events','none');
       iconImage.setAttribute('aria-hidden','true');
+      iconImage.setAttribute('data-ha-actual-icon','true');
       root.appendChild(iconImage);
     }
     const current=iconFor(this);
@@ -59,7 +60,7 @@ export function refreshEntityIcon(field) {
   if(!field?.[ENHANCED]) return;
   const root=field.getSvgRoot?.();
   // Refreshing an icon must not trigger block change events, YAML generation or Undo.
-  const image=root?.querySelector('image[aria-hidden="true"]');
+  const image=root?.querySelector('image[data-ha-actual-icon="true"]');
   if(image) {
     const icon=iconFor(field);
     image.setAttribute('href',mdiDataUri(icon.name,icon.color));
