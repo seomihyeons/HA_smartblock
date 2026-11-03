@@ -24,3 +24,13 @@ test('icon is still presentation-only and follows selected configuration', () =>
   assert.match(source, /updateFilled\(this\)/);
   assert.match(source, /insertFilledField\(this\)/);
 });
+
+test('all three surfaces use prepaint vertical center alignment and current dropdown icons', () => {
+  assert.match(source, /enhanceBlockEntityIcons\(this\)/);
+  assert.match(source, /prototype\.render = function/);
+  assert.match(source, /flyoutPrototype\.show = function/);
+  assert.match(source, /originalShow\.apply\(this, args\)/);
+  assert.match(source, /centerFilledIconDuringRender\(block\)/);
+  assert.match(source, /getScreenCTM\?\.\(\)/);
+  assert.doesNotMatch(source, /Blockly\.Events\.BLOCK_MOVE/);
+});
