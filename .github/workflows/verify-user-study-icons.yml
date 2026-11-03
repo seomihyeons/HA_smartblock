@@ -15,10 +15,8 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Audit production dependencies (report only)
-        run: |
-          npm audit --omit=dev --json > audit-production.json || true
-          node -e 'const a=require("./audit-production.json"); console.log("Production audit:",JSON.stringify({counts:a.metadata?.vulnerabilities,findings:Object.entries(a.vulnerabilities||{}).map(([name,v])=>({name,severity:v.severity,range:v.range,fixAvailable:v.fixAvailable,via:v.via?.filter(x=>typeof x==="object").map(x=>({title:x.title,url:x.url}))}))},null,2))'
+      - name: Block vulnerable production dependencies
+        run: npm audit --omit=dev --audit-level=moderate
       - name: Audit all dependencies (report only)
         run: |
           npm audit --json > audit-all.json || true
