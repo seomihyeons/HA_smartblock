@@ -1,12 +1,14 @@
 import * as Blockly from 'blockly';
 import { resolveConfiguredIcon } from './icon_semantics.js';
 import { mdiDataUri } from './mdi_svg.js';
+import { enhanceBlockEntityIcons } from './entity_dropdown_icons.js';
 import { dummyEntities } from '../data/entities_index.js';
 
 const FIELD_NAME = 'HA_FILLED_ICON';
 const WRAPPED = Symbol('haFilledIconWrapped');
 const ICON_BLOCK = Symbol('haFilledIconBlock');
 const RENDER_WRAPPED = Symbol('haFilledIconRenderWrapped');
+const FLYOUT_WRAPPED = Symbol('haFilledIconFlyoutWrapped');
 const ICON_WIDTH = 18;
 const CENTER_TOLERANCE_PX = 0.5;
 
@@ -30,7 +32,12 @@ function centerFilledIconDuringRender(block) {
   const delta = (blockBounds.top + blockBounds.height / 2) -
     (iconBounds.top + iconBounds.height / 2);
   if (Math.abs(delta) <= CENTER_TOLERANCE_PX) return;
-  const scale = Number(block.workspace?.scale) || 1;
+  // Flyout previews use a different SVG transform from the editing canvas.
+  // Measure the actual vertical SVG-to-screen scale instead of assuming that
+  // block.workspace.scale describes the image's complete transform.
+  const matrix = image.getScreenCTM?.();
+  const scale = matrix ? Math.hypot(matrix.c, matrix.d) : Number(block.workspace?.scale);
+  if (!Number.isFinite(scale) || scale <= 0) return;
   const oldY = Number(image.getAttribute('y') || 0);
   image.setAttribute('y', String(oldY + delta / scale));
 }
@@ -89,7 +96,8 @@ function installRenderAlignment() {
   const originalRender = prototype.render;
   prototype.render = function (...args) {
     if (this[ICON_BLOCK]) {
-      // Dynamic block shapes may rebuild their first input row.
+      // Time/sun mutators can rebuild entity dropdowns and their input rows.
+      enhanceBlockEntityIcons(this);
       insertFilledField(this);
       updateFilled(this);
     }
@@ -98,6 +106,23 @@ function installRenderAlignment() {
     return result;
   };
   prototype[RENDER_WRAPPED] = true;
+
+  // A flyout can render its preview blocks while its SVG root is detached or
+  // hidden, making DOM bounds zero during BlockSvg.render. Once show() has
+  // attached the blocks, perform the initial alignment synchronously before
+  // the browser paints. Both native Toolbox and custom Block Search inherit it.
+  const flyoutPrototype = Blockly.VerticalFlyout.prototype;
+  if (!flyoutPrototype[FLYOUT_WRAPPED]) {
+    const originalShow = flyoutPrototype.show;
+    flyoutPrototype.show = function (...args) {
+      const result = originalShow.apply(this, args);
+      for (const block of this.getWorkspace?.()?.getAllBlocks(false) || []) {
+        centerFilledIconDuringRender(block);
+      }
+      return result;
+    };
+    flyoutPrototype[FLYOUT_WRAPPED] = true;
+  }
 }
 
 /** Decorates block definitions before Blockly.inject creates flyout workspaces. */
@@ -109,6 +134,10 @@ export function decorateBlockDefinitionsWithFilledIcons() {
     definition.init = function (...args) {
       baseInit.apply(this, args);
       this[ICON_BLOCK] = true;
+      // Install on the block definition itself, not on the editing workspace.
+      // Temporary native Toolbox and Block Search clones then get identical
+      // live-state Entity dropdown icons during their first SVG render.
+      enhanceBlockEntityIcons(this);
       insertFilledField(this);
     };
     definition[WRAPPED] = true;
