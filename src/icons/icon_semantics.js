@@ -2,11 +2,11 @@
 // Domain state options and YAML service names remain owned by data/options.js.
 
 export const DOMAIN_ICONS = Object.freeze({
-  light: 'lightbulb', switch: 'toggle-switch', lock: 'lock',
+  light: 'lightbulb', switch: 'toggle-switch-variant', lock: 'lock',
   media_player: 'play-circle', climate: 'thermostat', cover: 'curtains',
   binary_sensor: 'radiobox-marked', device_tracker: 'map-marker-account',
   fan: 'fan', camera: 'cctv', sensor: 'gauge', person: 'account',
-  input_boolean: 'toggle-switch', ecobee: 'thermostat', input_number: 'numeric',
+  input_boolean: 'toggle-switch-variant', ecobee: 'thermostat', input_number: 'numeric',
   input_select: 'form-dropdown', input_text: 'form-textbox',
   automation: 'robot', homeassistant: 'home-automation', backup: 'backup-restore',
   mqtt: 'access-point-network', script: 'script-text', python_script: 'language-python',
@@ -20,8 +20,8 @@ export const DOMAIN_ICONS = Object.freeze({
 
 // These are the user's approved filled/outline choices. Do not add icon backgrounds.
 export const STATE_ICON_PAIRS = Object.freeze({
-  light: { on: ['lightbulb-on','lightbulb-on-outline'], off: ['lightbulb-off','lightbulb-outline'] },
-  switch: { on: ['toggle-switch','toggle-switch-outline'], off: ['toggle-switch-off','toggle-switch-off-outline'] },
+  light: { on: ['lightbulb','lightbulb-outline'], off: ['lightbulb-off','lightbulb-off-outline'] },
+  switch: { on: ['toggle-switch-variant','toggle-switch-variant'], off: ['toggle-switch-variant-off','toggle-switch-variant-off'] },
   motion: { on: ['motion-sensor','motion-sensor'], off: ['motion-sensor-off','motion-sensor-off'] },
   door: { on: ['door-open','door-open'], off: ['door-closed','door-closed'] },
   person: { home: ['account','account-outline'], not_home: ['account-off','account-off-outline'] },
@@ -99,7 +99,6 @@ export function configuredIconContext(block, entity) {
     domain=hint || (entity?.attributes?.device_class === 'motion' ? 'motion'
       : entity?.attributes?.device_class === 'door' ? 'door' : 'binary_sensor');
   }
-  if (domain==='switch' && entityId==='switch.dehumidifier') domain='dehumidifier';
   if (domain==='homeassistant' && entityId?.includes('.')) {
     const targetDomain=entityId.split('.')[0];
     if (DOMAIN_ICONS[targetDomain]) domain=targetDomain;
@@ -131,15 +130,8 @@ export function normalizeConfiguredState(domain, rawState) {
   return state;
 }
 
-function semanticColor(domain,state) {
-  if (!state) return '#355469';
-  if (['off','not_home','closed','idle','docked','stopped','disarmed','paused'].includes(state)) return '#59656F';
-  if (state==='unlocked') return '#A46113';
-  if (domain==='light' || domain==='sun') return '#916200';
-  if (domain==='door' || domain==='siren' || state==='triggered' || state==='error') return '#9F4F15';
-  if (domain==='person' || domain==='device_tracker' || domain==='lock') return '#166D45';
-  return '#16578A';
-}
+// The shape communicates the configured state; every leading icon is the same gray.
+export const FILLED_ICON_COLOR = '#4D555C';
 
 export function resolveConfiguredIcon(block, entity = null) {
   const { type,domain,state }=configuredIconContext(block,entity);
@@ -147,7 +139,7 @@ export function resolveConfiguredIcon(block, entity = null) {
   if (type==='event_action' || type==='event_condition_action') return null;
   const meaning=normalizeConfiguredState(domain,state);
   const pair=STATE_ICON_PAIRS[domain]?.[meaning];
-  if (pair) return { name: pair[0], color:semanticColor(domain,meaning) };
+  if (pair) return { name: pair[0], color:FILLED_ICON_COLOR };
   const helper=HELPERS[type];
   let fallback=helper || DOMAIN_ICONS[domain];
   if (!fallback) {
@@ -157,19 +149,18 @@ export function resolveConfiguredIcon(block, entity = null) {
     else fallback=/raw/.test(type)?'code-tags':/metadata/.test(type)?'information-outline':'puzzle';
   }
   // Undefined or custom states are neutral; never assert 'on' for an unknown service.
-  return {name:fallback,color:'#355469'};
+  return {name:fallback,color:FILLED_ICON_COLOR};
 }
 
 function unknownActualIcon(domain, entityId) {
-  const special=entityId==='switch.dehumidifier'?'dehumidifier':domain;
   const placeholders={
-    light:'lightbulb-outline', switch:'toggle-switch-outline',
+    light:'lightbulb-outline', switch:'toggle-switch-variant',
     person:'account-outline', device_tracker:'map-marker-outline',
     lock:'lock-outline', alarm_control_panel:'shield-outline',
     automation:'robot-outline', siren:'alarm-light-outline',
     binary_sensor:'radiobox-blank',
   };
-  return placeholders[special] || DOMAIN_ICONS[domain] || 'information-outline';
+  return placeholders[domain] || DOMAIN_ICONS[domain] || 'information-outline';
 }
 
 export function resolveActualIcon(entityId, entity) {
@@ -180,7 +171,6 @@ export function resolveActualIcon(entityId, entity) {
     const dc=String(entity.attributes?.device_class || '').toLowerCase();
     if (dc==='motion' || dc==='door') kind=dc;
   }
-  if (entityId==='switch.dehumidifier') kind='dehumidifier';
   const raw=String(entity.state || '').toLowerCase();
   if (raw==='unknown' || raw==='unavailable' || !raw) return {name:unknownActualIcon(domain,entityId),color:'#69747D',unknown:true};
   const meaning=normalizeConfiguredState(kind,raw);
