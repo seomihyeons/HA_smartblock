@@ -60,6 +60,14 @@ const HELPERS = Object.freeze({
   'ha_event_event': 'lightning-bolt',
   'ha_event_sun': 'weather-sunset',
   'ha_event_sun_state': 'weather-sunny',
+  'condition_sun': 'weather-sunny',
+  'condition_sun_phase': 'weather-night',
+  'condition_sun_after': 'weather-sunset',
+  'condition_sun_before': 'weather-sunset',
+  'condition_time': 'clock',
+  'condition_time_weekly': 'calendar-week',
+  'condition_time_after': 'clock',
+  'condition_time_before': 'clock',
   'ha_event_time_state': 'clock',
   'ha_event_time_pattern': 'clock',
   'event_sensor_numeric_state': 'gauge',
@@ -133,10 +141,23 @@ export function normalizeConfiguredState(domain, rawState) {
 // The shape communicates the configured state; every leading icon is the same gray.
 export const FILLED_ICON_COLOR = '#4D555C';
 
+// Structural/group containers and standalone connection modifiers are readable
+// without a leading icon. Icons should convey a concrete device, state or event.
+const ICONLESS_BLOCKS = new Set([
+  'event_action', 'event_condition_action',
+  'ha_event_for_hms', 'ha_event_offset', 'condition_sun_offset',
+  'condition_not_value',
+  'condition_logic', 'condition_not_inline',
+  'event_group_entities', 'event_group_numeric_entities',
+  'action_if_else', 'action_if_then', 'action_group_entities', 'action_join',
+]);
+
 export function resolveConfiguredIcon(block, entity = null) {
   const { type,domain,state }=configuredIconContext(block,entity);
-  // Rule containers already carry colored Trigger/Condition/Action labels.
-  if (type==='event_action' || type==='event_condition_action') return null;
+  if (ICONLESS_BLOCKS.has(type)) return null;
+  // Value-output helper blocks plug into a neighbor; they do not need
+  // standalone leading icons (including future duration/offset variants).
+  if (block?.outputConnection && !block?.previousConnection && !block?.nextConnection) return null;
   const meaning=normalizeConfiguredState(domain,state);
   const pair=STATE_ICON_PAIRS[domain]?.[meaning];
   if (pair) return { name: pair[0], color:FILLED_ICON_COLOR };
