@@ -1,18 +1,26 @@
 import * as Blockly from 'blockly';
-import { resolveActualIcon } from './icon_semantics.js';
+import { resolveActualIcon, resolveSunDropdownIcon } from './icon_semantics.js';
 import { mdiDataUri } from './mdi_svg.js';
 
 const ENHANCED=Symbol('haActualIcon');
 const ENTITY_NAMES=['ENTITY_ID','ENTITY','AFTER_ENTITY','BEFORE_ENTITY','USER'];
 const SIZE=16;
-const SPACE=20;
+// 16px glyph at x=7 ends at 23; 28px indentation leaves ~5px (one space).
+const SPACE=28;
 let stateStore=null;
 
 export function setEntityIconStateStore(store) { stateStore=store; }
 
 function iconFor(field) {
+  const block=field.getSourceBlock?.();
+  const sun=resolveSunDropdownIcon(block?.type,field.name,String(field.getValue?.()||''));
+  if(sun) return sun;
   const id=String(field.getValue?.()||'');
   return resolveActualIcon(id,stateStore?.get(id)||null);
+}
+
+function isSunDropdown(field) {
+  return !!resolveSunDropdownIcon(field.getSourceBlock?.()?.type,field.name,field.getValue?.());
 }
 
 function shiftSvgArrow(field) {
@@ -70,6 +78,12 @@ export function refreshEntityIcon(field) {
 export function enhanceBlockEntityIcons(block) {
   if(!block?.getField) return;
   ENTITY_NAMES.forEach(name=>enhanceEntityDropdownIcon(block.getField(name)));
+  // Sun events and phases are dropdowns, not HA entity IDs. Their icons
+  // represent the selected sunrise/sunset/day/night value, even in flyouts.
+  for(const name of ['EVENT','PHASE','FROM','TO']) {
+    const field=block.getField(name);
+    if(field && isSunDropdown(field)) enhanceEntityDropdownIcon(field);
+  }
 }
 
 /** One shared subscription, only update fields whose actual HA states changed. */
