@@ -138,6 +138,8 @@ import {
   mdiWeatherPartlyCloudy,
   mdiWeatherSunny,
   mdiWeatherSunset,
+  mdiWeatherSunsetDown,
+  mdiWeatherSunsetUp,
   mdiWindowClosed,
   mdiWindowOpen,
   mdiZWave
@@ -281,6 +283,8 @@ export const MDI_PATHS = Object.freeze({
   'account-group': mdiAccountGroup,
   'account-group-outline': mdiAccountGroupOutline,
   'weather-sunset': mdiWeatherSunset,
+  'weather-sunset-down': mdiWeatherSunsetDown,
+  'weather-sunset-up': mdiWeatherSunsetUp,
   'home-assistant': mdiHomeAssistant,
   'power': mdiPower,
   'information-outline': mdiInformationOutline,
