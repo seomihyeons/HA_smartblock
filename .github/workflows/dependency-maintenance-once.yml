@@ -1,0 +1,63 @@
+name: One-time dependency patch update
+on:
+  push:
+    branches: [feature/user-study-icon]
+    paths: ['.github/workflows/dependency-maintenance-once.yml']
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Baseline test
+        run: |
+          npm ci
+          npm test
+      - name: Apply four production security patches and regenerate lockfile
+        run: |
+          npm pkg set 'dependencies.js-yaml=^4.3.2' 'overrides.body-parser=^2.4.0' 'overrides.proxy-addr=^2.0.8' 'overrides.qs=^6.16.1'
+          npm install --package-lock-only --ignore-scripts
+          npm ci
+          npm ls js-yaml body-parser proxy-addr qs
+          npm audit --omit=dev --audit-level=moderate
+          npm test
+          npm run build
+      - name: Commit verified production patches
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json package-lock.json
+          git diff --cached --quiet && { echo 'No production changes'; exit 1; }
+          git commit -m 'fix(deps): patch four vulnerable production packages'
+          git push origin HEAD:feature/user-study-icon
+      - name: Apply compatible development dependency updates
+        run: |
+          npm update --save-dev
+          npm audit fix --package-lock-only || true
+          npm ci
+          npm test
+          npm run build
+          npm audit --omit=dev --audit-level=moderate
+          npm audit --json > audit-remaining.json || true
+          node -e 'const a=require("./audit-remaining.json"); console.log("REMAINING_AUDIT:",JSON.stringify({counts:a.metadata?.vulnerabilities,packages:Object.entries(a.vulnerabilities||{}).map(([name,v])=>({name,severity:v.severity,fixAvailable:v.fixAvailable}))}))'
+      - name: Run Chromium UI regression
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+          node test/icon_browser_smoke.cjs
+      - name: Commit verified compatible development patches
+        run: |
+          git add package.json package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore(deps): update compatible development dependencies'
+            git push origin HEAD:feature/user-study-icon
+          else
+            echo 'No compatible development changes'
+          fi
