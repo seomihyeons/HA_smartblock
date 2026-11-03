@@ -91,6 +91,46 @@ const server=http.createServer(async(req,res)=>{
       {id:initial,old:baseline.filled},{timeout:5000});
     await page.evaluate(id=>window.ws.getBlockById(id).getField('ENTITY_ID').showEditor_(),initial);
     await page.waitForSelector('.ha-entity-search-input',{timeout:5000});
+    // Native Toolbox preview: verify Trigger, Condition and Action before drag.
+    const native=await page.evaluate(()=>{
+      const toolbox=window.ws.getToolbox();
+      const result={};
+      for(const name of ['Trigger','Condition','Action']) {
+        const category=toolbox.getToolboxItems().find(x=>x.getName?.()===name);
+        if(!category) throw Error('Missing category: '+name);
+        category.getClickTarget().click();
+        const blocks=toolbox.getFlyout().getWorkspace().getAllBlocks(false);
+        let entityIcons=0,leadingIcons=0;
+        const failures=[];
+        for(const b of blocks) {
+          for(const key of ['ENTITY_ID','ENTITY','USER','AFTER_ENTITY','BEFORE_ENTITY']) {
+            const field=b.getField(key);
+            if(!field)continue;
+            if(field.getSvgRoot()?.querySelector('image[data-ha-actual-icon="true"]'))entityIcons++;
+            else failures.push(b.type+': missing '+key+' icon');
+          }
+          const icon=b.getField('HA_FILLED_ICON')?.getSvgRoot()?.querySelector('image');
+          const path=b.pathObject?.svgPath||b.getSvgRoot()?.querySelector('.blocklyPath');
+          if(!icon||!path)continue;
+          leadingIcons++;
+          const a=icon.getBoundingClientRect(),c=path.getBoundingClientRect();
+          const delta=Math.abs((a.top+a.height/2)-(c.top+c.height/2));
+          if(a.height<=0||c.height<=0||delta>1.5)failures.push(b.type+': offset '+delta.toFixed(2));
+        }
+        result[name]={total:blocks.length,entityIcons,leadingIcons,failures};
+      }
+      return result;
+    });
+    for(const [name,r] of Object.entries(native)) {
+      assert.ok(r.total>0&&r.entityIcons>0&&r.leadingIcons>0,name+': '+JSON.stringify(r));
+      assert.deepEqual(r.failures,[],name+': '+r.failures.join('; '));
+    }
+    // Block Search's preview has its own workspace and must also expose an
+    // Entity icon without first placing a block on the editing workspace.
+    await page.locator('svg.block-search-launcher').dispatchEvent('pointerdown');
+    await page.locator('#blockSearchFlyoutInput').fill('light');
+    const searchIconCount=await page.locator('.blocklyFlyout image[data-ha-actual-icon="true"]').count();
+    assert.ok(searchIconCount>0,'Block Search must display entity dropdown icons');
     assert.deepEqual(errors,[],errors.join('\n'));
     console.log('PASS real-browser MDI smoke: filled settings, actual status, SVG layout, search and no workspace mutation');
   } finally {await browser.close();}
