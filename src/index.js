@@ -38,7 +38,7 @@ import { installEntityDropdownSearch } from './blocks/utils/searchable_entity_dr
 import './blocks/extensions';
 import { decorateBlockDefinitionsWithFilledIcons, installFilledIconsOnWorkspace } from './icons/block_filled_icons.js';
 import { createEntityStateStore } from './icons/entity_state_store.js';
-import { installLiveEntityIcons } from './icons/entity_dropdown_icons.js';
+import { installLiveEntityIcons, setEntityIconStateStore } from './icons/entity_dropdown_icons.js';
 
 import { ruleBlocks } from './blocks/rule_blocks';
 import { ruleMetadataBlocks } from './blocks/rule_metadata.js';
@@ -146,6 +146,11 @@ Blockly.common.defineBlocks(actionNotifyTagBlocks);
 Blockly.common.defineBlocks(actionMqttBlocks);
 decorateBlockDefinitionsWithFilledIcons();
 
+// The Toolbox is created during Blockly.inject. Make current HA states
+// available before its first preview block is rendered.
+const entityStateStore = createEntityStateStore({initialEntities:runtimeEntities.runtimeEntities});
+setEntityIconStateStore(entityStateStore);
+
 const codeDiv = document.getElementById('generatedCode');
 const blocklyDiv = document.getElementById('blocklyDiv');
 let latestYamlPreview = { yaml: '', ranges: new Map() };
@@ -172,8 +177,9 @@ const ws = Blockly.inject(blocklyDiv, {
 installFilledIconsOnWorkspace(ws);
 window.Blockly = Blockly;
 window.ws = ws;
-const entityStateStore = createEntityStateStore({initialEntities:runtimeEntities.runtimeEntities});
 installLiveEntityIcons(ws,entityStateStore);
+const nativeFlyoutWorkspace = ws.getToolbox?.()?.getFlyout?.()?.getWorkspace?.();
+if (nativeFlyoutWorkspace) installLiveEntityIcons(nativeFlyoutWorkspace,entityStateStore);
 const refreshEntityDropdownSearch = installEntityDropdownSearch(ws);
 entityStateStore.start();
 
@@ -260,7 +266,7 @@ setupHaPullPanel({ ws, workspaceChangeTracker });
 const initWorkspaceTools = () => {
   initConflictAnalyzerUI();
   initTaskAltUI({ ws });
-  initBlockSearchFlyout({ workspace: ws });
+  initBlockSearchFlyout({ workspace: ws, entityStateStore });
 };
 initWorkspaceTools();
 
