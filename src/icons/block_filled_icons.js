@@ -5,7 +5,6 @@ import { dummyEntities } from '../data/entities_index.js';
 
 const FIELD_NAME='HA_FILLED_ICON';
 const WRAPPED=Symbol('haFilledIconWrapped');
-const TRACKED_FIELDS=new Set(['TO','STATE','STATE_KIND','ACTION','SERVICE','EVENT','ENTITY','ENTITY_ID','USER','DOMAIN']);
 const ICON_WIDTH=18;
 const CENTER_TOLERANCE_PX=0.5;
 
@@ -39,7 +38,12 @@ function updateFilled(block) {
   const field=block?.getField?.(FIELD_NAME);
   if (!field) return;
   const icon=resolveConfiguredIcon(block,selectedEntity(block));
-  if (!icon) return;
+  if (!icon) {
+    // Remove legacy decoration when a block becomes a structural helper.
+    const existing=block.inputList.find(input=>input.fieldRow?.includes(field));
+    existing?.removeField(FIELD_NAME,true);
+    return;
+  }
   const next=mdiDataUri(icon.name,icon.color);
   if (field.getValue()===next) return;
   // MDI is presentation-only; never record a semantic Blockly change.
@@ -94,14 +98,19 @@ export function installFilledIconsOnWorkspace(workspace) {
     updateFilled(block);
     scheduleCenter(block);
   };
+  const refreshAll=()=>{
+    refreshAll();
+  };
   for (const block of workspace.getAllBlocks(false)) refresh(block.id);
   workspace.addChangeListener((event)=>{
     if (event.type===Blockly.Events.BLOCK_CREATE || event.type===Blockly.Events.FINISHED_LOADING) {
       queueMicrotask(()=>{
         if (event.type===Blockly.Events.BLOCK_CREATE && event.ids?.length) event.ids.forEach(refresh);
-        else workspace.getAllBlocks(false).forEach(b=>refresh(b.id));
+        else refreshAll();
       });
-    } else if (event.type===Blockly.Events.BLOCK_CHANGE && TRACKED_FIELDS.has(event.name)) {
+    } else if (event.type===Blockly.Events.BLOCK_CHANGE) {
+      // Mutators and dynamic shape updates can remove and rebuild whole rows.
+      // Refresh every affected block, not only a fixed list of state fields.
       queueMicrotask(()=>refresh(event.blockId));
     } else if (event.type===Blockly.Events.BLOCK_MOVE) {
       queueMicrotask(()=>workspace.getAllBlocks(false).forEach(scheduleCenter));
