@@ -70,3 +70,31 @@ test('Specified Light and Switch MDI names are retained for filled and actual ic
   assert.deepEqual(STATE_ICON_PAIRS.switch.on,['toggle-switch-variant','toggle-switch-variant']);
   assert.deepEqual(STATE_ICON_PAIRS.switch.off,['toggle-switch-variant-off','toggle-switch-variant-off']);
 });
+
+test('Structural, group, duration and offset blocks do not show leading icons',()=>{
+  for (const type of [
+    'event_action','event_condition_action','ha_event_for_hms','ha_event_offset',
+    'condition_sun_offset','condition_not_value','condition_logic','condition_not_inline',
+    'event_group_entities','event_group_numeric_entities','action_if_then',
+    'action_if_else','action_group_entities','action_join',
+  ]) assert.equal(resolveConfiguredIcon(block(type,{})),null,type);
+  const outputOnly={...block('custom_duration_helper',{}),outputConnection:{},previousConnection:null,nextConnection:null};
+  assert.equal(resolveConfiguredIcon(outputOnly),null);
+});
+
+test('Sun and Time conditions resolve to meaningful time and sun icons',()=>{
+  for (const [type,expected] of [
+    ['condition_sun','weather-sunny'],
+    ['condition_sun_phase','weather-night'],
+    ['condition_sun_after','weather-sunset'],
+    ['condition_sun_before','weather-sunset'],
+    ['condition_time','clock'],
+    ['condition_time_weekly','calendar-week'],
+    ['ha_event_time_state','clock'],
+    ['ha_event_time_pattern','clock'],
+  ]) {
+    const actual=resolveConfiguredIcon(block(type,{}));
+    assert.equal(actual?.name,expected,type);
+    assert.ok(typeof MDI_PATHS[actual.name]==='string' && MDI_PATHS[actual.name].startsWith('M'),type);
+  }
+});
