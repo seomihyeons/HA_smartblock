@@ -106,7 +106,7 @@ export function createProviderNeutralAssistantAdapter({
       };
     },
 
-    async createDraft({ command, conversation, provider, entityCards, capabilityContext, retrieval, entityResolution, slots, interactionContext, informationInventory }) {
+    async createDraft({ command, conversation, provider, entityCards, capabilityContext, retrieval, entityResolution, slots, interactionContext, defaultPersonEntity, informationInventory }) {
       const requestedProvider = String(provider || process.env.LLM_ASSISTANT_PROVIDER || '').trim().toLowerCase();
       if (requestedProvider && !SELECTABLE_PROVIDERS.has(requestedProvider)) {
         throw new ProviderNeutralAssistantError('Unsupported provider.', 400);
@@ -140,6 +140,7 @@ export function createProviderNeutralAssistantAdapter({
             slots: slots && typeof slots === 'object' && !Array.isArray(slots) ? slots : {},
             interaction_context: interactionContext && typeof interactionContext === 'object'
               ? interactionContext : { last_confirmed_target: null },
+            default_person_entity: String(defaultPersonEntity || '').trim() || null,
             information_inventory: Array.isArray(informationInventory)
               ? informationInventory.map((item) => ({
                 domain: String(item?.domain || ''),

@@ -1,7 +1,6 @@
 import './assistant.css';
 import { setModalOpenState } from '../../utils/floating_modal_state';
 import { yamlTextToInternalJson } from '../../import/yaml_import.js';
-import { getDisconnectedBlockSummary } from '../../utils/automation_yaml_scope.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -33,11 +32,16 @@ function responseLanguageFor(command) {
   return /[가-힣]/.test(String(command || '')) ? 'ko' : 'en';
 }
 
-function automationOperationFor(command) {
+function automationOperationFor(command, hasActiveAutomationContext = false) {
   const request = String(command || '').toLowerCase();
   if (/(explain|describe|what does|what is this|설명|무슨.*동작)/.test(request)) return 'explain';
   if (/(inspect|check|validate|issue|problem|검사|점검|문제)/.test(request)) return 'inspect';
-  if (/(modify|edit|change|update|add|remove|replace|수정|편집|추가|삭제|변경)/.test(request)) return 'modify';
+  const modificationVerb = /(modify|edit|change|update|add|remove|replace|수정|편집|추가|삭제|변경)/.test(request);
+  const contextualReference = /(earlier|previous|before|current|this|these|that|we created|the automation|blocks?|아까|이전|앞서|현재|이 자동화|이 블록)/.test(request);
+  // “Add” and “change” also appear in requests to create a brand-new rule.
+  // Treat them as modifications only with an explicit/current automation
+  // context; a title-based draft selection is resolved immediately below.
+  if (modificationVerb && (hasActiveAutomationContext || contextualReference)) return 'modify';
   return 'create';
 }
 
@@ -81,7 +85,6 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
   let activeAutomationContext = null;
   let activeAutomationOperation = 'create';
   let pendingAutomationCommand = null;
-  let resumingPendingAutomationCommand = false;
 
   const workspaceContext = () => {
     const yaml = typeof getWorkspaceYaml === 'function' ? String(getWorkspaceYaml() || '').trim() : '';
@@ -135,17 +138,14 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       button.appendChild(createElement('strong', '', draft.title));
       button.appendChild(createElement('span', '', `${draft.imported_to_blockly ? 'Imported to Blockly' : 'Draft only'} · ${draft.enabled === false ? 'Disabled' : 'Enabled'}`));
       button.addEventListener('click', () => {
+        if (picker.dataset.selectionInProgress === 'true') return;
+        picker.dataset.selectionInProgress = 'true';
         selectContext(draft);
-        appendMessage('assistant', `Editing context selected: ${draft.title}.`);
         picker.querySelectorAll('button').forEach((item) => { item.disabled = true; });
         if (pendingAutomationCommand) {
           const command = pendingAutomationCommand;
           pendingAutomationCommand = null;
-          resumingPendingAutomationCommand = true;
-          window.setTimeout(() => {
-            input.value = command;
-            form.requestSubmit();
-          }, 0);
+          void resumeSelectedAutomationCommand(command, draft);
         }
       });
       picker.appendChild(button);
@@ -199,7 +199,6 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     recentDrafts = [];
     activeAutomationContext = null;
     pendingAutomationCommand = null;
-    resumingPendingAutomationCommand = false;
     renderWelcome();
     renderContextBar();
   };
@@ -218,8 +217,18 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
         return workspace;
       }
     }
-    // “Earlier/previous” is deliberately not resolved to the last active
-    // draft when more than one chat artifact exists. The user must choose.
+    // An explicit draft title is sufficient even when there are several
+    // artifacts in this chat. A title-free “earlier/previous” reference is
+    // deliberately ambiguous and must show the picker instead.
+    const normalizedCommand = String(command).normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+    const titleMatches = recentDrafts.filter((draft) => {
+      const title = String(draft.title || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+      return title.length >= 4 && normalizedCommand.includes(title);
+    });
+    if (titleMatches.length === 1) {
+      selectContext(titleMatches[0]);
+      return titleMatches[0];
+    }
     if (recentDrafts.length > 1 && /(earlier|previous|before|아까|이전|앞서)/i.test(String(command))) {
       return null;
     }
@@ -234,39 +243,6 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       return recentDrafts[0];
     }
     return null;
-  };
-
-  const explainOrInspect = (operation, context, command) => {
-    let automation;
-    try {
-      automation = yamlTextToInternalJson(context.base_yaml);
-    } catch (error) {
-      appendMessage('assistant', `The selected automation could not be read.\n${error?.message || error}`, 'ai-message-error');
-      return;
-    }
-    const korean = responseLanguageFor(command) === 'ko';
-    const triggers = Array.isArray(automation.triggers) ? automation.triggers.length : 0;
-    const conditions = Array.isArray(automation.conditions) ? automation.conditions.length : 0;
-    const actions = Array.isArray(automation.actions) ? automation.actions.length : 0;
-    if (operation === 'explain') {
-      const message = korean
-        ? `현재 자동화 “${titleForAutomation(automation, context.title)}”에는 트리거 ${triggers}개, 조건 ${conditions}개, 액션 ${actions}개가 있습니다. Blockly 또는 YAML을 수정하려면 원하는 변경을 말해 주세요.`
-        : `“${titleForAutomation(automation, context.title)}” has ${triggers} trigger(s), ${conditions} condition(s), and ${actions} action(s). Tell me what you would like to change, or edit the Blockly blocks directly.`;
-      appendMessage('assistant', message);
-      setStatus(status, 'done', 'Explanation generated · Nothing changed');
-      return;
-    }
-    const disconnected = getDisconnectedBlockSummary(ws);
-    const issues = [];
-    if (!triggers) issues.push(korean ? '트리거가 없습니다' : 'No trigger is configured');
-    if (!actions) issues.push(korean ? '액션이 없습니다' : 'No action is configured');
-    if (disconnected.blockCount) issues.push(korean
-      ? `출력에서 제외되는 연결되지 않은 블록 ${disconnected.blockCount}개가 있습니다`
-      : `${disconnected.blockCount} disconnected block(s) are excluded from output`);
-    appendMessage('assistant', issues.length
-      ? `${korean ? '점검 결과' : 'Inspection result'}: ${issues.join(' · ')}`
-      : (korean ? '점검 결과: 현재 자동화에서 구조적 문제를 찾지 못했습니다.' : 'Inspection result: no structural issue was found in the current automation.'));
-    setStatus(status, 'done', 'Inspection complete · Nothing changed');
   };
 
   const loadProviders = async () => {
@@ -345,12 +321,17 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       }
       appendMessage('assistant', 'The validated draft was imported and its YAML regenerated. Use Push to HA separately to save it.');
       setStatus(status, 'done', 'Imported to Blockly · YAML regenerated · Not saved to Home Assistant');
+      if (button?.textContent === 'Import blocks') button.textContent = 'Re-import blocks';
       return true;
     } catch (error) {
       button.disabled = false;
       appendMessage('assistant', `Blockly import failed.\n${error?.message || error}`, 'ai-message-error');
       setStatus(status, 'error', 'Blockly import failed');
       return false;
+    } finally {
+      // Import replaces the current workspace but is intentionally repeatable:
+      // users may return to a draft after editing or inspecting other blocks.
+      button.disabled = false;
     }
   };
 
@@ -447,7 +428,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           selections,
           slots,
           interaction_context: interactionContext,
-          automation_context: activeAutomationOperation === 'modify' && activeAutomationContext ? {
+          automation_context: activeAutomationOperation !== 'create' && activeAutomationContext ? {
             operation: 'modify',
             source: activeAutomationContext.source,
             title: activeAutomationContext.title,
@@ -573,6 +554,10 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       if (resolution.status === 'failed') {
         awaitingClarification = false;
         appendMessage('assistant', result.message || '요청을 처리할 수 없습니다.');
+        if (Array.isArray(result.missing_fields) && result.missing_fields.includes('automation_context')) {
+          pendingAutomationCommand = activeCommand;
+          if (recentDrafts.length > 1) renderRecentDraftPicker();
+        }
         setStatus(status, 'idle', `${resolution.failure_reason || 'Request'} · Nothing executed`);
         return;
       }
@@ -589,6 +574,19 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       input.focus();
     }
   };
+
+  async function resumeSelectedAutomationCommand(command, context) {
+    const operation = automationOperationFor(command, Boolean(context?.base_yaml));
+    selectContext(context);
+    activeAutomationOperation = operation;
+    activeCommand = command;
+    conversation = [{ role: 'user', content: command }];
+    selections = {};
+    slots = { entity_references: {} };
+    awaitingClarification = false;
+
+    await requestAssistant();
+  }
 
   openButton.addEventListener('click', openPanel);
   closeButton.addEventListener('click', closePanel);
@@ -618,36 +616,22 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     const command = input.value.trim();
     if (!command) return;
 
-    const isResumingPendingCommand = resumingPendingAutomationCommand;
-    resumingPendingAutomationCommand = false;
-    const operation = automationOperationFor(command);
-    if (!isResumingPendingCommand) {
-      $('aiAssistantWelcome')?.remove();
-      appendMessage('user', command);
-    }
+    const mentionsRecentDraft = recentDrafts.some((draft) => {
+      const title = String(draft.title || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+      const request = String(command).normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+      return title.length >= 4 && request.includes(title);
+    });
+    const operation = automationOperationFor(command, Boolean(activeAutomationContext?.base_yaml) || mentionsRecentDraft);
+    $('aiAssistantWelcome')?.remove();
+    appendMessage('user', command);
     input.value = '';
 
-    // A draft-picker selection resumes this exact request. Do not classify its
-    // “earlier/previous” wording as ambiguous for a second time.
-    const context = isResumingPendingCommand && activeAutomationContext?.base_yaml
-      ? activeAutomationContext
-      : contextForOperation(operation, command);
-    if (operation !== 'create' && !context) {
-      pendingAutomationCommand = command;
-      appendMessage('assistant', recentDrafts.length
-        ? 'Select the automation you want to edit below.'
-        : 'Create or import an automation before editing it.');
-      if (recentDrafts.length > 1) renderRecentDraftPicker();
-      setStatus(status, 'idle', 'Automation selection required');
-      return;
-    }
-
-    if (operation === 'explain' || operation === 'inspect') {
-      explainOrInspect(operation, context, command);
-      return;
-    }
-
+    const context = contextForOperation(operation, command);
     activeAutomationOperation = operation;
+    // Never reject a chat command purely in the browser.  With no selected
+    // YAML the provider receives the request once and can return the explicit
+    // automation_context_required plan; only then do we offer a draft picker.
+    if (context) selectContext(context);
     if (awaitingClarification && conversation.length) {
       conversation.push({ role: 'user', content: command });
     } else {

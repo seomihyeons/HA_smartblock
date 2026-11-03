@@ -21,8 +21,42 @@ function publicEntity(card, projection) {
 }
 
 /** Execute read-only information plans against fresh live EntityCards. */
-export function executeInformationQuery(entityCards, plan = {}) {
+export function executeInformationQuery(entityCards, plan = {}, { serviceCatalog = [] } = {}) {
   const operation = text(plan.operation);
+  const services = (Array.isArray(serviceCatalog) ? serviceCatalog : []).flatMap((entry) => {
+    const domain = text(entry?.domain);
+    const methods = entry?.services && typeof entry.services === 'object' ? entry.services : {};
+    return Object.entries(methods).flatMap(([method, metadata]) => domain && method ? [{
+      id: `${domain}.${method}`,
+      domain,
+      name: text(metadata?.name) || method,
+      description: text(metadata?.description),
+      fields: metadata?.fields && typeof metadata.fields === 'object' ? metadata.fields : {},
+    }] : []);
+  });
+  if (operation === 'service_collection') {
+    const domain = text(plan.domain);
+    const matches = services.filter((service) => !domain || service.domain === domain);
+    return {
+      status: 'success', kind: 'service_collection', domain: domain || null,
+      services: matches.slice(0, 50).map((service) => ({ id: service.id, name: service.name, description: service.description })),
+      total_count: matches.length,
+    };
+  }
+  if (operation === 'service_capability') {
+    const service = services.find((candidate) => candidate.id === text(plan.service));
+    if (!service) return { status: 'unsupported_capability', service: text(plan.service) };
+    return {
+      status: 'success', kind: 'service_capability',
+      service: {
+        id: service.id, name: service.name, description: service.description,
+        fields: Object.entries(service.fields).slice(0, 32).map(([name, field]) => ({
+          name, required: field?.required === true, description: text(field?.description),
+          example: field?.example ?? null, selector: text(Object.keys(field?.selector || {})[0]) || null,
+        })),
+      },
+    };
+  }
   const selection = selectEntityCards(entityCards, plan.target);
   if (selection.status === 'invalid') {
     return { status: 'invalid_request', reason: selection.reason };
@@ -31,6 +65,12 @@ export function executeInformationQuery(entityCards, plan = {}) {
     return { status: 'entity_not_found', entities: [] };
   }
 
+  if (operation === 'entity_identity') {
+    if (selection.cards.length !== 1) {
+      return { status: 'ambiguous', entities: selection.cards.slice(0, 8).map((card) => publicEntity(card, ['display_name', 'entity_id', 'area', 'state'])) };
+    }
+    return { status: 'success', kind: 'entity_identity', entity: publicEntity(selection.cards[0], ['display_name', 'entity_id', 'domain', 'area', 'state']) };
+  }
   if (operation === 'entity_property') {
     if (selection.cards.length !== 1) {
       return {

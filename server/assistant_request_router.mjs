@@ -1,5 +1,46 @@
 const text = (value) => String(value ?? '').trim();
 
+function numericThreshold(value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  return value;
+}
+
+/**
+ * The LLM speaks Home Assistant YAML; Blockly derives its segmented control
+ * from those standard `above`/`below` fields. Validate the shared meaning at
+ * the host boundary rather than accepting UI-only or malformed thresholds.
+ */
+export function validateNumericStateThresholds(automation) {
+  const errors = [];
+  const validateNode = (node, path) => {
+    if (!node || typeof node !== 'object' || Array.isArray(node)) return;
+    if (text(node.trigger || node.condition) === 'numeric_state') {
+      const hasAbove = node.above !== undefined && node.above !== null && node.above !== '';
+      const hasBelow = node.below !== undefined && node.below !== null && node.below !== '';
+      if (!hasAbove && !hasBelow) {
+        errors.push(`${path} numeric_state requires above, below, or both thresholds.`);
+      } else {
+        const above = hasAbove ? numericThreshold(node.above) : null;
+        const below = hasBelow ? numericThreshold(node.below) : null;
+        if (hasAbove && above === null) errors.push(`${path}.above must be a finite numeric threshold.`);
+        if (hasBelow && below === null) errors.push(`${path}.below must be a finite numeric threshold.`);
+        if (above !== null && below !== null && above >= below) {
+          errors.push(`${path} Between thresholds require above to be less than below.`);
+        }
+      }
+    }
+    for (const [key, value] of Object.entries(node)) {
+      if (key === 'entity_id') continue;
+      if (Array.isArray(value)) value.forEach((child, index) => validateNode(child, `${path}.${key}[${index}]`));
+      else if (value && typeof value === 'object') validateNode(value, `${path}.${key}`);
+    }
+  };
+  const root = automation && typeof automation === 'object' ? automation : {};
+  (Array.isArray(root.triggers) ? root.triggers : []).forEach((trigger, index) => validateNode(trigger, `triggers[${index}]`));
+  (Array.isArray(root.conditions) ? root.conditions : []).forEach((condition, index) => validateNode(condition, `conditions[${index}]`));
+  return errors;
+}
+
 const MESSAGE_TEMPLATES = {
   ko: {
     select_entity: '사용할 기기를 선택해 주세요.',
@@ -80,6 +121,25 @@ function informationMessage(information, plan, command, language) {
   const reference = verifiedUserReference(plan?.user_reference, command)
     || text(information?.entity?.display_name || information?.entity?.entity_id);
   const aggregate = information?.aggregate;
+  if (information?.kind === 'entity_identity') {
+    const entity = information.entity || {};
+    return language === 'ko'
+      ? `${reference || '요청하신 사용자'}의 Entity ID는 ${entity.entity_id}이며 현재 상태는 ${localizedState(entity.state, language)}.`
+      : `${reference || 'The requested entity'} is ${entity.entity_id} (currently ${localizedState(entity.state, language)}).`;
+  }
+  if (information?.kind === 'service_collection') {
+    const services = (information.services || []).map((service) => text(service.id)).filter(Boolean);
+    return language === 'ko'
+      ? (services.length ? `현재 사용 가능한 서비스: ${services.join(', ')}.` : '현재 조건에 맞는 서비스가 없습니다.')
+      : (services.length ? `Available services: ${services.join(', ')}.` : 'No matching services are currently available.');
+  }
+  if (information?.kind === 'service_capability') {
+    const service = information.service || {};
+    const required = (service.fields || []).filter((field) => field?.required).map((field) => text(field.name)).filter(Boolean);
+    return language === 'ko'
+      ? (required.length ? `${service.id}의 필수 파라미터: ${required.join(', ')}.` : `${service.id}에는 필수 파라미터가 없습니다.`)
+      : (required.length ? `${service.id} requires: ${required.join(', ')}.` : `${service.id} has no required parameters.`);
+  }
   if (aggregate?.kind === 'count') {
     const count = Number(aggregate.count) || 0;
     if (language === 'ko') {
@@ -494,6 +554,17 @@ export function createAssistantRequestRouter({
             message_key: 'automation_generation_invalid',
             message: message('automation_generation_invalid', language),
             error: text(result?.validation?.errors?.[0]),
+            system: { status: 'error', code: 'automation_generation_invalid' },
+          };
+        }
+        const numericStateErrors = validateNumericStateThresholds(result.automation);
+        if (numericStateErrors.length) {
+          return {
+            intent,
+            message_key: 'automation_generation_invalid',
+            message: message('automation_generation_invalid', language),
+            error: numericStateErrors[0],
+            validation: { ...(result.validation || {}), valid: false, errors: numericStateErrors },
             system: { status: 'error', code: 'automation_generation_invalid' },
           };
         }

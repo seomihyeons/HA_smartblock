@@ -47,6 +47,11 @@ const SAFE_CAPABILITY_ATTRIBUTES = [
   'max_humidity',
   'options',
   'unit_of_measurement',
+  // These are a media entity's currently advertised selectable content, not
+  // a user-specific alias table. They let a planner reuse a live virtual
+  // alarm/media capability instead of fabricating an opaque content ID.
+  'media_content_id',
+  'media_content_type',
 ];
 
 export function buildEntityCards(states, options = {}) {

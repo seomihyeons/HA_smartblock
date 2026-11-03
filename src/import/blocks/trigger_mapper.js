@@ -303,8 +303,17 @@ function makeNumericStateTriggerBlock(workspace, t, eid) {
     ]);
   }
 
-  set(b, 'ABOVE', t.above);
-  set(b, 'BELOW', t.below);
+  // The segmented Threshold UI derives its visible mode from these legacy
+  // fields.  Setting just ABOVE/BELOW leaves both flags false, which makes a
+  // valid imported LLM/Home Assistant rule look like it has no threshold and
+  // causes the generator to omit it on the next export.
+  const hasAbove = t.above != null && t.above !== '' && !Number.isNaN(Number(t.above));
+  const hasBelow = t.below != null && t.below !== '' && !Number.isNaN(Number(t.below));
+  if (b.getField('USE_ABOVE')) set(b, 'USE_ABOVE', hasAbove ? 'TRUE' : 'FALSE');
+  if (b.getField('USE_BELOW')) set(b, 'USE_BELOW', hasBelow ? 'TRUE' : 'FALSE');
+  if (hasAbove) set(b, 'ABOVE', Number(t.above));
+  if (hasBelow) set(b, 'BELOW', Number(t.below));
+  if (typeof b.updateShape_ === 'function') b.updateShape_();
 
   const duration = getNonZeroDuration(t.for);
   if (duration && canCreate('ha_event_for_hms') && b.getInput && b.getInput('FOR')) {

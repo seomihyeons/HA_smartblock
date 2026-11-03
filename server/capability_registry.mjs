@@ -1,11 +1,15 @@
 import { DOMAIN_SPEC } from '../src/data/options.js';
 
-export const CAPABILITY_REGISTRY_VERSION = 1;
+export const CAPABILITY_REGISTRY_VERSION = 2;
 
 // Host-level operations are deliberately few and composable.  They are not
 // per-utterance rules: live EntityCards and services determine what each one
 // can do in a particular Home Assistant instance.
 export const AGENT_OPERATIONS = Object.freeze([
+  // The planner can explicitly request a selected Blockly/HA automation
+  // context instead of guessing a replacement from an ambiguous reference.
+  { id: 'automation_context_required', intents: ['automation'], selectors: [] },
+  { id: 'entity_identity', intents: ['information'], selectors: ['entity'] },
   {
     id: 'entity_property',
     intents: ['information'],
@@ -19,6 +23,8 @@ export const AGENT_OPERATIONS = Object.freeze([
     projections: ['display_name', 'entity_id', 'domain', 'area', 'state', 'capability_attributes'],
     aggregations: ['count'],
   },
+  { id: 'service_collection', intents: ['information'], selectors: [] },
+  { id: 'service_capability', intents: ['information'], selectors: ['entity'] },
   {
     id: 'service_control',
     intents: ['control'],
@@ -64,6 +70,11 @@ const TARGET_OPTIONAL_DOMAINS = new Set([
   'python_script',
 ]);
 
+// These domains have dedicated Blockly import/export adapters even though
+// they are not ordinary entity-domain action dropdowns. Their concrete
+// services remain live-HA metadata, never a fixed per-home service list.
+const RUNTIME_VISUAL_SERVICE_DOMAINS = new Set(['notify']);
+
 export const VISUAL_TRIGGER_KINDS = Object.freeze([
   'state',
   'numeric_state',
@@ -92,6 +103,21 @@ export const VISUAL_ACTION_STRUCTURES = Object.freeze([
   'delay',
   'choose',
 ]);
+
+// This is intentionally expressed as Home Assistant YAML semantics, not as
+// Blockly's private USE_ABOVE/USE_BELOW implementation fields.  The same
+// contract can therefore drive an LLM, YAML validation, and a visual editor.
+export const NUMERIC_STATE_DIALECT = Object.freeze({
+  trigger: 'numeric_state',
+  condition: 'numeric_state',
+  fields: Object.freeze(['entity_id', 'attribute', 'above', 'below', 'for']),
+  modes: Object.freeze({
+    above: Object.freeze({ required_fields: Object.freeze(['above']), forbidden_fields: Object.freeze(['below']) }),
+    below: Object.freeze({ required_fields: Object.freeze(['below']), forbidden_fields: Object.freeze(['above']) }),
+    between: Object.freeze({ required_fields: Object.freeze(['above', 'below']), constraint: 'above < below' }),
+  }),
+  numeric_values: Object.freeze({ allow_zero: true, allow_negative: true, allow_decimal: true }),
+});
 
 function text(value) {
   return String(value ?? '').trim();
@@ -128,6 +154,39 @@ function normalizeHaServices(serviceCatalog = []) {
   return byId;
 }
 
+function flattenedServiceFields(fields = {}) {
+  const result = {};
+  for (const [name, field] of Object.entries(fields || {})) {
+    if (name === 'additional_fields' && field?.fields && typeof field.fields === 'object') {
+      Object.assign(result, flattenedServiceFields(field.fields));
+    } else {
+      result[name] = field;
+    }
+  }
+  return result;
+}
+
+/** A read-only description of every service actually advertised by this HA. */
+export function publicInformationServices(serviceCatalog = []) {
+  return [...normalizeHaServices(serviceCatalog).entries()]
+    .map(([id, metadata]) => ({
+      id,
+      domain: id.split('.', 1)[0],
+      label: metadata.name,
+      description: metadata.description,
+      fields: Object.fromEntries(Object.entries(flattenedServiceFields(metadata.fields)).slice(0, 32).map(([name, field]) => [
+        name,
+        {
+          required: field?.required === true,
+          description: text(field?.description),
+          example: field?.example ?? null,
+          selector: text(Object.keys(field?.selector || {})[0]) || null,
+        },
+      ])),
+    }))
+    .sort((left, right) => left.id.localeCompare(right.id));
+}
+
 export function createCapabilityRegistry({ serviceCatalog = [] } = {}) {
   const liveServices = normalizeHaServices(serviceCatalog);
   const hasLiveCatalog = liveServices.size > 0;
@@ -156,6 +215,28 @@ export function createCapabilityRegistry({ serviceCatalog = [] } = {}) {
         immediate_execution: 'confirmation_required',
       });
     }
+  }
+
+  // Notify services use a dedicated Blockly action mapper. Include only the
+  // endpoints advertised by this running HA instance so automation planning
+  // can use notifications without inventing a private/mobile-app service.
+  for (const [id, live] of liveServices) {
+    const [domain, method] = id.split('.', 2);
+    if (!RUNTIME_VISUAL_SERVICE_DOMAINS.has(domain) || services.some((service) => service.id === id)) continue;
+    services.push({
+      id,
+      domain,
+      method,
+      label: text(live.name) || method,
+      description: text(live.description),
+      fields: live.fields || {},
+      target: live.target || {},
+      target_required: Object.keys(live.target || {}).length > 0,
+      visual_support: 'native',
+      available_in_home: true,
+      risk: riskForService(id),
+      immediate_execution: 'confirmation_required',
+    });
   }
 
   const serviceMap = new Map(services.map((service) => [service.id, service]));
@@ -195,6 +276,7 @@ export function publicCapabilityContext(registry) {
     trigger_kinds: registry.triggerKinds,
     condition_kinds: registry.conditionKinds,
     action_structures: registry.actionStructures,
+    numeric_state: NUMERIC_STATE_DIALECT,
     operations: AGENT_OPERATIONS,
     services: registry.services
       .filter((service) => service.available_in_home !== false)
@@ -203,7 +285,7 @@ export function publicCapabilityContext(registry) {
         domain: service.domain,
         label: service.label,
         description: service.description,
-        fields: Object.fromEntries(Object.entries(service.fields || {}).slice(0, 16).map(([name, field]) => [
+        fields: Object.fromEntries(Object.entries(flattenedServiceFields(service.fields)).slice(0, 24).map(([name, field]) => [
           name,
           {
             required: field?.required === true,

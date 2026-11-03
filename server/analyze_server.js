@@ -17,6 +17,7 @@ import {
 } from "./provider_neutral_assistant_adapter.mjs";
 import {
     createCapabilityRegistry,
+    publicInformationServices,
     publicCapabilityContext,
 } from "./capability_registry.mjs";
 import { resolveExplicitEntityReferences, retrieveEntityContext } from "./entity_retriever.mjs";
@@ -124,14 +125,19 @@ async function loadHomeCapabilityContext() {
     if (registryExpired) {
         cachedCapabilityRegistry = {
             registry: createCapabilityRegistry({ serviceCatalog: services }),
+            serviceCatalog: services,
             expires_at: Date.now() + CAPABILITY_CACHE_TTL_MS,
         };
     }
     const registry = cachedCapabilityRegistry.registry;
     return {
         entityCards: buildEntityCards(states, { registry }),
-        capabilityContext: publicCapabilityContext(registry),
+        capabilityContext: {
+            ...publicCapabilityContext(registry),
+            information_services: publicInformationServices(cachedCapabilityRegistry.serviceCatalog),
+        },
         registry,
+        serviceCatalog: cachedCapabilityRegistry.serviceCatalog,
     };
 }
 
@@ -178,11 +184,18 @@ function informationInventory(cards) {
         .sort((left, right) => left.domain.localeCompare(right.domain));
 }
 
+function defaultPersonEntity(cards) {
+    const people = (Array.isArray(cards) ? cards : []).filter((card) => card?.domain === 'person');
+    // A first-person reference is safe only when the home has one person
+    // EntityCard. Otherwise the planner must ask for a specific person.
+    return people.length === 1 ? people[0].entity_id : null;
+}
+
 async function queryHomeAssistantInformation({ plan }) {
     // Read current state at execution time rather than trusting the cached
     // retrieval context used by the provider.
-    const { entityCards } = await loadHomeCapabilityContext();
-    return executeInformationQuery(entityCards, plan);
+    const { entityCards, serviceCatalog } = await loadHomeCapabilityContext();
+    return executeInformationQuery(entityCards, plan, { serviceCatalog });
 }
 
 // Keep conversational references small, live, and independently verifiable.
@@ -288,7 +301,8 @@ async function createDraftResponse(body = {}) {
     const homeContext = suppliedCards
         ? {
             entityCards: suppliedCards,
-            capabilityContext: publicCapabilityContext(createCapabilityRegistry()),
+            capabilityContext: { ...publicCapabilityContext(createCapabilityRegistry()), information_services: [] },
+            serviceCatalog: [],
         }
         : await loadHomeCapabilityContext();
     const entityCards = homeContext.entityCards;
@@ -364,6 +378,7 @@ async function createDraftResponse(body = {}) {
             entityResolution,
             slots: body.slots,
             interactionContext,
+            defaultPersonEntity: defaultPersonEntity(entityCards),
             informationInventory: inventory,
             retrieval: retrieval && {
                 method: retrieval.method,

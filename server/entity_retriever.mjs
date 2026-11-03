@@ -51,6 +51,7 @@ function eligibleCards(cards) {
       || text(card.device_class)
       || text(card.area)
       || Object.keys(card.capability_attributes || {}).length > 0
+      || card.domain === 'person'
     ))
     .map(compactCard);
 }
