@@ -1,4 +1,7 @@
+import './assistant.css';
 import { setModalOpenState } from '../../utils/floating_modal_state';
+import { yamlTextToInternalJson } from '../../import/yaml_import.js';
+import { getDisconnectedBlockSummary } from '../../utils/automation_yaml_scope.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -30,7 +33,21 @@ function responseLanguageFor(command) {
   return /[가-힣]/.test(String(command || '')) ? 'ko' : 'en';
 }
 
-export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspaceYaml }) {
+function automationOperationFor(command) {
+  const request = String(command || '').toLowerCase();
+  if (/(explain|describe|what does|what is this|설명|무슨.*동작)/.test(request)) return 'explain';
+  if (/(inspect|check|validate|issue|problem|검사|점검|문제)/.test(request)) return 'inspect';
+  if (/(modify|edit|change|update|add|remove|replace|수정|편집|추가|삭제|변경)/.test(request)) return 'modify';
+  return 'create';
+}
+
+function titleForAutomation(automation, fallback = 'Automation draft') {
+  return String(automation?.alias || automation?.id || fallback);
+}
+
+import { confirmDiscardUnsavedChanges } from '../../utils/unsaved_changes_dialog.js';
+
+export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspaceYaml, confirmBeforeReplace }) {
   const openButton = $('btnAiAssistant');
   const panel = $('aiAssistantPanel');
   const backdrop = $('aiAssistantBackdrop');
@@ -59,6 +76,28 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
   let providerReady = false;
   let selectedProvider = '';
   let providerLoadPromise = null;
+  let draftSequence = 0;
+  let recentDrafts = [];
+  let activeAutomationContext = null;
+  let activeAutomationOperation = 'create';
+  let pendingAutomationCommand = null;
+  let resumingPendingAutomationCommand = false;
+
+  const workspaceContext = () => {
+    const yaml = typeof getWorkspaceYaml === 'function' ? String(getWorkspaceYaml() || '').trim() : '';
+    if (!yaml) return null;
+    try {
+      const automation = yamlTextToInternalJson(yaml);
+      return {
+        source: 'workspace',
+        title: titleForAutomation(automation, 'Current Blockly automation'),
+        base_yaml: yaml,
+        enabled: true,
+      };
+    } catch {
+      return { source: 'workspace', title: 'Current Blockly automation', base_yaml: yaml, enabled: true };
+    }
+  };
 
   const scrollToLatest = () => {
     messages.scrollTop = messages.scrollHeight;
@@ -73,6 +112,56 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     messages.appendChild(createElement('div', className, message));
     scrollToLatest();
   };
+
+  const contextBar = createElement('section', 'ai-automation-context');
+  contextBar.setAttribute('aria-label', 'Automation editing context');
+  panel.querySelector('.ai-assistant-meta')?.insertAdjacentElement('afterend', contextBar);
+
+  const selectContext = (context) => {
+    activeAutomationContext = context || null;
+    renderContextBar();
+  };
+
+  const renderRecentDraftPicker = () => {
+    if (!recentDrafts.length) {
+      appendMessage('assistant', 'There are no automation drafts in this chat yet.');
+      return;
+    }
+    const picker = createElement('section', 'ai-draft-picker');
+    picker.appendChild(createElement('div', 'ai-draft-picker-title', 'Recent drafts in this chat'));
+    recentDrafts.forEach((draft) => {
+      const button = createElement('button', 'ai-draft-picker-item');
+      button.type = 'button';
+      button.appendChild(createElement('strong', '', draft.title));
+      button.appendChild(createElement('span', '', `${draft.imported_to_blockly ? 'Imported to Blockly' : 'Draft only'} · ${draft.enabled === false ? 'Disabled' : 'Enabled'}`));
+      button.addEventListener('click', () => {
+        selectContext(draft);
+        appendMessage('assistant', `Editing context selected: ${draft.title}.`);
+        picker.querySelectorAll('button').forEach((item) => { item.disabled = true; });
+        if (pendingAutomationCommand) {
+          const command = pendingAutomationCommand;
+          pendingAutomationCommand = null;
+          resumingPendingAutomationCommand = true;
+          window.setTimeout(() => {
+            input.value = command;
+            form.requestSubmit();
+          }, 0);
+        }
+      });
+      picker.appendChild(button);
+    });
+    messages.appendChild(picker);
+    scrollToLatest();
+  };
+
+  function renderContextBar() {
+    contextBar.textContent = '';
+    const context = activeAutomationContext;
+    contextBar.hidden = !context;
+    if (!context) return;
+    const source = context.source === 'recent_draft' ? 'recent draft' : 'current Blockly workspace';
+    contextBar.appendChild(createElement('span', 'ai-automation-context-label', `Editing: ${context.title} · ${source}`));
+  }
 
   const renderWelcome = () => {
     messages.textContent = '';
@@ -107,7 +196,77 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     slots = { entity_references: {} };
     interactionContext = { last_confirmed_target: null };
     awaitingClarification = false;
+    recentDrafts = [];
+    activeAutomationContext = null;
+    pendingAutomationCommand = null;
+    resumingPendingAutomationCommand = false;
     renderWelcome();
+    renderContextBar();
+  };
+
+  // Render before the first open as well as after a provider change. The
+  // panel must never open as an empty message area while provider status loads.
+  renderWelcome();
+  renderContextBar();
+
+  const contextForOperation = (operation, command = '') => {
+    if (operation === 'create') return null;
+    if (/(current\s+(blockly|blocks|workspace)|these\s+blocks|현재.*블록)/i.test(String(command))) {
+      const workspace = workspaceContext();
+      if (workspace) {
+        selectContext(workspace);
+        return workspace;
+      }
+    }
+    // “Earlier/previous” is deliberately not resolved to the last active
+    // draft when more than one chat artifact exists. The user must choose.
+    if (recentDrafts.length > 1 && /(earlier|previous|before|아까|이전|앞서)/i.test(String(command))) {
+      return null;
+    }
+    if (activeAutomationContext?.base_yaml) return activeAutomationContext;
+    const workspace = workspaceContext();
+    if (workspace) {
+      selectContext(workspace);
+      return workspace;
+    }
+    if (recentDrafts.length === 1) {
+      selectContext(recentDrafts[0]);
+      return recentDrafts[0];
+    }
+    return null;
+  };
+
+  const explainOrInspect = (operation, context, command) => {
+    let automation;
+    try {
+      automation = yamlTextToInternalJson(context.base_yaml);
+    } catch (error) {
+      appendMessage('assistant', `The selected automation could not be read.\n${error?.message || error}`, 'ai-message-error');
+      return;
+    }
+    const korean = responseLanguageFor(command) === 'ko';
+    const triggers = Array.isArray(automation.triggers) ? automation.triggers.length : 0;
+    const conditions = Array.isArray(automation.conditions) ? automation.conditions.length : 0;
+    const actions = Array.isArray(automation.actions) ? automation.actions.length : 0;
+    if (operation === 'explain') {
+      const message = korean
+        ? `현재 자동화 “${titleForAutomation(automation, context.title)}”에는 트리거 ${triggers}개, 조건 ${conditions}개, 액션 ${actions}개가 있습니다. Blockly 또는 YAML을 수정하려면 원하는 변경을 말해 주세요.`
+        : `“${titleForAutomation(automation, context.title)}” has ${triggers} trigger(s), ${conditions} condition(s), and ${actions} action(s). Tell me what you would like to change, or edit the Blockly blocks directly.`;
+      appendMessage('assistant', message);
+      setStatus(status, 'done', 'Explanation generated · Nothing changed');
+      return;
+    }
+    const disconnected = getDisconnectedBlockSummary(ws);
+    const issues = [];
+    if (!triggers) issues.push(korean ? '트리거가 없습니다' : 'No trigger is configured');
+    if (!actions) issues.push(korean ? '액션이 없습니다' : 'No action is configured');
+    if (disconnected.blockCount) issues.push(korean
+      ? `출력에서 제외되는 연결되지 않은 블록 ${disconnected.blockCount}개가 있습니다`
+      : `${disconnected.blockCount} disconnected block(s) are excluded from output`);
+    appendMessage('assistant', issues.length
+      ? `${korean ? '점검 결과' : 'Inspection result'}: ${issues.join(' · ')}`
+      : (korean ? '점검 결과: 현재 자동화에서 구조적 문제를 찾지 못했습니다.' : 'Inspection result: no structural issue was found in the current automation.'));
+    setStatus(status, 'done', 'Inspection complete · Nothing changed');
   };
 
   const loadProviders = async () => {
@@ -163,16 +322,27 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     setModalOpenState('aiAssistantPanel', false);
   };
 
-  const importDraft = (automation, button) => {
+  const importDraft = async (automation, button, artifact = null) => {
     const hasBlocks = typeof ws?.getAllBlocks === 'function' && ws.getAllBlocks(false).length > 0;
-    if (hasBlocks) {
-      const accepted = window.confirm('Replace the current workspace with this automation draft?');
-      if (!accepted) return false;
+    const confirmReplace = typeof confirmBeforeReplace === 'function'
+      ? confirmBeforeReplace
+      : async (proceed) => (hasBlocks ? proceed() : true);
+    if (!await confirmReplace(() => confirmDiscardUnsavedChanges({
+      loadingDescription: 'Importing this automation draft will replace your current blocks.',
+    }))) {
+      return false;
     }
 
     try {
       button.disabled = true;
       renderAutomationToWorkspace(ws, automation, { clearBefore: true });
+      if (artifact) {
+        artifact.imported_to_blockly = true;
+        artifact.base_yaml = typeof getWorkspaceYaml === 'function' ? String(getWorkspaceYaml() || artifact.base_yaml || '') : artifact.base_yaml;
+        selectContext(artifact);
+      } else {
+        selectContext(workspaceContext());
+      }
       appendMessage('assistant', 'The validated draft was imported and its YAML regenerated. Use Push to HA separately to save it.');
       setStatus(status, 'done', 'Imported to Blockly · YAML regenerated · Not saved to Home Assistant');
       return true;
@@ -184,13 +354,16 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     }
   };
 
-  const renderDraft = (result) => {
+  const renderDraft = (result, artifact) => {
     const automation = result.automation || {};
     const trigger = automation.triggers?.[0] || {};
     const hasTrigger = Array.isArray(automation.triggers) && automation.triggers.length > 0;
     const actionsList = Array.isArray(automation.actions) ? automation.actions : [];
     const card = createElement('section', 'ai-draft-card');
-    card.appendChild(createElement('div', 'ai-draft-title', automation.alias || 'Automation draft'));
+    const isModification = result.operation === 'modify';
+    card.appendChild(createElement('div', 'ai-draft-title', isModification
+      ? `Proposed update · ${automation.alias || 'Automation'}`
+      : automation.alias || 'Automation draft'));
     card.appendChild(createElement(
       'div',
       'ai-draft-row',
@@ -232,15 +405,15 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     card.appendChild(createElement('div', 'ai-draft-validation', validationText));
 
     const actions = createElement('div', 'ai-draft-actions');
-    const importButton = createElement('button', '', 'Import blocks');
+    const importButton = createElement('button', '', isModification ? 'Apply changes' : 'Import blocks');
     importButton.type = 'button';
-    importButton.addEventListener('click', () => importDraft(automation, importButton));
+    importButton.addEventListener('click', async () => importDraft(automation, importButton, artifact));
     actions.appendChild(importButton);
 
     const analyzeButton = createElement('button', '', 'Import and analyze conflicts');
     analyzeButton.type = 'button';
-    analyzeButton.addEventListener('click', () => {
-      const imported = importDraft(automation, analyzeButton);
+    analyzeButton.addEventListener('click', async () => {
+      const imported = await importDraft(automation, analyzeButton, artifact);
       if (!imported) return;
       closePanel();
       document.dispatchEvent(new CustomEvent('open-conflict-analyzer', {
@@ -274,6 +447,15 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           selections,
           slots,
           interaction_context: interactionContext,
+          automation_context: activeAutomationOperation === 'modify' && activeAutomationContext ? {
+            operation: 'modify',
+            source: activeAutomationContext.source,
+            title: activeAutomationContext.title,
+            draft_id: activeAutomationContext.draft_id || null,
+            automation_id: activeAutomationContext.automation_id || null,
+            enabled: activeAutomationContext.enabled !== false,
+            base_yaml: activeAutomationContext.base_yaml,
+          } : undefined,
           selected_entity_id: selectedEntityId,
           provider: selectedProvider || undefined,
         }),
@@ -319,7 +501,19 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
         }
         if (payload.kind === 'automation') {
           appendMessage('assistant', result.message || '검증된 자동화 초안을 만들었습니다.');
-          renderDraft(payload);
+          const artifact = {
+            draft_id: `draft-${Date.now()}-${++draftSequence}`,
+            source: 'recent_draft',
+            title: titleForAutomation(payload.automation),
+            base_yaml: String(payload.normalized_yaml || payload.yaml || ''),
+            automation: payload.automation,
+            enabled: payload.base_context?.enabled !== false,
+            imported_to_blockly: false,
+            created_at: Date.now(),
+          };
+          recentDrafts = [artifact, ...recentDrafts].slice(0, 12);
+          selectContext(artifact);
+          renderDraft({ ...payload, operation: payload.operation || activeAutomationOperation }, artifact);
           setStatus(status, 'done', `Validated draft · ${result.model || result.provider || 'provider'}`);
           selections = {};
           return;
@@ -424,11 +618,36 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     const command = input.value.trim();
     if (!command) return;
 
-    $('aiAssistantWelcome')?.remove();
-
-    appendMessage('user', command);
+    const isResumingPendingCommand = resumingPendingAutomationCommand;
+    resumingPendingAutomationCommand = false;
+    const operation = automationOperationFor(command);
+    if (!isResumingPendingCommand) {
+      $('aiAssistantWelcome')?.remove();
+      appendMessage('user', command);
+    }
     input.value = '';
 
+    // A draft-picker selection resumes this exact request. Do not classify its
+    // “earlier/previous” wording as ambiguous for a second time.
+    const context = isResumingPendingCommand && activeAutomationContext?.base_yaml
+      ? activeAutomationContext
+      : contextForOperation(operation, command);
+    if (operation !== 'create' && !context) {
+      pendingAutomationCommand = command;
+      appendMessage('assistant', recentDrafts.length
+        ? 'Select the automation you want to edit below.'
+        : 'Create or import an automation before editing it.');
+      if (recentDrafts.length > 1) renderRecentDraftPicker();
+      setStatus(status, 'idle', 'Automation selection required');
+      return;
+    }
+
+    if (operation === 'explain' || operation === 'inspect') {
+      explainOrInspect(operation, context, command);
+      return;
+    }
+
+    activeAutomationOperation = operation;
     if (awaitingClarification && conversation.length) {
       conversation.push({ role: 'user', content: command });
     } else {

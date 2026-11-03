@@ -499,6 +499,8 @@ export function createAssistantRequestRouter({
         }
         const automationResult = {
           kind: 'automation',
+          operation: result.automation_operation || 'create',
+          base_context: result.automation_context || null,
           yaml: plan.yaml || '',
           normalized_yaml: result.normalized_yaml || plan.normalized_yaml || '',
           automation: result.automation,

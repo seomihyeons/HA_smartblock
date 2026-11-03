@@ -21,6 +21,8 @@ import {
 } from "./capability_registry.mjs";
 import { resolveExplicitEntityReferences, retrieveEntityContext } from "./entity_retriever.mjs";
 import { executeInformationQuery } from "./information_query.mjs";
+import { buildAutomationPlannerCommand, normalizeAutomationContext } from "./automation_context.mjs";
+import { filterAssistantEntityStates } from "./entity_visibility_policy.mjs";
 
 dotenv.config();
 
@@ -110,13 +112,19 @@ async function fetchHomeAssistantServices() {
 }
 
 async function loadHomeCapabilityContext() {
-    const states = await fetchHomeAssistantStates();
     const now = Date.now();
-    if (!cachedCapabilityRegistry || cachedCapabilityRegistry.expires_at <= now) {
-        const services = await fetchHomeAssistantServices();
+    const registryExpired = !cachedCapabilityRegistry || cachedCapabilityRegistry.expires_at <= now;
+    // Entity state must remain live, but cold-start service discovery is
+    // independent of it. Fetch both concurrently so the first assistant
+    // request waits for the slower HA endpoint once rather than twice.
+    const statesRequest = fetchHomeAssistantStates();
+    const servicesRequest = registryExpired ? fetchHomeAssistantServices() : null;
+    const [rawStates, services] = await Promise.all([statesRequest, servicesRequest]);
+    const states = filterAssistantEntityStates(rawStates);
+    if (registryExpired) {
         cachedCapabilityRegistry = {
             registry: createCapabilityRegistry({ serviceCatalog: services }),
-            expires_at: now + CAPABILITY_CACHE_TTL_MS,
+            expires_at: Date.now() + CAPABILITY_CACHE_TTL_MS,
         };
     }
     const registry = cachedCapabilityRegistry.registry;
@@ -273,6 +281,9 @@ async function assessEntityGrounding({ plan, entityCards, entityResolution }) {
 }
 
 async function createDraftResponse(body = {}) {
+    const automationContext = normalizeAutomationContext(body.automation_context);
+    const requestCommand = String(body.command || "");
+    const plannerCommand = buildAutomationPlannerCommand(requestCommand, automationContext);
     const suppliedCards = Array.isArray(body.entity_cards) ? body.entity_cards : null;
     const homeContext = suppliedCards
         ? {
@@ -284,7 +295,7 @@ async function createDraftResponse(body = {}) {
     const interactionContext = resolveInteractionContext(body.interaction_context, entityCards);
     const inventory = informationInventory(entityCards);
     const entityResolution = resolveExplicitEntityReferences(
-        String(body.command || ""), entityCards, body.slots,
+        requestCommand, entityCards, body.slots,
     );
     const ambiguousReference = entityResolution.find((reference) => reference.status === "ambiguous");
     // A duplicate display name is a real ambiguity.  Resolve it before any
@@ -308,7 +319,7 @@ async function createDraftResponse(body = {}) {
     // per-home rules embedded in an LLM prompt.
     const retrievalMode = String(process.env.LLM_ENTITY_RETRIEVAL || "lexical").trim().toLowerCase();
     const retrieval = LLM_ASSISTANT_BACKEND === "provider_neutral"
-        ? await retrieveEntityContext(String(body.command || ""), entityCards, {
+        ? await retrieveEntityContext(requestCommand, entityCards, {
             mode: retrievalMode,
             maxCards: Number(process.env.LLM_ENTITY_CANDIDATE_LIMIT || 24),
             fastembed: retrievalMode === "fastembed_hybrid"
@@ -345,7 +356,7 @@ async function createDraftResponse(body = {}) {
     }
     const result = LLM_ASSISTANT_BACKEND === "provider_neutral"
         ? await providerNeutralAssistant.createDraft({
-            command: body.command,
+            command: plannerCommand,
             conversation: body.conversation,
             provider: body.provider,
             entityCards: retrievedEntityCards,
@@ -363,7 +374,7 @@ async function createDraftResponse(body = {}) {
             },
         })
         : await createAutomationDraft({
-            command: body.command,
+            command: plannerCommand,
             conversation: body.conversation,
             selections: body.selections,
             interaction_mode: body.interaction_mode || "automation",
@@ -396,6 +407,14 @@ async function createDraftResponse(body = {}) {
     }));
     return {
         ...result,
+        automation_operation: automationContext?.operation || 'create',
+        automation_context: automationContext ? {
+            source: automationContext.source,
+            title: automationContext.title,
+            draft_id: automationContext.draft_id,
+            automation_id: automationContext.automation_id,
+            enabled: automationContext.enabled,
+        } : null,
         _grounding_assessment: groundingAssessment,
         system: {
             pipeline_version: LLM_PIPELINE_VERSION,
@@ -420,7 +439,11 @@ const assistantRouter = createAssistantRequestRouter({
     previewControl: (payload) => controlNow.preview(payload),
     executeControl: (payload) => controlNow.execute(payload),
     queryInformation: queryHomeAssistantInformation,
+    // The draft already carries the user-visible result. A second provider
+    // request only paraphrases that verified result and otherwise doubles
+    // perceived latency. It remains opt-in for experiments that need it.
     createResponse: LLM_ASSISTANT_BACKEND === "provider_neutral"
+        && String(process.env.LLM_ASSISTANT_NARRATION || "").toLowerCase() === "provider"
         ? (payload) => providerNeutralAssistant.createResponse(payload)
         : undefined,
 });

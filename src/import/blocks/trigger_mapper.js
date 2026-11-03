@@ -287,7 +287,11 @@ function makeNumericStateTriggerBlock(workspace, t, eid) {
 
   // ENTITY_ID (dropdown) 세팅 검증 실패 → RAW
   const entityToSet = eid || t.entity || '';
-  const okEntity = setAndVerifyDropdown(b, 'ENTITY_ID', entityToSet);
+  // The XHome catalog can still be loading, or an imported automation can
+  // reference a device that was removed. Preserve its exact ID in the typed
+  // numeric block instead of silently selecting another device or dropping
+  // the Numeric State editing experience.
+  const okEntity = setAndVerifyDropdown(b, 'ENTITY_ID', entityToSet, { allowUnknown: true });
   if (!okEntity) {
     disposeIfPossible(b);
     return safeRaw(workspace, 'event', [

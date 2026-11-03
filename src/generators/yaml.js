@@ -198,6 +198,12 @@ yamlGenerator.forBlock['event_sensor_numeric_state'] = function (block, generato
 
   const above = Number(block.getFieldValue('ABOVE'));
   const below = Number(block.getFieldValue('BELOW'));
+  const useAbove = block.getField('USE_ABOVE')
+    ? block.getFieldValue('USE_ABOVE') === 'TRUE'
+    : above !== 0;
+  const useBelow = block.getField('USE_BELOW')
+    ? block.getFieldValue('USE_BELOW') === 'TRUE'
+    : below !== 0;
   const forValue = generator.valueToCode(block, 'FOR', 0) || '';
   const useId = block.getFieldValue('USE_ID') === 'TRUE';
   const id = String(block.getFieldValue('ID') || '').trim();
@@ -208,8 +214,8 @@ yamlGenerator.forBlock['event_sensor_numeric_state'] = function (block, generato
     `${i}entity_id: ${entityId}`,
   ];
 
-  if (!Number.isNaN(above) && above !== 0) lines.push(`${i}above: ${above}`);
-  if (!Number.isNaN(below) && below !== 0) lines.push(`${i}below: ${below}`);
+  if (useAbove && !Number.isNaN(above)) lines.push(`${i}above: ${above}`);
+  if (useBelow && !Number.isNaN(below)) lines.push(`${i}below: ${below}`);
   if (forValue.trim()) lines.push(`${i}for: ${forValue}`);
   if (useId && id) lines.push(`${i}id: ${JSON.stringify(id)}`);
 
@@ -226,8 +232,10 @@ yamlGenerator.forBlock['ha_event_numeric_state_sensor'] = function (block) {
 
   let code = `- trigger: numeric_state\n`;
   code += `  entity_id: ${entityId}\n`;
-  if (above !== '' && !Number.isNaN(Number(above)) && Number(above) !== 0) { code += `  above: ${Number(above)}\n`; }
-  if (below !== '' && !Number.isNaN(Number(below)) && Number(below) !== 0) { code += `  below: ${Number(below)}\n`; }
+  const useAbove = block.getField('USE_ABOVE') ? block.getFieldValue('USE_ABOVE') === 'TRUE' : above !== '' && Number(above) !== 0;
+  const useBelow = block.getField('USE_BELOW') ? block.getFieldValue('USE_BELOW') === 'TRUE' : below !== '' && Number(below) !== 0;
+  if (useAbove && above !== '' && !Number.isNaN(Number(above))) { code += `  above: ${Number(above)}\n`; }
+  if (useBelow && below !== '' && !Number.isNaN(Number(below))) { code += `  below: ${Number(below)}\n`; }
   if (forValue.trim()) { code += `  for: ${forValue}\n`; }
 
   return code;

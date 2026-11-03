@@ -22,6 +22,7 @@ SERP4IoT_talk_notes.md
 
 # Local-only research, provider implementations, and Home Assistant data.
 # They must never be staged on the public SmartBlock LLM branch.
+/ha_llm_control/
 /ha_llm_control/llm_api/
 /ha_llm_control/ha_control_layer/
 /ha_llm_control/reproductions/

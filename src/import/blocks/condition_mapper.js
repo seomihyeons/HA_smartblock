@@ -253,7 +253,10 @@ function makeStateCondBlock(workspace, conditionObj, eid) {
   const b = workspace.newBlock(TYPE);
 
   // ENTITY_ID dropdown 검증
-  const okEntity = setAndVerifyDropdown(b, 'ENTITY_ID', eid ?? '');
+  // Preserve an imported device ID while XHome entities are loading or when
+  // the original device is no longer present. The temporary dropdown option
+  // prevents Blockly from replacing it with the first available entity.
+  const okEntity = setAndVerifyDropdown(b, 'ENTITY_ID', eid ?? '', { allowUnknown: true });
   if (!okEntity) {
     b.dispose(true);
     return rawStateLine();
@@ -413,7 +416,7 @@ function makeNumericStateEntityBlock(workspace, conditionObj, eid) {
   const b = workspace.newBlock(TYPE);
 
   // ENTITY_ID dropdown 검증
-  const okEntity = setAndVerifyDropdown(b, 'ENTITY_ID', eid ?? '');
+  const okEntity = setAndVerifyDropdown(b, 'ENTITY_ID', eid ?? '', { allowUnknown: true });
   if (!okEntity) {
     b.dispose(true);
     return rawNumericLines();
@@ -448,7 +451,7 @@ function makeNumericStateAttributeBlock(workspace, conditionObj, eid) {
 
   const b = workspace.newBlock(TYPE);
 
-  const okEntity = setAndVerifyDropdown(b, 'ENTITY_ID', eid ?? '');
+  const okEntity = setAndVerifyDropdown(b, 'ENTITY_ID', eid ?? '', { allowUnknown: true });
   if (!okEntity) {
     b.dispose(true);
     return rawNumericLines();

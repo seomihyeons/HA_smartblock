@@ -8,6 +8,33 @@ import * as Blockly from 'blockly/core';
 
 const storageKey = 'customGeneratorWorkspace';
 
+function blockDepth(block) {
+  let depth = 0;
+  let parent = block?.getParent?.();
+  while (parent) {
+    depth += 1;
+    parent = parent.getParent?.();
+  }
+  return depth;
+}
+
+// Serialization restores the model synchronously, but dynamic block inputs
+// can leave stale SVG measurements. This refresh only updates the view.
+function refreshRestoredWorkspaceSvg(workspace) {
+  if (!workspace?.getParentSvg?.()) return;
+  const blocks = (workspace.getAllBlocks?.(false) || [])
+    .filter((block) => block?.rendered && typeof block.render === 'function')
+    .sort((a, b) => blockDepth(a) - blockDepth(b));
+  blocks.forEach((block) => {
+    try { block.render(); } catch (error) {
+      console.warn('[serialization] SVG refresh failed for block:', block.type, block.id, error);
+    }
+  });
+  try { Blockly.svgResize(workspace); } catch (error) {
+    console.warn('[serialization] SVG resize after restore failed:', error);
+  }
+}
+
 /**
  * Saves the state of the workspace to browser's local storage.
  * @param {Blockly.Workspace} workspace Blockly workspace to save.
@@ -25,10 +52,12 @@ export const load = function (workspace) {
   const data = window.localStorage?.getItem(storageKey);
   if (!data) return;
 
+  let restored = false;
   // Don't emit events during loading.
   Blockly.Events.disable();
   try {
     Blockly.serialization.workspaces.load(JSON.parse(data), workspace, false);
+    restored = true;
   } catch (err) {
     // 블록 정의 변경(입력 소켓 제거 등)으로 기존 저장 데이터가 호환되지 않을 수 있다.
     // 이 경우 저장 데이터를 지우고 빈 워크스페이스로 시작한다.
@@ -36,5 +65,10 @@ export const load = function (workspace) {
     window.localStorage?.removeItem(storageKey);
   } finally {
     Blockly.Events.enable();
+  }
+  if (restored) {
+    const refresh = () => refreshRestoredWorkspaceSvg(workspace);
+    if (typeof globalThis.requestAnimationFrame === 'function') globalThis.requestAnimationFrame(refresh);
+    else refresh();
   }
 };

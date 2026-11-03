@@ -142,102 +142,6 @@ code {
   opacity: 0.3 !important;
 }
 
-#btnAiAssistant {
-  position: fixed !important;
-  right: 28px !important;
-  bottom: 270px !important;
-  z-index: 2147483647 !important;
-  width: 70px !important;
-  height: 70px !important;
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  cursor: pointer !important;
-  font-size: 42px !important;
-  line-height: 1 !important;
-  opacity: 0.35 !important;
-}
-
-#btnAiAssistant:hover,
-#btnAiAssistant:focus-visible {
-  opacity: 0.7 !important;
-}
-
-body.floating-buttons-hidden #btnDebug,
-body.floating-buttons-hidden #btnTaskAlt,
-body.floating-buttons-hidden #btnAiAssistant {
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
-
-#aiAssistantPanel {
-  position: fixed;
-  inset: 0;
-  z-index: 2147483646;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  box-sizing: border-box;
-}
-
-#aiAssistantPanel.hidden {
-  display: none !important;
-}
-
-#aiAssistantPanel #aiAssistantBackdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.2);
-}
-
-#aiAssistantPanel .modal-panel {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  width: min(760px, calc(100vw - 48px));
-  max-height: min(720px, calc(100vh - 48px));
-  overflow: hidden;
-  background: #fff;
-  border: 1px solid #d1d5db;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-}
-
-#aiAssistantPanel .modal-header,
-#aiAssistantPanel .ai-assistant-meta,
-#aiAssistantPanel .ai-assistant-form {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 16px;
-}
-
-#aiAssistantPanel .modal-header,
-#aiAssistantPanel .ai-assistant-meta {
-  justify-content: space-between;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-#aiAssistantPanel .modal-title { font-size: 18px; font-weight: 700; }
-#aiAssistantPanel .ai-assistant-provider { display: flex; align-items: center; gap: 8px; }
-#aiAssistantPanel .ai-assistant-status { color: #4b5563; font-size: 13px; }
-#aiAssistantPanel .ai-assistant-messages {
-  flex: 1;
-  min-height: 240px;
-  overflow: auto;
-  padding: 16px;
-  white-space: pre-wrap;
-}
-#aiAssistantPanel .ai-message { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; }
-#aiAssistantPanel .ai-message-user { margin-left: 15%; background: #e0f2fe; }
-#aiAssistantPanel .ai-message-assistant { margin-right: 15%; background: #f3f4f6; }
-#aiAssistantPanel .ai-assistant-form { border-top: 1px solid #e5e7eb; }
-#aiAssistantPanel #aiAssistantInput { flex: 1; min-height: 44px; resize: vertical; }
-#aiAssistantPanel button,
-#aiAssistantPanel select,
-#aiAssistantPanel textarea { font: inherit; }
-
 .block-search-launcher {
   position: absolute;
   top: 10px;
@@ -1013,3 +917,85 @@ body.floating-buttons-hidden #btnAiAssistant {
   border-color: #4b5563;
   font-weight: 700;
 }
+
+/* Entity-only type-ahead keeps large Home Assistant catalogs usable without
+   changing Blockly's normal state/service dropdowns. */
+.ha-entity-search-dropdown { min-width: 250px; max-width: 360px; padding: 8px; background: #fff; }
+.ha-entity-search-input { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid #b8c0cc; border-radius: 5px; }
+.ha-entity-search-results { max-height: 240px; overflow: auto; margin-top: 6px; }
+.ha-entity-search-option { display: block; width: 100%; border: 0; border-radius: 4px; background: transparent; padding: 6px 8px; text-align: left; cursor: pointer; }
+.ha-entity-search-option:hover, .ha-entity-search-option.is-active { background: #edf3ff; }
+.ha-entity-search-option.is-selected { font-weight: 700; }
+.ha-entity-search-empty { padding: 8px; color: #6b7280; }
+
+/* Rule section chips use light fills, so their labels must not inherit the
+   dark Rule block's normal text colour. */
+.ha-rule-section-label-text { fill: #000000 !important; }
+.ha-validation-warning { fill: #c2413b; font-weight: 700; }
+
+/* User-study inline validation warning: the SVG triangle owns a compact,
+   fixed tooltip, so it remains above Blockly's SVG and follows the icon. */
+.ha-validation-warning-tooltip {
+  position: fixed;
+  z-index: 30000;
+  max-width: none;
+  box-sizing: border-box;
+  padding: 3px 8px;
+  border: 1px solid #e8aaaa;
+  border-radius: 4px;
+  background: #fdecec;
+  color: #6b2d2d;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  line-height: 1.35;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+}
+
+.ha-validation-warning-tooltip[hidden] { display: none; }
+
+.ha-unsaved-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.46);
+}
+
+.ha-unsaved-dialog {
+  width: min(460px, 100%);
+  box-sizing: border-box;
+  padding: 24px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #111827;
+  font-family: Arial, sans-serif;
+}
+
+.ha-unsaved-dialog h2 { margin: 0 0 12px; font-size: 20px; line-height: 1.3; }
+.ha-unsaved-dialog p { margin: 0; font-size: 14px; line-height: 1.55; }
+.ha-unsaved-dialog .ha-unsaved-dialog-detail { margin-top: 8px; color: #4b5563; }
+.ha-unsaved-dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.ha-unsaved-dialog-actions button { min-height: 36px; padding: 8px 12px; border-radius: 6px; font-size: 14px; font-weight: 400; cursor: pointer; }
+.ha-unsaved-dialog-keep { border: 1px solid #1d4ed8; background: #2563eb; color: #ffffff; }
+.ha-unsaved-dialog-discard { border: 1px solid #dc2626; background: #ffffff; color: #b91c1c; }
+.ha-unsaved-dialog-actions button:focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+
+/* Temporary flyout blocks only: imported and workspace blocks stay opaque. */
+.ha-toolbox-unavailable { opacity: 0.55; }
+
+.yaml-trace-line { display: block; box-sizing: border-box; min-height: 1em; white-space: pre; }
+.yaml-trace-highlight { border-inline: 1px solid var(--yaml-trace-colour); background: var(--yaml-trace-background); }
+.yaml-trace-start { border-top: 1px solid var(--yaml-trace-colour); border-radius: 7px 7px 0 0; padding-top: 4px; }
+.yaml-trace-end { border-bottom: 1px solid var(--yaml-trace-colour); border-radius: 0 0 7px 7px; padding-bottom: 4px; }
+.yaml-trace-single { border: 1px solid var(--yaml-trace-colour); border-radius: 7px; padding-block: 4px; }
+.yaml-trace-start, .yaml-trace-middle, .yaml-trace-end, .yaml-trace-single { padding-inline: 8px; }
+.yaml-trace-trigger { --yaml-trace-colour: #7CB4B4; --yaml-trace-background: rgba(124, 180, 180, 0.22); }
+.yaml-trace-condition { --yaml-trace-colour: #AECA3E; --yaml-trace-background: rgba(174, 202, 62, 0.22); }
+.yaml-trace-action { --yaml-trace-colour: #E3CC57; --yaml-trace-background: rgba(227, 204, 87, 0.22); }
+.yaml-trace-rule { --yaml-trace-colour: #3B4574; --yaml-trace-background: rgba(59, 69, 116, 0.14); }

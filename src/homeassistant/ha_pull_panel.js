@@ -2,6 +2,9 @@ import { pullAutomationIndexWithEditability, pullAutomationConfig } from './pull
 import { renderAutomationToWorkspace } from '../import/yamlToBlocks';
 import { normalizeAutomationObject } from '../import/yaml_import';
 import { showImportDebugJson } from '../import/import_debug_panel';
+import { filterAutomations, isAutomationEnabled } from './automation_search.js';
+import { replaceWorkspaceSafely } from '../utils/safe_workspace_replace.js';
+import { confirmDiscardUnsavedChanges } from '../utils/unsaved_changes_dialog.js';
 
 const arrify = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
 
@@ -51,7 +54,7 @@ function summarizeReason(reason) {
     return s.slice(0, 120);
 }
 
-export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
+export function setupHaPullPanel({ ws, outputId = 'generatedCode', workspaceChangeTracker = null } = {}) {
     function ensurePanel() {
         const yamlButtons = document.getElementById('yamlButtons');
         const host = document.getElementById(outputId);
@@ -98,7 +101,20 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
         status.style.marginBottom = '8px';
         status.style.minHeight = '16px';
 
+        const searchInput = el('input', {
+            id: 'haAutomationSearch', type: 'search', placeholder: 'Search automations...', autocomplete: 'off',
+        });
+        searchInput.style.display = 'none';
+        searchInput.style.width = '100%';
+        searchInput.style.boxSizing = 'border-box';
+        searchInput.style.marginBottom = '8px';
+        searchInput.style.padding = '6px 8px';
+        searchInput.style.border = '1px solid #d1d5db';
+        searchInput.style.borderRadius = '6px';
+
         const listBox = el('div', { id: 'haAutomationList' });
+        listBox.style.flex = '1 1 auto';
+        listBox.style.minHeight = '0';
         listBox.style.overflow = 'auto';
         listBox.style.border = '1px solid #e5e7eb';
         listBox.style.borderRadius = '6px';
@@ -107,6 +123,7 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
         panel.appendChild(title);
         panel.appendChild(row);
         panel.appendChild(status);
+        panel.appendChild(searchInput);
         panel.appendChild(listBox);
 
         if (yamlButtons) {
@@ -130,27 +147,72 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
                 return;
             }
 
-            cache.forEach((item) => {
+            const visibleItems = filterAutomations(cache, searchInput.value);
+            if (!visibleItems.length) {
+                const empty = el('div', { innerText: 'No matching automations' });
+                empty.style.padding = '8px';
+                empty.style.color = '#6b7280';
+                empty.style.fontSize = '12px';
+                listBox.appendChild(empty);
+                return;
+            }
+
+            visibleItems.forEach((item) => {
                 const id = item.id;
                 const name = item.name || item.entity_id || '(no name)';
+                const enabled = isAutomationEnabled(item);
 
                 const rowEl = el('div');
                 rowEl.style.padding = '8px 10px';
                 rowEl.style.borderBottom = '1px solid #f3f4f6';
 
-                const top = el('div', { innerText: name });
-
+                const top = el('div');
+                top.style.display = 'flex';
+                top.style.alignItems = 'center';
+                top.style.justifyContent = 'space-between';
+                top.style.gap = '8px';
                 top.style.fontWeight = '600';
                 top.style.fontSize = '13px';
 
+                const title = el('span', { innerText: name });
+                title.style.minWidth = '0';
+                title.style.overflow = 'hidden';
+                title.style.textOverflow = 'ellipsis';
+                title.style.whiteSpace = 'nowrap';
+
+                const stateBadge = el('span', { innerText: enabled ? 'Enabled' : 'Disabled' });
+                stateBadge.style.flex = '0 0 auto';
+                stateBadge.style.padding = '2px 6px';
+                stateBadge.style.border = `1px solid ${enabled ? '#86efac' : '#d1d5db'}`;
+                stateBadge.style.borderRadius = '999px';
+                stateBadge.style.background = enabled ? '#dcfce7' : '#f3f4f6';
+                stateBadge.style.color = enabled ? '#166534' : '#6b7280';
+                stateBadge.style.fontSize = '10px';
+                stateBadge.style.fontWeight = '700';
+                top.appendChild(title);
+                top.appendChild(stateBadge);
+
                 const sub = el('div', {
-                    innerText: `id: ${id} | state: ${item.state || '-'} | last: ${fmtTime(item.last_triggered)}`,
+                    innerText: `id: ${id} | HA state: ${item.state || '-'} | last: ${fmtTime(item.last_triggered)}`,
                 });
                 sub.style.fontSize = '11px';
                 sub.style.color = '#6b7280';
 
                 rowEl.appendChild(top);
                 rowEl.appendChild(sub);
+
+                if (!enabled) {
+                    rowEl.style.background = '#fafafa';
+                    title.style.color = '#6b7280';
+
+                    const inactiveNote = el('div', {
+                        innerText: 'Disabled in Home Assistant. You can still import it; importing does not enable it.',
+                    });
+                    inactiveNote.style.marginTop = '3px';
+                    inactiveNote.style.color = '#6b7280';
+                    inactiveNote.style.fontSize = '11px';
+                    rowEl.appendChild(inactiveNote);
+                }
 
                 if (id && id === selectedId) rowEl.style.background = '#eef2ff';
 
@@ -168,6 +230,11 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
 
                     rowEl.addEventListener('click', async () => {
                         if (!id) return;
+                        if (ws && !await workspaceChangeTracker?.confirmBeforeReplace?.(() =>
+                            confirmDiscardUnsavedChanges({
+                                loadingDescription: `Loading “${name}” will replace your current blocks.`,
+                            })
+                        )) return;
                         selectedId = id;
                         renderList();
 
@@ -187,7 +254,10 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
                             }
 
                             showImportDebugJson(internal);
-                            renderAutomationToWorkspace(ws, internal, { clearBefore: true });
+                            replaceWorkspaceSafely(ws, () => {
+                                renderAutomationToWorkspace(ws, internal, { clearBefore: true });
+                            });
+                            workspaceChangeTracker?.markClean?.();
 
                             setStatus(status, `Loaded: ${internal.alias || internal.id}`);
                         } catch (e) {
@@ -215,11 +285,14 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
                 });
 
                 const okCount = cache.filter((x) => x.editable).length;
+                const enabledCount = cache.filter(isAutomationEnabled).length;
+                const disabledCount = cache.length - enabledCount;
 
                 btnRefresh.disabled = false;
                 btnRefresh.style.opacity = '1';
+                searchInput.style.display = '';
 
-                setStatus(status, `Loaded ${cache.length}. Editable: ${okCount}. Click an editable item to open.`);
+                setStatus(status, `Loaded ${cache.length}. Enabled: ${enabledCount}. Disabled: ${disabledCount}. Editable: ${okCount}. Click an editable item to open.`);
                 renderList();
             } catch (e) {
                 console.error(e);
@@ -229,6 +302,7 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode' } = {}) {
 
         btnLoad.addEventListener('click', loadList);
         btnRefresh.addEventListener('click', loadList);
+        searchInput.addEventListener('input', renderList);
     }
 
     if (document.readyState === 'loading') {

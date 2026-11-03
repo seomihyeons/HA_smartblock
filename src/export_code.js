@@ -1,9 +1,13 @@
 import { pushYamlToHomeAssistant } from './homeassistant/push_automation';
-import { yamlGenerator } from './generators/yaml';
+import { generateScopedYaml } from './utils/automation_yaml_scope.js';
 
 function getYamlText(outputId) {
   const el = document.getElementById(outputId);
   return el ? el.innerText : '';
+}
+
+function getScopedYamlText(ws, outputId) {
+  return ws ? generateScopedYaml(ws) : getYamlText(outputId);
 }
 
 function toSafeFilename(name, fallback = 'automation') {
@@ -37,7 +41,7 @@ function persistGeneratedAutomationId(ws, outputId, id) {
 
   const host = document.getElementById(outputId);
   if (host) {
-    host.innerText = yamlGenerator.workspaceToCode(ws);
+    host.innerText = generateScopedYaml(ws);
   }
 }
 
@@ -86,7 +90,7 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null) {
     host.parentNode.insertBefore(wrap, host.nextSibling);
 
     exportBtn.addEventListener('click', () => {
-      const yaml = getYamlText(outputId);
+      const yaml = getScopedYamlText(ws, outputId);
       if (!yaml.trim()) {
         alert('There is no YAML to export.');
         return;
@@ -97,7 +101,7 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null) {
     });
 
     copyBtn.addEventListener('click', async () => {
-      const yaml = getYamlText(outputId);
+      const yaml = getScopedYamlText(ws, outputId);
       if (!yaml.trim()) {
         alert('There is no YAML to copy.');
         return;
@@ -113,7 +117,7 @@ export function setupYamlExportButtons(outputId = 'generatedCode', ws = null) {
     });
 
     pushBtn.addEventListener('click', async () => {
-      const yaml = getYamlText(outputId);
+      const yaml = getScopedYamlText(ws, outputId);
       if (!yaml.trim()) return alert('There is no YAML to push.');
 
       pushBtn.disabled = true;

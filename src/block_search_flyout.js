@@ -2,9 +2,11 @@ import * as Blockly from 'blockly';
 import { toolbox } from './toolbox.js';
 import { DOMAIN_SPEC, getBinarySensorStateOptions } from './data/options.js';
 import { dummyEntities } from './data/entities_index.js';
+import { selectSearchEntity } from './block_search_entity_matcher.js';
+import { installEntityDropdownSearch } from './blocks/utils/searchable_entity_dropdown.js';
 import { setModalOpenState } from './utils/floating_modal_state.js';
 
-const SEARCHABLE_CATEGORIES = new Set(['Rule', 'Event', 'Condition', 'Action']);
+const SEARCHABLE_CATEGORIES = new Set(['Rule', 'Trigger', 'Condition', 'Action']);
 
 function normalize(value) {
   return String(value || '').trim().toLowerCase();
@@ -18,6 +20,10 @@ function readableType(type) {
 
 function tokenize(value) {
   return normalize(value).match(/[a-z0-9]+/g) || [];
+}
+
+function compact(value) {
+  return tokenize(value).join('');
 }
 
 // Familiar Home Assistant terms improve block discovery without creating
@@ -145,7 +151,11 @@ function searchScore(query, searchable) {
 
   const text = normalize(searchable);
   const searchableTokens = [...new Set(tokenize(text))];
-  let score = text.includes(normalize(query)) ? 200 : 0;
+  const compactQuery = compact(query);
+  const compactText = compact(text);
+  let score = text.includes(normalize(query)) ? 200 : (
+    compactQuery.length >= 3 && compactText.includes(compactQuery) ? 180 : 0
+  );
 
   for (const queryToken of queryTokens) {
     let tokenScore = 0;
@@ -157,6 +167,7 @@ function searchScore(query, searchable) {
 
     // Every typed term must occur somewhere, but it may be an infix match:
     // `eve` finds Event and `d` finds door-related blocks.
+    if (!tokenScore && compactQuery.length >= 3 && compactText.includes(queryToken)) tokenScore = 65;
     if (!tokenScore) return -1;
     score += tokenScore;
   }
@@ -198,7 +209,10 @@ export function getBlockSearchResults(query) {
         ].join(' ');
         const score = searchText ? searchScore(searchText, searchable) : 0;
         if (!searchText || score >= 0) {
-          matches.push({ type: item.type, category: category.name, section, item, score });
+          matches.push({
+            type: item.type, category: category.name, section, item, score,
+            entitySelection: searchText ? selectSearchEntity(item.type, searchText, dummyEntities) : null,
+          });
         }
       });
 
@@ -222,7 +236,7 @@ export function getSearchDefinition(query) {
   let lastCategory = null;
   let lastSection = null;
 
-  matches.forEach(({ item, category, section }) => {
+  matches.forEach(({ item, category, section, entitySelection }) => {
     if (category !== lastCategory) {
       lastCategory = category;
       lastSection = null;
@@ -231,7 +245,11 @@ export function getSearchDefinition(query) {
       result.push({ kind: 'label', text: section });
       lastSection = section;
     }
-    result.push(cloneFlyoutItem(item));
+    const searchItem = cloneFlyoutItem(item);
+    if (entitySelection) {
+      searchItem.fields = { ...(searchItem.fields || {}), [entitySelection.field]: entitySelection.entityId };
+    }
+    result.push(searchItem);
   });
 
   if (!matches.length) {
@@ -346,11 +364,15 @@ export function initBlockSearchFlyout({ workspace } = {}) {
   const searchFlyout = new StableWidthSearchFlyout(flyoutOptions);
   workspace.getParentSvg().append(searchFlyout.createDom('g'));
   searchFlyout.init(workspace);
-  searchFlyout.setAutoClose(false);
+  searchFlyout.setAutoClose(true);
+  const refreshSearchEntityDropdowns = installEntityDropdownSearch(searchFlyout.getWorkspace());
   const launcher = createSvgSearchLauncher(workspace);
   if (!launcher) return;
 
-  const render = () => searchFlyout.show(getSearchDefinition(input.value));
+  const render = () => {
+    searchFlyout.show(getSearchDefinition(input.value));
+    refreshSearchEntityDropdowns();
+  };
   let isSearchOpen = false;
 
   // Search is one surface: its HTML header and custom Blockly flyout must
@@ -385,6 +407,14 @@ export function initBlockSearchFlyout({ workspace } = {}) {
 
   const open = () => setSearchOpen(true);
   const close = (options) => setSearchOpen(false, options);
+
+  const createSearchResultBlock = searchFlyout.createBlock.bind(searchFlyout);
+  searchFlyout.createBlock = (flyoutBlock) => {
+    const block = createSearchResultBlock(flyoutBlock);
+    block?.select?.();
+    if (isSearchOpen) close({ returnFocus: false });
+    return block;
+  };
 
   const isInsideSearch = (target) =>
     target instanceof Node && (
