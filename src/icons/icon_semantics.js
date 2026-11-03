@@ -12,7 +12,7 @@ export const DOMAIN_ICONS = Object.freeze({
   mqtt: 'access-point-network', script: 'script-text', python_script: 'language-python',
   unifi: 'access-point', webostv: 'television', zwave_js: 'z-wave', lifx: 'lightbulb',
   alarm_control_panel: 'shield-home', siren: 'alarm-light', button: 'gesture-tap-button',
-  calendar: 'calendar', event: 'lightning-bolt', group: 'shape',
+  calendar: 'calendar', event: 'tag', group: 'shape',
   humidifier: 'air-humidifier', persistent_notification: 'bell',
   select: 'form-dropdown', vacuum: 'robot-vacuum', valve: 'valve-open',
   weather: 'weather-partly-cloudy', sun: 'weather-sunny',
@@ -57,13 +57,20 @@ export const STATE_ICON_PAIRS = Object.freeze({
 const HELPERS = Object.freeze({
   'ha_event_homeassistant': 'home-automation',
   'ha_event_mqtt': 'access-point-network',
-  'ha_event_event': 'lightning-bolt',
-  'ha_event_sun': 'weather-sunset',
+  'ha_event_event': 'tag',
+  'ha_event_kv': 'code-braces',
+  'ha_event_event_data_call_service': 'gesture-tap-button',
+  'ha_event_service_data_entity_id': 'home-automation',
+  'ha_event_context_kv': 'code-braces',
+  'ha_event_mqtt_payload': 'message-text',
+  'ha_event_mqtt_value_template': 'code-braces',
+  'ha_event_mqtt_encoding': 'code-tags',
+  'ha_event_sun': 'weather-sunset-up',
   'ha_event_sun_state': 'weather-sunny',
   'condition_sun': 'weather-sunny',
   'condition_sun_phase': 'weather-night',
-  'condition_sun_after': 'weather-sunset',
-  'condition_sun_before': 'weather-sunset',
+  'condition_sun_after': 'weather-sunset-up',
+  'condition_sun_before': 'weather-sunset-up',
   'condition_time': 'clock',
   'condition_time_weekly': 'calendar-week',
   'condition_time_after': 'clock',
@@ -82,6 +89,12 @@ const HELPERS = Object.freeze({
   'action_data_color': 'palette',
   'action_data_transition': 'timer-sand',
   'action_data_effect': 'auto-fix',
+  'action_mqtt_publish': 'access-point-network',
+  'action_mqtt_payload_text': 'message-text',
+  'action_mqtt_qos': 'gauge',
+  'action_mqtt_retain': 'backup-restore',
+  'action_mqtt_evaluate_payload': 'code-braces',
+  'action_mqtt_data_kv': 'code-braces',
 });
 
 function domainForBlockType(type) {
@@ -114,7 +127,7 @@ export function configuredIconContext(block, entity) {
   // Triggers use the destination state, not FROM. Conditions use STATE.
   let state='';
   if (type.startsWith('action_')) state=get('ACTION') || get('SERVICE');
-  else if (type.startsWith('condition_')) state=get('STATE') || get('STATE_KIND');
+  else if (type.startsWith('condition_')) state=get('STATE') || get('STATE_KIND') || get('PHASE') || get('EVENT');
   else state=get('TO') || get('EVENT');
   return { type, domain, state, entityId };
 }
@@ -138,8 +151,8 @@ export function normalizeConfiguredState(domain, rawState) {
   return state;
 }
 
-// The shape communicates the configured state; every leading icon is the same gray.
-export const FILLED_ICON_COLOR = '#4D555C';
+// All leading and dropdown icons have maximum contrast, including muted flyouts.
+export const FILLED_ICON_COLOR = '#000000';
 
 // Structural/group containers and standalone connection modifiers are readable
 // without a leading icon. Icons should convey a concrete device, state or event.
@@ -158,19 +171,47 @@ export function resolveConfiguredIcon(block, entity = null) {
   // Value-output helper blocks plug into a neighbor; they do not need
   // standalone leading icons (including future duration/offset variants).
   if (block?.outputConnection && !block?.previousConnection && !block?.nextConnection) return null;
+  // Sun event dropdowns describe distinct moments or phases, not one generic sun.
+  if (['ha_event_sun','condition_sun_after','condition_sun_before'].includes(type)) {
+    return { name: state === 'sunset' ? 'weather-sunset-down' : 'weather-sunset-up', color:FILLED_ICON_COLOR };
+  }
+  if (type === 'condition_sun_phase') {
+    return { name: state === 'sun.is_midnight_sun' ? 'weather-sunny' : 'weather-night', color:FILLED_ICON_COLOR };
+  }
   const meaning=normalizeConfiguredState(domain,state);
   const pair=STATE_ICON_PAIRS[domain]?.[meaning];
   if (pair) return { name: pair[0], color:FILLED_ICON_COLOR };
   const helper=HELPERS[type];
   let fallback=helper || DOMAIN_ICONS[domain];
   if (!fallback) {
-    if (/^(ha_event_|event_)/.test(type)) fallback=/sun/.test(type)?'weather-sunny':/time/.test(type)?'clock':/mqtt/.test(type)?'access-point-network':'lightning-bolt';
+    if (/^(ha_event_|event_)/.test(type)) fallback=/sun/.test(type)?'weather-sunny':/time/.test(type)?'clock':/mqtt/.test(type)?'access-point-network':'tag';
     else if (type.startsWith('condition_')) fallback=/time/.test(type)?'clock':/numeric/.test(type)?'gauge':/template/.test(type)?'code-braces':'source-merge';
     else if (type.startsWith('action_')) fallback=/mqtt/.test(type)?'access-point-network':/notify/.test(type)?'message-text':/data/.test(type)?'palette':/script/.test(type)?'script-text':'gesture-tap-button';
     else fallback=/raw/.test(type)?'code-tags':/metadata/.test(type)?'information-outline':'puzzle';
   }
   // Undefined or custom states are neutral; never assert 'on' for an unknown service.
   return {name:fallback,color:FILLED_ICON_COLOR};
+}
+
+/**
+ * Non-entity Sun dropdowns represent configured trigger/condition semantics.
+ * They must not be looked up in the Home Assistant entity-state store.
+ */
+export function resolveSunDropdownIcon(type, fieldName, rawValue) {
+  const value=String(rawValue || '').toLowerCase();
+  const eventField=['ha_event_sun','condition_sun_after','condition_sun_before'].includes(type)
+    && fieldName==='EVENT';
+  if (eventField) return {
+    name:value==='sunset' ? 'weather-sunset-down' : 'weather-sunset-up',
+    color:FILLED_ICON_COLOR,
+  };
+  if (type==='condition_sun_phase' && fieldName==='PHASE') {
+    return {name:value==='sun.is_midnight_sun' ? 'weather-sunny' : 'weather-night',color:FILLED_ICON_COLOR};
+  }
+  if (type==='ha_event_sun_state' && (fieldName==='FROM' || fieldName==='TO')) {
+    return {name:value==='below_horizon' ? 'weather-night' : 'weather-sunny',color:FILLED_ICON_COLOR};
+  }
+  return null;
 }
 
 function unknownActualIcon(domain, entityId) {
@@ -185,7 +226,7 @@ function unknownActualIcon(domain, entityId) {
 }
 
 export function resolveActualIcon(entityId, entity) {
-  if (!entityId || !entity || entity.entity_id !== entityId) return {name:unknownActualIcon(entityId?.split('.')[0]||'',entityId||''),color:'#69747D',unknown:true};
+  if (!entityId || !entity || entity.entity_id !== entityId) return {name:unknownActualIcon(entityId?.split('.')[0]||'',entityId||''),color:FILLED_ICON_COLOR,unknown:true};
   const domain=String(entity.domain || entityId.split('.')[0]);
   let kind=domain;
   if (domain==='binary_sensor') {
@@ -196,5 +237,5 @@ export function resolveActualIcon(entityId, entity) {
   if (raw==='unknown' || raw==='unavailable' || !raw) return {name:unknownActualIcon(domain,entityId),color:'#69747D',unknown:true};
   const meaning=normalizeConfiguredState(kind,raw);
   const pair=STATE_ICON_PAIRS[kind]?.[meaning];
-  return {name:pair?.[1] || DOMAIN_ICONS[domain] || 'information-outline',color:'#62727D',unknown:false};
+  return {name:pair?.[1] || DOMAIN_ICONS[domain] || 'information-outline',color:FILLED_ICON_COLOR,unknown:false};
 }
