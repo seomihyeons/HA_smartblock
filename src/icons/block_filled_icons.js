@@ -7,6 +7,28 @@ const FIELD_NAME='HA_FILLED_ICON';
 const WRAPPED=Symbol('haFilledIconWrapped');
 const TRACKED_FIELDS=new Set(['TO','STATE','STATE_KIND','ACTION','SERVICE','EVENT','ENTITY','ENTITY_ID','USER','DOMAIN']);
 const ICON_WIDTH=18;
+const CENTER_TOLERANCE_PX=0.5;
+
+/**
+ * Blockly positions image fields in an input row. For compact blocks that
+ * alignment can sit above the visual center of the complete block outline.
+ * Translate ONLY the SVG image (not Blockly's field group/connection geometry).
+ * Reading DOM bounds allows zoom and differing row heights to be respected.
+ */
+function centerFilledIcon(block) {
+  const field=block?.getField?.(FIELD_NAME);
+  const image=field?.getSvgRoot?.()?.querySelector('image');
+  const outline=block?.pathObject?.svgPath || block?.getSvgRoot?.()?.querySelector('.blocklyPath');
+  if (!image || !outline || !image.isConnected || !outline.isConnected) return;
+  const iconBounds=image.getBoundingClientRect();
+  const blockBounds=outline.getBoundingClientRect();
+  if (iconBounds.height<=0 || blockBounds.height<=0) return;
+  const delta=(blockBounds.top+blockBounds.height/2)-(iconBounds.top+iconBounds.height/2);
+  if (Math.abs(delta)<=CENTER_TOLERANCE_PX) return;
+  const scale=Number(block.workspace?.scale)||1;
+  const oldY=Number(image.getAttribute('y')||0);
+  image.setAttribute('y',String(oldY+delta/scale));
+}
 
 function selectedEntity(block) {
   const id=block.getFieldValue?.('ENTITY_ID') || block.getFieldValue?.('ENTITY') || '';
@@ -53,14 +75,27 @@ export function decorateBlockDefinitionsWithFilledIcons() {
 
 /** Watches configured values without replacing any existing field validator. */
 export function installFilledIconsOnWorkspace(workspace) {
-  const refresh=(id)=> {
+  const waiting=new Set();
+  let frame=null;
+  const scheduleCenter=(block)=>{
+    if (!block || block.isDisposed?.()) return;
+    waiting.add(block.id);
+    if (frame!==null) return;
+    frame=requestAnimationFrame(()=>{
+      frame=null;
+      for (const id of waiting) centerFilledIcon(workspace.getBlockById(id));
+      waiting.clear();
+    });
+  };
+  const refresh=(id)=>{
     const block=workspace.getBlockById(id);
     if (!block) return;
     if (!block.getField(FIELD_NAME)) insertFilledField(block);
     updateFilled(block);
+    scheduleCenter(block);
   };
   for (const block of workspace.getAllBlocks(false)) refresh(block.id);
-  workspace.addChangeListener((event)=> {
+  workspace.addChangeListener((event)=>{
     if (event.type===Blockly.Events.BLOCK_CREATE || event.type===Blockly.Events.FINISHED_LOADING) {
       queueMicrotask(()=>{
         if (event.type===Blockly.Events.BLOCK_CREATE && event.ids?.length) event.ids.forEach(refresh);
@@ -68,6 +103,8 @@ export function installFilledIconsOnWorkspace(workspace) {
       });
     } else if (event.type===Blockly.Events.BLOCK_CHANGE && TRACKED_FIELDS.has(event.name)) {
       queueMicrotask(()=>refresh(event.blockId));
+    } else if (event.type===Blockly.Events.BLOCK_MOVE) {
+      queueMicrotask(()=>workspace.getAllBlocks(false).forEach(scheduleCenter));
     }
   });
 }
