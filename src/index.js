@@ -36,6 +36,7 @@ import { confirmDiscardUnsavedChanges } from './utils/unsaved_changes_dialog.js'
 import { installEntityDropdownSearch } from './blocks/utils/searchable_entity_dropdown.js';
 
 import './blocks/extensions';
+import { decorateBlockDefinitionsWithFilledIcons, installFilledIconsOnWorkspace } from './icons/block_filled_icons.js';
 
 import { ruleBlocks } from './blocks/rule_blocks';
 import { ruleMetadataBlocks } from './blocks/rule_metadata.js';
@@ -141,6 +142,7 @@ Blockly.common.defineBlocks(actionJoinBlocks);
 Blockly.common.defineBlocks(actionScriptBlocks);
 Blockly.common.defineBlocks(actionNotifyTagBlocks);
 Blockly.common.defineBlocks(actionMqttBlocks);
+decorateBlockDefinitionsWithFilledIcons();
 
 const codeDiv = document.getElementById('generatedCode');
 const blocklyDiv = document.getElementById('blocklyDiv');
@@ -165,6 +167,7 @@ const ws = Blockly.inject(blocklyDiv, {
   },
 });
 
+installFilledIconsOnWorkspace(ws);
 window.Blockly = Blockly;
 window.ws = ws;
 const refreshEntityDropdownSearch = installEntityDropdownSearch(ws);
