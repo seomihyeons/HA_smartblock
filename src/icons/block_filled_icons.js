@@ -99,9 +99,9 @@ export function installFilledIconsOnWorkspace(workspace) {
     scheduleCenter(block);
   };
   const refreshAll=()=>{
-    refreshAll();
+    for (const block of workspace.getAllBlocks(false)) refresh(block.id);
   };
-  for (const block of workspace.getAllBlocks(false)) refresh(block.id);
+  refreshAll();
   workspace.addChangeListener((event)=>{
     if (event.type===Blockly.Events.BLOCK_CREATE || event.type===Blockly.Events.FINISHED_LOADING) {
       queueMicrotask(()=>{
