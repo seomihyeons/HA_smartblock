@@ -93,13 +93,17 @@ const server=http.createServer(async(req,res)=>{
     await page.evaluate(id=>window.ws.getBlockById(id).getField('ENTITY_ID').showEditor_(),initial);
     await page.waitForSelector('.ha-entity-search-input',{timeout:5000});
     // Native Toolbox preview: verify Trigger, Condition and Action before drag.
-    const native=await page.evaluate(()=>{
+    const native=await page.evaluate(async()=>{
       const toolbox=window.ws.getToolbox();
       const result={};
       for(const name of ['Trigger','Condition','Action']) {
         const category=toolbox.getToolboxItems().find(x=>x.getName?.()===name);
         if(!category) throw Error('Missing category: '+name);
-        category.getClickTarget().click();
+        category.getClickTarget().dispatchEvent(new MouseEvent('click',{bubbles:true}));
+        // Availability opacity is scheduled on the next frame; inspect only
+        // after the class is applied so muted previews are tested as rendered.
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
         const blocks=toolbox.getFlyout().getWorkspace().getAllBlocks(false);
         let entityIcons=0,leadingIcons=0,unavailableIcons=0,sunDropdowns=0;
         const failures=[];
@@ -137,6 +141,7 @@ const server=http.createServer(async(req,res)=>{
       assert.ok(r.total>0&&r.entityIcons>0&&r.leadingIcons>0,name+': '+JSON.stringify(r));
       assert.deepEqual(r.failures,[],name+': '+r.failures.join('; '));
       if(name!=='Action') assert.ok(r.sunDropdowns>0,name+': Sun dropdown icon coverage');
+      assert.ok(r.unavailableIcons>0,name+': at least one missing-entity preview must be center-aligned');
 
     }
     // Block Search's preview has its own workspace and must also expose an
