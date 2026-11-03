@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MDI_PATHS } from '../src/icons/mdi_registry.js';
-import { DOMAIN_ICONS, STATE_ICON_PAIRS, resolveConfiguredIcon, resolveActualIcon } from '../src/icons/icon_semantics.js';
+import { DOMAIN_ICONS, STATE_ICON_PAIRS, resolveConfiguredIcon, resolveActualIcon, FILLED_ICON_COLOR } from '../src/icons/icon_semantics.js';
 
 const block=(type,fields)=>({type,getFieldValue(name){return fields[name] ?? '';}});
 
@@ -14,7 +14,7 @@ test('Every referenced MDI icon resolves to a real @mdi/js SVG path',()=>{
 
 test('Filled Light icon changes with configured TO, not actual state',()=>{
   const b=block('event_light_state',{TO:'on',ENTITY_ID:'light.living_room'});
-  assert.equal(resolveConfiguredIcon(b,{entity_id:'light.living_room',state:'off'}).name,'lightbulb-on');
+  assert.equal(resolveConfiguredIcon(b,{entity_id:'light.living_room',state:'off'}).name,'lightbulb');
   assert.equal(resolveConfiguredIcon(block('action_light',{ACTION:'turn_off'})).name,'lightbulb-off');
 });
 
@@ -26,19 +26,22 @@ test('Motion and Door retain binary_sensor on/off storage but use specialized ic
 
 test('Actual icon only reflects current Home Assistant state',()=>{
   const id='light.living_room';
-  assert.equal(resolveActualIcon(id,{entity_id:id,domain:'light',state:'off'}).name,'lightbulb-outline');
-  assert.equal(resolveActualIcon(id,{entity_id:id,domain:'light',state:'on'}).name,'lightbulb-on-outline');
+  assert.equal(resolveActualIcon(id,{entity_id:id,domain:'light',state:'off'}).name,'lightbulb-off-outline');
+  assert.equal(resolveActualIcon(id,{entity_id:id,domain:'light',state:'on'}).name,'lightbulb-outline');
   assert.equal(resolveActualIcon(id,null).unknown,true);
 });
 
-test('Dehumidifier service has special icon despite switch entity domain',()=>{
-  const b=block('action_switch',{ACTION:'turn_on',ENTITY_ID:'switch.dehumidifier'});
-  assert.equal(resolveConfiguredIcon(b,{entity_id:'switch.dehumidifier',state:'off'}).name,'water-minus');
-  assert.equal(resolveActualIcon('switch.dehumidifier',{entity_id:'switch.dehumidifier',domain:'switch',state:'off'}).name,'water-outline');
+test('Switches all use specified toggle-switch-variant icons, including dehumidifier',()=>{
+  for (const id of ['switch.dehumidifier','switch.living_room','switch.generic']) {
+    assert.equal(resolveConfiguredIcon(block('action_switch',{ACTION:'turn_on',ENTITY_ID:id})).name,'toggle-switch-variant');
+    assert.equal(resolveConfiguredIcon(block('action_switch',{ACTION:'turn_off',ENTITY_ID:id})).name,'toggle-switch-variant-off');
+    assert.equal(resolveActualIcon(id,{entity_id:id,domain:'switch',state:'on'}).name,'toggle-switch-variant');
+    assert.equal(resolveActualIcon(id,{entity_id:id,domain:'switch',state:'off'}).name,'toggle-switch-variant-off');
+  }
 });
 
 test('No speculative state icon for toggles, any, or arbitrary actions',()=>{
-  assert.equal(resolveConfiguredIcon(block('action_switch',{ACTION:'toggle'})).name,'toggle-switch');
+  assert.equal(resolveConfiguredIcon(block('action_switch',{ACTION:'toggle'})).name,'toggle-switch-variant');
   assert.equal(resolveConfiguredIcon(block('event_light_state',{TO:''})).name,'lightbulb');
   assert.equal(resolveConfiguredIcon(block('action_media_player',{ACTION:'volume_set'})).name,'play-circle');
 });
@@ -46,4 +49,24 @@ test('No speculative state icon for toggles, any, or arbitrary actions',()=>{
 test('Rule containers are not decorated',()=>{
   assert.equal(resolveConfiguredIcon(block('event_action',{})),null);
   assert.equal(resolveConfiguredIcon(block('event_condition_action',{})),null);
+});
+
+test('Every leading icon uses the same neutral gray regardless of configured state',()=>{
+  for(const [type,fields] of [
+    ['action_light',{ACTION:'turn_on'}],['action_light',{ACTION:'turn_off'}],
+    ['action_switch',{ACTION:'turn_on'}],['action_switch',{ACTION:'turn_off'}],
+    ['event_binary_sensor_motion_state',{TO:'on'}],
+    ['event_binary_sensor_door_state',{TO:'off'}],
+    ['event_cover_state',{TO:'open'}],
+    ['condition_state_person',{STATE:'home'}],
+    ['action_notify',{}],
+  ]) assert.equal(resolveConfiguredIcon(block(type,fields))?.color,FILLED_ICON_COLOR,type);
+  assert.equal(FILLED_ICON_COLOR,'#4D555C');
+});
+
+test('Specified Light and Switch MDI names are retained for filled and actual icons',()=>{
+  assert.deepEqual(STATE_ICON_PAIRS.light.on,['lightbulb','lightbulb-outline']);
+  assert.deepEqual(STATE_ICON_PAIRS.light.off,['lightbulb-off','lightbulb-off-outline']);
+  assert.deepEqual(STATE_ICON_PAIRS.switch.on,['toggle-switch-variant','toggle-switch-variant']);
+  assert.deepEqual(STATE_ICON_PAIRS.switch.off,['toggle-switch-variant-off','toggle-switch-variant-off']);
 });
