@@ -1,6 +1,7 @@
 import * as Blockly from 'blockly';
 import { resolveConfiguredIcon } from './icon_semantics.js';
 import { mdiDataUri } from './mdi_svg.js';
+import { isStructuralBlockMove } from './icon_move_policy.js';
 import { dummyEntities } from '../data/entities_index.js';
 
 const FIELD_NAME='HA_FILLED_ICON';
@@ -82,7 +83,7 @@ export function installFilledIconsOnWorkspace(workspace) {
   const waiting=new Set();
   let frame=null;
   const scheduleCenter=(block)=>{
-    if (!block || block.isDisposed?.()) return;
+    if (!block || block.isDisposed?.() || !block.getField?.(FIELD_NAME)) return;
     waiting.add(block.id);
     if (frame!==null) return;
     frame=requestAnimationFrame(()=>{
@@ -90,6 +91,13 @@ export function installFilledIconsOnWorkspace(workspace) {
       for (const id of waiting) centerFilledIcon(workspace.getBlockById(id));
       waiting.clear();
     });
+  };
+  // Reconnects can resize the immediate parent and its ancestors.
+  // Walk only the affected chains, never every block in the workspace.
+  const scheduleAncestors=(block)=>{
+    for (let current=block; current; current=current.getParent?.()) {
+      scheduleCenter(current);
+    }
   };
   const refresh=(id)=>{
     const block=workspace.getBlockById(id);
@@ -112,8 +120,16 @@ export function installFilledIconsOnWorkspace(workspace) {
       // Mutators and dynamic shape updates can remove and rebuild whole rows.
       // Refresh every affected block, not only a fixed list of state fields.
       queueMicrotask(()=>refresh(event.blockId));
-    } else if (event.type===Blockly.Events.BLOCK_MOVE) {
-      queueMicrotask(()=>workspace.getAllBlocks(false).forEach(scheduleCenter));
+    } else if (event.type===Blockly.Events.BLOCK_MOVE && isStructuralBlockMove(event)) {
+      // Ignore coordinate-only drags: the SVG field and block move together.
+      // On connect/disconnect, remeasure just the moved block and its
+      // former/new parent chains after Blockly finishes updating the geometry.
+      const { blockId, oldParentId, newParentId }=event;
+      queueMicrotask(()=>{
+        scheduleAncestors(workspace.getBlockById(blockId));
+        if (oldParentId) scheduleAncestors(workspace.getBlockById(oldParentId));
+        if (newParentId) scheduleAncestors(workspace.getBlockById(newParentId));
+      });
     }
   });
 }
