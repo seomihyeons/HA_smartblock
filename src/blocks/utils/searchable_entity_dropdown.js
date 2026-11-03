@@ -1,8 +1,9 @@
 import * as Blockly from 'blockly';
+import { enhanceBlockEntityIcons, refreshEntityIcon } from '../../icons/entity_dropdown_icons.js';
 
 // These fields represent entities in the current block.  Other dropdowns
 // (state, service, mode, etc.) deliberately retain Blockly's normal menu.
-const ENTITY_FIELD_NAMES = new Set(['ENTITY', 'ENTITY_ID', 'AFTER_ENTITY', 'BEFORE_ENTITY']);
+const ENTITY_FIELD_NAMES = new Set(['ENTITY', 'ENTITY_ID', 'AFTER_ENTITY', 'BEFORE_ENTITY', 'USER']);
 const SEARCH_ENABLED = Symbol('haEntitySearchEnabled');
 
 function optionText(option) {
@@ -55,6 +56,7 @@ function openEntitySearch(field) {
     // Use Blockly's normal setter so existing validators continue to update
     // dependent fields (for example, Numeric State units and state choices).
     field.setValue(value);
+    refreshEntityIcon(field);
     Blockly.DropDownDiv.hideIfOwner(field, true);
   };
 
@@ -141,6 +143,7 @@ export function enableEntitySearch(field) {
 
 function enhanceBlockEntityFields(block) {
   if (!block?.getField) return;
+  enhanceBlockEntityIcons(block);
   for (const fieldName of ENTITY_FIELD_NAMES) {
     enableEntitySearch(block.getField(fieldName));
   }

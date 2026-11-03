@@ -37,6 +37,8 @@ import { installEntityDropdownSearch } from './blocks/utils/searchable_entity_dr
 
 import './blocks/extensions';
 import { decorateBlockDefinitionsWithFilledIcons, installFilledIconsOnWorkspace } from './icons/block_filled_icons.js';
+import { createEntityStateStore } from './icons/entity_state_store.js';
+import { installLiveEntityIcons } from './icons/entity_dropdown_icons.js';
 
 import { ruleBlocks } from './blocks/rule_blocks';
 import { ruleMetadataBlocks } from './blocks/rule_metadata.js';
@@ -170,7 +172,10 @@ const ws = Blockly.inject(blocklyDiv, {
 installFilledIconsOnWorkspace(ws);
 window.Blockly = Blockly;
 window.ws = ws;
+const entityStateStore = createEntityStateStore({initialEntities:runtimeEntities.runtimeEntities});
+installLiveEntityIcons(ws,entityStateStore);
 const refreshEntityDropdownSearch = installEntityDropdownSearch(ws);
+entityStateStore.start();
 
 // This starts with an empty baseline deliberately. If `load(ws)` restores a
 // browser-local workspace later, it is not assumed to have been saved to HA.
