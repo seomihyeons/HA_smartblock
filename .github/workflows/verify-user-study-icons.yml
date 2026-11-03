@@ -17,3 +17,6 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      - run: npm install --no-save playwright@1.55.0
+      - run: npx playwright install --with-deps chromium
+      - run: node test/icon_browser_smoke.cjs
