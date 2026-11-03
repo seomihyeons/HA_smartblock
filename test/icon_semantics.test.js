@@ -86,8 +86,8 @@ test('Sun and Time conditions resolve to meaningful time and sun icons',()=>{
   for (const [type,expected] of [
     ['condition_sun','weather-sunny'],
     ['condition_sun_phase','weather-night'],
-    ['condition_sun_after','weather-sunset'],
-    ['condition_sun_before','weather-sunset'],
+    ['condition_sun_after','weather-sunset-up'],
+    ['condition_sun_before','weather-sunset-up'],
     ['condition_time','clock'],
     ['condition_time_weekly','calendar-week'],
     ['ha_event_time_state','clock'],
