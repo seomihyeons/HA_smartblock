@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MDI_PATHS } from '../src/icons/mdi_registry.js';
-import { DOMAIN_ICONS, STATE_ICON_PAIRS, resolveConfiguredIcon, resolveActualIcon, FILLED_ICON_COLOR } from '../src/icons/icon_semantics.js';
+import { DOMAIN_ICONS, STATE_ICON_PAIRS, resolveConfiguredIcon, resolveActualIcon, resolveSunDropdownIcon, FILLED_ICON_COLOR } from '../src/icons/icon_semantics.js';
 
 const block=(type,fields)=>({type,getFieldValue(name){return fields[name] ?? '';}});
 
@@ -51,7 +51,7 @@ test('Rule containers are not decorated',()=>{
   assert.equal(resolveConfiguredIcon(block('event_condition_action',{})),null);
 });
 
-test('Every leading icon uses the same neutral gray regardless of configured state',()=>{
+test('Every leading icon uses true black regardless of configured state',()=>{
   for(const [type,fields] of [
     ['action_light',{ACTION:'turn_on'}],['action_light',{ACTION:'turn_off'}],
     ['action_switch',{ACTION:'turn_on'}],['action_switch',{ACTION:'turn_off'}],
@@ -61,7 +61,7 @@ test('Every leading icon uses the same neutral gray regardless of configured sta
     ['condition_state_person',{STATE:'home'}],
     ['action_notify',{}],
   ]) assert.equal(resolveConfiguredIcon(block(type,fields))?.color,FILLED_ICON_COLOR,type);
-  assert.equal(FILLED_ICON_COLOR,'#4D555C');
+  assert.equal(FILLED_ICON_COLOR,'#000000');
 });
 
 test('Specified Light and Switch MDI names are retained for filled and actual icons',()=>{
@@ -96,5 +96,57 @@ test('Sun and Time conditions resolve to meaningful time and sun icons',()=>{
     const actual=resolveConfiguredIcon(block(type,{}));
     assert.equal(actual?.name,expected,type);
     assert.ok(typeof MDI_PATHS[actual.name]==='string' && MDI_PATHS[actual.name].startsWith('M'),type);
+  }
+});
+
+test('sunrise/sunset and night/midnight sun use distinct MDI icon meanings',()=>{
+  const examples=[
+    ['ha_event_sun','EVENT','sunrise','weather-sunset-up'],
+    ['ha_event_sun','EVENT','sunset','weather-sunset-down'],
+    ['condition_sun_before','EVENT','sunset','weather-sunset-down'],
+    ['condition_sun_after','EVENT','sunrise','weather-sunset-up'],
+    ['ha_event_sun_state','TO','above_horizon','weather-sunny'],
+    ['ha_event_sun_state','TO','below_horizon','weather-night'],
+    ['ha_event_sun_state','FROM','below_horizon','weather-night'],
+    ['condition_sun_phase','PHASE','sun.is_night','weather-night'],
+    ['condition_sun_phase','PHASE','sun.is_polar_night','weather-night'],
+    ['condition_sun_phase','PHASE','sun.is_midnight_sun','weather-sunny'],
+  ];
+  for(const [type,field,value,icon] of examples) {
+    const resolved=resolveSunDropdownIcon(type,field,value);
+    assert.equal(resolved?.name,icon,type+' '+field+' '+value);
+    assert.equal(resolved?.color,'#000000');
+    assert.ok(typeof MDI_PATHS[icon]==='string' && MDI_PATHS[icon].startsWith('M'),icon);
+  }
+  assert.equal(resolveSunDropdownIcon('action_light','EVENT','sunrise'),null);
+});
+
+test('Sun block leading icons follow their own configured field values',()=>{
+  assert.equal(resolveConfiguredIcon(block('ha_event_sun',{EVENT:'sunrise'})).name,'weather-sunset-up');
+  assert.equal(resolveConfiguredIcon(block('ha_event_sun',{EVENT:'sunset'})).name,'weather-sunset-down');
+  assert.equal(resolveConfiguredIcon(block('condition_sun_before',{EVENT:'sunset'})).name,'weather-sunset-down');
+  assert.equal(resolveConfiguredIcon(block('ha_event_sun_state',{TO:'below_horizon'})).name,'weather-night');
+  assert.equal(resolveConfiguredIcon(block('condition_sun_phase',{PHASE:'sun.is_midnight_sun'})).name,'weather-sunny');
+});
+
+test('Generic events and payload helpers avoid speculative lightning glyphs',()=>{
+  for(const [type,expected] of [
+    ['ha_event_event','tag'],
+    ['ha_event_kv','code-braces'],
+    ['ha_event_event_data_call_service','gesture-tap-button'],
+    ['ha_event_context_kv','code-braces'],
+    ['ha_event_mqtt_payload','message-text'],
+    ['action_mqtt_publish','access-point-network'],
+  ]) assert.equal(resolveConfiguredIcon(block(type,{}))?.name,expected,type);
+});
+
+test('Actual-state dropdowns use black icons for known and unknown entities',()=>{
+  for(const entity of [
+    null,
+    {entity_id:'sun.sun',domain:'sun',state:'below_horizon'},
+    {entity_id:'light.living_room',domain:'light',state:'on'},
+  ]) {
+    const id=entity?.entity_id || 'light.missing';
+    assert.equal(resolveActualIcon(id,entity).color,'#000000');
   }
 });
