@@ -48,6 +48,14 @@ const server=http.createServer(async(req,res)=>{
       const block=window.ws.getBlockById(id);
       return !!(block?.getField('HA_FILLED_ICON') && block?.getField('ENTITY_ID')?.getSvgRoot()?.querySelector('image[data-ha-actual-icon="true"]'));
     },initial,{timeout:8000});
+    await page.waitForFunction(id=>{
+      const block=window.ws.getBlockById(id);
+      const image=block?.getField('HA_FILLED_ICON')?.getSvgRoot()?.querySelector('image');
+      const outline=block?.pathObject?.svgPath || block?.getSvgRoot()?.querySelector('.blocklyPath');
+      if(!image || !outline) return false;
+      const a=image.getBoundingClientRect(),b=outline.getBoundingClientRect();
+      return a.height>0 && b.height>0 && Math.abs((a.top+a.height/2)-(b.top+b.height/2))<=1.5;
+    },initial,{timeout:8000});
     const baseline=await page.evaluate(id=>{
       const b=window.ws.getBlockById(id),f=b.getField('ENTITY_ID');
       const img=f.getSvgRoot().querySelector('image[data-ha-actual-icon="true"]');
@@ -57,6 +65,11 @@ const server=http.createServer(async(req,res)=>{
       if(bounds.width<10 || bounds.height<10 || bounds.right>text.left+2) throw Error('Entity icon overlaps label: '+JSON.stringify({bounds:bounds.toJSON(),text:text.toJSON()}));
       return {filled:b.getField('HA_FILLED_ICON').getValue(),actual:img.getAttribute('href'),
         arrowBefore:arrow?.getAttribute('href'),saved:JSON.stringify(window.Blockly.serialization.workspaces.save(window.ws))};
+    },initial);
+    await page.evaluate(id=>{
+      const block=window.ws.getBlockById(id);
+      const source=decodeURIComponent(block.getField('HA_FILLED_ICON').getValue().split(',')[1]);
+      if (!source.includes('fill="#4D555C"')) throw Error('Filled icon must use gray palette');
     },initial);
     actual='on';
     await page.waitForFunction(({id,before})=>{
