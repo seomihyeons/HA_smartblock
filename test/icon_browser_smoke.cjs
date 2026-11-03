@@ -62,14 +62,15 @@ const server=http.createServer(async(req,res)=>{
       const arrow=f.getSvgRoot().querySelector('image:not([data-ha-actual-icon])');
       const bounds=img.getBoundingClientRect();
       const text=f.getTextElement().getBoundingClientRect();
-      if(bounds.width<10 || bounds.height<10 || bounds.right>text.left+2) throw Error('Entity icon overlaps label: '+JSON.stringify({bounds:bounds.toJSON(),text:text.toJSON()}));
+      if(bounds.width<10 || bounds.height<10 || text.left-bounds.right<3 || text.left-bounds.right>16)
+        throw Error('Entity icon must be separated by approximately one space: '+JSON.stringify({bounds:bounds.toJSON(),text:text.toJSON()}));
       return {filled:b.getField('HA_FILLED_ICON').getValue(),actual:img.getAttribute('href'),
         arrowBefore:arrow?.getAttribute('href'),saved:JSON.stringify(window.Blockly.serialization.workspaces.save(window.ws))};
     },initial);
     await page.evaluate(id=>{
       const block=window.ws.getBlockById(id);
       const source=decodeURIComponent(block.getField('HA_FILLED_ICON').getValue().split(',')[1]);
-      if (!source.includes('fill="#4D555C"')) throw Error('Filled icon must use gray palette');
+      if (!source.includes('fill="#000000"')) throw Error('Filled icon must use black palette');
     },initial);
     actual='on';
     await page.waitForFunction(({id,before})=>{
@@ -100,7 +101,7 @@ const server=http.createServer(async(req,res)=>{
         if(!category) throw Error('Missing category: '+name);
         category.getClickTarget().click();
         const blocks=toolbox.getFlyout().getWorkspace().getAllBlocks(false);
-        let entityIcons=0,leadingIcons=0;
+        let entityIcons=0,leadingIcons=0,unavailableIcons=0,sunDropdowns=0;
         const failures=[];
         for(const b of blocks) {
           for(const key of ['ENTITY_ID','ENTITY','USER','AFTER_ENTITY','BEFORE_ENTITY']) {
@@ -109,21 +110,34 @@ const server=http.createServer(async(req,res)=>{
             if(field.getSvgRoot()?.querySelector('image[data-ha-actual-icon="true"]'))entityIcons++;
             else failures.push(b.type+': missing '+key+' icon');
           }
+          if (['ha_event_sun','ha_event_sun_state','condition_sun_phase',
+               'condition_sun_after','condition_sun_before'].includes(b.type)) {
+            for(const key of ['EVENT','FROM','TO','PHASE']) {
+              const dropdown=b.getField(key);
+              if(!dropdown) continue;
+              const image=dropdown.getSvgRoot()?.querySelector('image[data-ha-actual-icon="true"]');
+              if(!image) failures.push(b.type+': missing Sun '+key+' icon');
+              else sunDropdowns++;
+            }
+          }
           const icon=b.getField('HA_FILLED_ICON')?.getSvgRoot()?.querySelector('image');
           const path=b.pathObject?.svgPath||b.getSvgRoot()?.querySelector('.blocklyPath');
           if(!icon||!path)continue;
           leadingIcons++;
+          if(b.getSvgRoot()?.classList.contains('ha-toolbox-unavailable')) unavailableIcons++;
           const a=icon.getBoundingClientRect(),c=path.getBoundingClientRect();
           const delta=Math.abs((a.top+a.height/2)-(c.top+c.height/2));
           if(a.height<=0||c.height<=0||delta>1.5)failures.push(b.type+': offset '+delta.toFixed(2));
         }
-        result[name]={total:blocks.length,entityIcons,leadingIcons,failures};
+        result[name]={total:blocks.length,entityIcons,leadingIcons,unavailableIcons,sunDropdowns,failures};
       }
       return result;
     });
     for(const [name,r] of Object.entries(native)) {
       assert.ok(r.total>0&&r.entityIcons>0&&r.leadingIcons>0,name+': '+JSON.stringify(r));
       assert.deepEqual(r.failures,[],name+': '+r.failures.join('; '));
+      if(name!=='Action') assert.ok(r.sunDropdowns>0,name+': Sun dropdown icon coverage');
+
     }
     // Block Search's preview has its own workspace and must also expose an
     // Entity icon without first placing a block on the editing workspace.
