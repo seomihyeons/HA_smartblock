@@ -6,6 +6,7 @@ import { dummyEntities } from './data/entities_index.js';
 import { selectSearchEntity } from './block_search_entity_matcher.js';
 import { setModalOpenState } from './utils/floating_modal_state.js';
 import { installEntityDropdownSearch } from './blocks/utils/searchable_entity_dropdown.js';
+import { installLiveEntityIcons } from './icons/entity_dropdown_icons.js';
 
 const SEARCHABLE_CATEGORIES = new Set(['Rule', 'Trigger', 'Condition', 'Action']);
 
@@ -398,7 +399,7 @@ function createSvgSearchLauncher(workspace) {
   };
 }
 
-export function initBlockSearchFlyout({ workspace } = {}) {
+export function initBlockSearchFlyout({ workspace, entityStateStore } = {}) {
   const header = document.getElementById('blockSearchFlyoutHeader');
   const input = document.getElementById('blockSearchFlyoutInput');
   const closeButton = document.getElementById('blockSearchFlyoutClose');
@@ -414,6 +415,7 @@ export function initBlockSearchFlyout({ workspace } = {}) {
   // the temporary preview in this Search flyout.
   searchFlyout.setAutoClose(true);
   const refreshSearchEntityDropdowns = installEntityDropdownSearch(searchFlyout.getWorkspace());
+  if (entityStateStore) installLiveEntityIcons(searchFlyout.getWorkspace(), entityStateStore);
   const launcher = createSvgSearchLauncher(workspace);
   if (!launcher) return;
 
