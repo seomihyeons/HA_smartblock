@@ -4,7 +4,7 @@
 // (Action / Condition / Event / Notify / Group Action)
 // ------------------------------------------------------------
 
-import { dummyEntities, notifyDevices } from './entities_index.js';
+import { dummyEntities, notifyDevices, runtimeNotifyServices, runtimeCatalogLoaded } from './entities_index.js';
 
 /* ============================================================
  * DOMAIN SPEC (actions / states)
@@ -615,11 +615,14 @@ export function getNotifyTargetOptions() {
   const entities = (dummyEntities || [])
     .filter((entity) => entity.entity_id.startsWith('notify.'))
     .map((entity) => entity.entity_id);
-  const targets = new Set([
-    ...entities, 'notify', ...CUSTOM_NOTIFY_TARGETS,
-    ...buildDeviceTargets(), ...PRESET_NOTIFY_SERVICES,
-  ]);
+  // Runtime editor candidates come only from the connected HA installation.
+  // Offline fixtures retain the previous static options for regression tests.
+  const targets = runtimeCatalogLoaded
+    ? new Set([...entities, ...runtimeNotifyServices])
+    : new Set([...entities, 'notify', ...CUSTOM_NOTIFY_TARGETS,
+      ...buildDeviceTargets(), ...PRESET_NOTIFY_SERVICES]);
   return [...targets].map((target) => [target, target]);
+
 }
 
 export const NOTIFY_TEMPLATE_KINDS = [
