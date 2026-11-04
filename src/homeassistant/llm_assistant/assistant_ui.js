@@ -1,6 +1,7 @@
 import './assistant.css';
 import { setModalOpenState } from '../../utils/floating_modal_state';
 import { yamlTextToInternalJson } from '../../import/yaml_import.js';
+import { automationOperationFor } from './automation_operation.mjs';
 
 const $ = (id) => document.getElementById(id);
 
@@ -30,19 +31,6 @@ function setStatus(element, state, message) {
 // API clients may send response_language directly.
 function responseLanguageFor(command) {
   return /[가-힣]/.test(String(command || '')) ? 'ko' : 'en';
-}
-
-function automationOperationFor(command, hasActiveAutomationContext = false) {
-  const request = String(command || '').toLowerCase();
-  if (/(explain|describe|what does|what is this|설명|무슨.*동작)/.test(request)) return 'explain';
-  if (/(inspect|check|validate|issue|problem|검사|점검|문제)/.test(request)) return 'inspect';
-  const modificationVerb = /(modify|edit|change|update|add|remove|replace|수정|편집|추가|삭제|변경)/.test(request);
-  const contextualReference = /(earlier|previous|before|current|this|these|that|we created|the automation|blocks?|아까|이전|앞서|현재|이 자동화|이 블록)/.test(request);
-  // “Add” and “change” also appear in requests to create a brand-new rule.
-  // Treat them as modifications only with an explicit/current automation
-  // context; a title-based draft selection is resolved immediately below.
-  if (modificationVerb && (hasActiveAutomationContext || contextualReference)) return 'modify';
-  return 'create';
 }
 
 function titleForAutomation(automation, fallback = 'Automation draft') {
@@ -312,15 +300,20 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     try {
       button.disabled = true;
       renderAutomationToWorkspace(ws, automation, { clearBefore: true });
+      const allBlocks = typeof ws?.getAllBlocks === 'function' ? ws.getAllBlocks(false) : [];
+      const rawBlocks = allBlocks.filter((block) => /raw/i.test(String(block.type || '')));
       if (artifact) {
+        artifact.import_report = { native_blockly: rawBlocks.length === 0, raw_block_count: rawBlocks.length };
         artifact.imported_to_blockly = true;
         artifact.base_yaml = typeof getWorkspaceYaml === 'function' ? String(getWorkspaceYaml() || artifact.base_yaml || '') : artifact.base_yaml;
         selectContext(artifact);
       } else {
         selectContext(workspaceContext());
       }
-      appendMessage('assistant', 'The validated draft was imported and its YAML regenerated. Use Push to HA separately to save it.');
-      setStatus(status, 'done', 'Imported to Blockly · YAML regenerated · Not saved to Home Assistant');
+      appendMessage('assistant', rawBlocks.length
+        ? `Draft imported with ${rawBlocks.length} Raw Block(s). Full native editability and round-trip equivalence have not been verified. Push to HA remains a separate action.`
+        : 'Draft imported to native Blockly blocks. Full round-trip equivalence has not yet been verified. Use Push to HA separately to save it.');
+      setStatus(status, 'done', 'Imported to Blockly · Round-trip not verified · Not saved to Home Assistant');
       if (button?.textContent === 'Import blocks') button.textContent = 'Re-import blocks';
       return true;
     } catch (error) {
@@ -380,9 +373,14 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     }
 
     const validation = result.validation || {};
-    const validationText = validation.schema_valid && validation.grounded && validation.blockly_supported
-      ? '✓ Schema · ✓ Entity grounding · ✓ Blockly support'
-      : 'Validation results are unavailable.';
+    const validationStatus = (key) => validation[key] === true ? '✓' : validation[key] === false ? '○' : '…';
+    const validationText = [
+      `${validationStatus('schema_valid')} Schema`,
+      `${validationStatus('grounded')} Grounding`,
+      `${validationStatus('capability_valid')} Capability`,
+      `${validationStatus('blockly_supported')} Native Blockly`,
+      `${validationStatus('roundtrip_verified')} Round-trip`,
+    ].join(' · ');
     card.appendChild(createElement('div', 'ai-draft-validation', validationText));
 
     const actions = createElement('div', 'ai-draft-actions');
@@ -429,7 +427,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           slots,
           interaction_context: interactionContext,
           automation_context: activeAutomationOperation !== 'create' && activeAutomationContext ? {
-            operation: 'modify',
+            operation: activeAutomationOperation,
             source: activeAutomationContext.source,
             title: activeAutomationContext.title,
             draft_id: activeAutomationContext.draft_id || null,
@@ -478,6 +476,11 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           }
           appendMessage('assistant', result.message || payload.answer || '현재 Home Assistant 정보를 조회했습니다.');
           setStatus(status, 'done', 'Live Home Assistant state retrieved · Nothing executed');
+          return;
+        }
+        if (payload.kind === 'automation_readonly') {
+          appendMessage('assistant', result.message || payload.summary || 'Automation reviewed without making changes.');
+          setStatus(status, 'done', 'Read-only automation review · Nothing modified or saved');
           return;
         }
         if (payload.kind === 'automation') {
