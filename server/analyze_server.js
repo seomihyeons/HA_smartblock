@@ -24,6 +24,7 @@ import { resolveExplicitEntityReferences, retrieveEntityContext } from "./entity
 import { executeInformationQuery } from "./information_query.mjs";
 import { buildAutomationPlannerCommand, normalizeAutomationContext } from "./automation_context.mjs";
 import { filterAssistantEntityStates } from "./entity_visibility_policy.mjs";
+import { validateHostAutomation } from "./automation_host_validation.mjs";
 
 dotenv.config();
 
@@ -396,6 +397,21 @@ async function createDraftResponse(body = {}) {
             entity_cards: entityCards,
             capability_context: homeContext.capabilityContext,
         });
+    // Both LLM backends must pass the same trusted, live HA validation.
+    // The planner's own flags cannot assert Blockly import or round-trip success.
+    if (result?.intent === 'automation' && result?.automation) {
+        const hostValidation = validateHostAutomation(
+            result.automation, entityCards, homeContext.registry || createCapabilityRegistry(),
+        );
+        const providerErrors = Array.isArray(result.validation?.errors) ? result.validation.errors : [];
+        result.validation = {
+            ...(result.validation || {}),
+            ...hostValidation,
+            valid: result.validation?.valid !== false && hostValidation.valid,
+            host_valid: hostValidation.valid,
+            errors: [...providerErrors, ...hostValidation.errors],
+        };
+    }
     const groundingAssessment = LLM_ASSISTANT_BACKEND === "provider_neutral"
         ? await assessEntityGrounding({
             plan: result?.plan,
