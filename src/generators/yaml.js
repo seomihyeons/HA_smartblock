@@ -1558,7 +1558,8 @@ yamlGenerator.forBlock['action_if_then'] = function (block) {
 
 // Action: notify
 yamlGenerator.forBlock['action_notify'] = function (block, generator) {
-  const uiTarget = (block.getFieldValue('TARGET') || 'notify').trim();
+  const uiTarget = (block.getFieldValue('TARGET') || '').trim();
+  if (!uiTarget || uiTarget === '__unavailable__') return '';
   const isNotifyEntity = uiTarget.startsWith('notify.');
   const svc = isNotifyEntity ? 'notify.send_message' : `notify.${uiTarget}`;
 
