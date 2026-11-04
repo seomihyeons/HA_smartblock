@@ -358,6 +358,25 @@ async function createDraftResponse(body = {}) {
             retrievedIds.add(card.entity_id);
         }
     }
+    // Entity-targeted services (such as notify.send_message) need their
+    // live targets available even when the user says "my phone" rather than
+    // the entity's display name. Reserve bounded notification recipients
+    // without any per-home entity IDs or scenario-specific prompt rules.
+    for (const card of entityCards.filter((item) => item.domain === 'notify').slice(0, 8)) {
+        if (retrievedIds.has(card.entity_id)) continue;
+        retrievedEntityCards.push(card);
+        retrievedIds.add(card.entity_id);
+    }
+    // A verified unique Home Assistant person is the only safe first-person
+    // binding; no entity ID or household member is inferred from the prompt.
+    const personId = defaultPersonEntity(entityCards);
+    if (personId && !retrievedIds.has(personId)) {
+        const card = entityById.get(personId);
+        if (card) {
+            retrievedEntityCards.push(card);
+            retrievedIds.add(personId);
+        }
+    }
     // A previously confirmed referent is not an alias or a guessed target.
     // Include it in the bounded evidence set so the provider can deliberately
     // reuse it for a target-omitted follow-up request.
