@@ -4,6 +4,7 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
 const { spawn } = require('child_process');
+const { createHaStateStream } = require('./ha_state_stream');
 
 const ROOT = path.resolve(__dirname, '..');
 const DIST = path.join(ROOT, 'dist');
@@ -82,6 +83,20 @@ function normalizeHaEntityState(row) {
     friendly_name: attributes.friendly_name || entityId,
   };
 }
+
+const haStateStream = createHaStateStream({
+  getUrl: () => {
+    const explicit = String(process.env.HA_WS_URL || '').trim();
+    if (explicit) return explicit;
+    // For Supervisor /core/api, /core/api/websocket is a supported proxy.
+    // For direct HA instances, /api/websocket is the standard endpoint.
+    const url = new URL(getHaApiBaseUrl() + '/websocket');
+    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+    return url.toString();
+  },
+  getToken: () => process.env.HA_TOKEN || process.env.SUPERVISOR_TOKEN || '',
+  normalizeEntity: normalizeHaEntityState,
+});
 
 async function sendRuntimeEntities(_req, res) {
   try {
@@ -475,6 +490,11 @@ const server = http.createServer(async (req, res) => {
 
   if (url.startsWith('/ha/api')) {
     proxyHomeAssistant(req, res);
+    return;
+  }
+
+  if (req.method === 'GET' && url.split('?')[0] === '/api/entity-state-stream') {
+    haStateStream.handle(req, res);
     return;
   }
 
