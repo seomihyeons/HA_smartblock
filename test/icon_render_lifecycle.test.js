@@ -6,31 +6,30 @@ const source = readFileSync(
   new URL('../src/icons/block_filled_icons.js', import.meta.url), 'utf8',
 );
 
-test('render-time alignment is installed before flyout blocks are initialized', () => {
-  assert.match(source, /function installRenderAlignment\(/);
-  assert.match(source, /installRenderAlignment\(\);\s*for \(const definition/);
-  assert.match(source, /prototype\.render = function/);
-  assert.match(source, /originalRender\.apply\(this, args\)/);
-  assert.match(source, /centerFilledIconDuringRender\(this\)/);
+test('leading icons use the dedicated Blockly field before flyout blocks initialize', () => {
+  assert.match(source, /import \{ HaLeadingIconField \}/);
+  assert.match(source, /new HaLeadingIconField\(/);
+  assert.match(source, /for \(const definition of Object\.values\(Blockly\.Blocks\)\)/);
 });
 
-test('leading icon positioning never depends on BLOCK_MOVE or animation frames', () => {
+test('leading icon positioning never depends on render geometry or workspace events', () => {
   assert.doesNotMatch(source, /Blockly\.Events\.BLOCK_MOVE/);
   assert.doesNotMatch(source, /requestAnimationFrame\(/);
+  assert.doesNotMatch(source, /getBoundingClientRect/);
+  assert.doesNotMatch(source, /getScreenCTM/);
+  assert.doesNotMatch(source, /BlockSvg\.prototype\.render/);
+  assert.doesNotMatch(source, /VerticalFlyout\.prototype\.show/);
 });
 
 test('icon is still presentation-only and follows selected configuration', () => {
-  assert.match(source, /field\.SERIALIZABLE = false/);
-  assert.match(source, /updateFilled\(this\)/);
-  assert.match(source, /insertFilledField\(this\)/);
+  assert.match(source, /new HaLeadingIconField\(/);
+  assert.match(source, /function updateFilled\(block\)/);
+  assert.match(source, /field\.setValue\(next\)/);
+  assert.match(source, /updateFilled\(block\)/);
 });
 
-test('all three surfaces use prepaint vertical center alignment and current dropdown icons', () => {
+test('all three surfaces use the same field and current dropdown icons', () => {
   assert.match(source, /enhanceBlockEntityIcons\(this\)/);
-  assert.match(source, /prototype\.render = function/);
-  assert.match(source, /flyoutPrototype\.show = function/);
-  assert.match(source, /originalShow\.apply\(this, args\)/);
-  assert.match(source, /centerFilledIconDuringRender\(block\)/);
-  assert.match(source, /getScreenCTM\?\.\(\)/);
+  assert.match(source, /insertFilledField\(this\)/);
   assert.doesNotMatch(source, /Blockly\.Events\.BLOCK_MOVE/);
 });

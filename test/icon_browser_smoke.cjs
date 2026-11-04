@@ -72,6 +72,28 @@ const server=http.createServer(async(req,res)=>{
       const a=image.getBoundingClientRect(),b=outline.getBoundingClientRect();
       return a.height>0 && b.height>0 && Math.abs((a.top+a.height/2)-(b.top+b.height/2))<=1.5;
     },initial,{timeout:8000});
+    // Notify has a statement input below its target row. Its leading icon
+    // must stay centred in its own renderer-laid-out field, never be moved
+    // toward the centre of the complete multi-row block.
+    const notify=await page.evaluate(()=>{
+      const block=window.ws.newBlock('action_notify');
+      const message=window.ws.newBlock('action_notify_message_text');
+      block.initSvg(); message.initSvg();
+      message.previousConnection.connect(block.getInput('MESSAGE_BLOCKS').connection);
+      block.render(); message.render();
+      return block.id;
+    });
+    const notifyAlignment=await page.evaluate(id=>{
+      const block=window.ws.getBlockById(id);
+      const field=block?.getField('HA_FILLED_ICON');
+      const icon=field?.getSvgRoot()?.querySelector('image');
+      const fieldRoot=field?.getSvgRoot?.();
+      if(!icon||!fieldRoot)return {missing:true};
+      const a=icon.getBoundingClientRect(),b=fieldRoot.getBoundingClientRect();
+      return {icon:a.toJSON(),field:b.toJSON(),delta:Math.abs((a.top+a.height/2)-(b.top+b.height/2))};
+    },notify);
+    assert.ok(!notifyAlignment.missing&&notifyAlignment.delta<=1.5,
+      'Notify icon must stay centred in its renderer-owned field: '+JSON.stringify(notifyAlignment));
     const baseline=await page.evaluate(id=>{
       const b=window.ws.getBlockById(id),f=b.getField('ENTITY_ID');
       const img=f.getSvgRoot().querySelector('image[data-ha-actual-icon="true"]');
@@ -169,7 +191,9 @@ const server=http.createServer(async(req,res)=>{
           if(!icon||!path)continue;
           leadingIcons++;
           if(b.getSvgRoot()?.classList.contains('ha-toolbox-unavailable')) unavailableIcons++;
-          const a=icon.getBoundingClientRect(),c=path.getBoundingClientRect();
+          const a=icon.getBoundingClientRect();
+          const iconField=b.getField('HA_FILLED_ICON');
+          const c=iconField.getSvgRoot()?.getBoundingClientRect()||path.getBoundingClientRect();
           const delta=Math.abs((a.top+a.height/2)-(c.top+c.height/2));
           if(a.height<=0||c.height<=0||delta>1.5)failures.push(b.type+': offset '+delta.toFixed(2));
         }
@@ -182,7 +206,9 @@ const server=http.createServer(async(req,res)=>{
           const path=sample.pathObject?.svgPath || root.querySelector('.blocklyPath');
           root.classList.add('ha-toolbox-unavailable');
           const opacity=Number(getComputedStyle(root).opacity);
-          const a=image.getBoundingClientRect(),c=path.getBoundingClientRect();
+          const a=image.getBoundingClientRect();
+          const iconField=sample.getField('HA_FILLED_ICON');
+          const c=iconField.getSvgRoot()?.getBoundingClientRect()||path.getBoundingClientRect();
           const deviation=Math.abs((a.top+a.height/2)-(c.top+c.height/2));
           if(opacity!==0.55 || deviation>1.5) failures.push('disabled preview CSS/center mismatch '+opacity+' '+deviation);
           root.classList.remove('ha-toolbox-unavailable');
