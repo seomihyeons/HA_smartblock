@@ -148,7 +148,9 @@ const server=http.createServer(async(req,res)=>{
         for(const b of blocks) {
           for(const key of ['ENTITY_ID','ENTITY','USER','AFTER_ENTITY','BEFORE_ENTITY']) {
             const field=b.getField(key);
-            if(!field)continue;
+            // Some dynamically optional dropdowns (e.g., Ecobee's
+            // USE_ENTITY=false field) are intentionally not rendered.
+            if(!field || field.isVisible?.()===false)continue;
             if(field.getSvgRoot()?.querySelector('image[data-ha-actual-icon="true"]'))entityIcons++;
             else failures.push(b.type+': missing '+key+' icon');
           }
