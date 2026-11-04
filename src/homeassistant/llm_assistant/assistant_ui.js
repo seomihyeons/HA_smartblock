@@ -59,9 +59,8 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
   let conversation = [];
   let selections = {};
   let slots = { entity_references: {} };
-  // This is deliberately not chat-history memory.  It records only one
-  // server-confirmed live entity so a short follow-up such as "open it" can
-  // be grounded without asking the model to reinterpret an entire transcript.
+  // Chat messages are retained within one assistant session. The separate
+  // confirmed target is authoritative for execution; conversation prose isn't.
   let interactionContext = { last_confirmed_target: null };
   let awaitingClarification = false;
   let busy = false;
@@ -101,6 +100,10 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       extraClass,
     ].filter(Boolean).join(' ');
     messages.appendChild(createElement('div', className, message));
+    if (role === 'assistant' && typeof message === 'string' && message.trim()) {
+      conversation.push({ role: 'assistant', content: message });
+      conversation = conversation.slice(-24);
+    }
     scrollToLatest();
   };
 
@@ -346,8 +349,10 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       'div',
       'ai-draft-row',
       hasTrigger
-        ? `Trigger · ${firstEntityId(trigger.entity_id)} · ${trigger.from || '*'} → ${trigger.to || '*'}`
-        : 'Trigger · Manual run draft',
+        ? (trigger.trigger === 'event'
+          ? `Trigger · Event: ${trigger.event_type || 'unknown'}${trigger.event_data?.goal_id ? ` · Goal: ${trigger.event_data.goal_id}` : ''}`
+          : `Trigger · ${firstEntityId(trigger.entity_id)} · ${trigger.from || '*'} → ${trigger.to || '*'}`)
+        : 'Trigger · Not specified',
     ));
     actionsList.forEach((action, index) => {
       const targets = Array.isArray(action.target?.entity_id)
@@ -479,7 +484,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
               },
             };
           }
-          appendMessage('assistant', result.message || payload.answer || '현재 Home Assistant 정보를 조회했습니다.');
+          appendMessage('assistant', result.message || payload.answer || 'Current Home Assistant information was retrieved.');
           setStatus(status, 'done', 'Live Home Assistant state retrieved · Nothing executed');
           return;
         }
@@ -489,7 +494,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           return;
         }
         if (payload.kind === 'automation') {
-          appendMessage('assistant', result.message || '검증된 자동화 초안을 만들었습니다.');
+          appendMessage('assistant', result.message || 'A validated automation draft was created.');
           const artifact = {
             draft_id: `draft-${Date.now()}-${++draftSequence}`,
             source: 'recent_draft',
@@ -507,7 +512,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           selections = {};
           return;
         }
-        appendMessage('assistant', result.message || '요청을 처리했습니다.');
+        appendMessage('assistant', result.message || 'The request was processed.');
         setStatus(status, 'done', 'Completed');
         return;
       }
@@ -516,7 +521,6 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
         awaitingClarification = false;
         const question = result.message || 'Select the entity to use.';
         appendMessage('assistant', question);
-        conversation.push({ role: 'assistant', content: question });
         const korean = responseLanguageFor(activeCommand) === 'ko';
         const list = createElement('section', 'ai-candidate-list');
         const cards = createElement('div', 'ai-candidate-cards');
@@ -582,7 +586,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
 
       if (resolution.status === 'failed') {
         awaitingClarification = false;
-        appendMessage('assistant', result.message || '요청을 처리할 수 없습니다.');
+        appendMessage('assistant', result.message || 'The request could not be processed.');
         if (Array.isArray(result.missing_fields) && result.missing_fields.includes('automation_context')) {
           pendingAutomationCommand = activeCommand;
           if (recentDrafts.length > 1) renderRecentDraftPicker();
@@ -609,7 +613,8 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     selectContext(context);
     activeAutomationOperation = operation;
     activeCommand = command;
-    conversation = [{ role: 'user', content: command }];
+    // Keep the existing chat history while the user picks an automation.
+    // The original request is already present in the conversation.
     selections = {};
     slots = { entity_references: {} };
     awaitingClarification = false;
@@ -661,11 +666,12 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     // YAML the provider receives the request once and can return the explicit
     // automation_context_required plan; only then do we offer a draft picker.
     if (context) selectContext(context);
-    if (awaitingClarification && conversation.length) {
-      conversation.push({ role: 'user', content: command });
-    } else {
-      activeCommand = command;
-      conversation = [{ role: 'user', content: command }];
+    // Each submitted turn has its own command, while prior turns remain
+    // available to the planner. Provider changes still start a fresh chat.
+    activeCommand = command;
+    conversation.push({ role: 'user', content: command });
+    conversation = conversation.slice(-24);
+    if (!awaitingClarification) {
       selections = {};
       slots = { entity_references: {} };
     }
