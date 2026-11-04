@@ -621,7 +621,9 @@ export function getNotifyTargetOptions() {
     ? new Set([...entities, ...runtimeNotifyServices])
     : new Set([...entities, 'notify', ...CUSTOM_NOTIFY_TARGETS,
       ...buildDeviceTargets(), ...PRESET_NOTIFY_SERVICES]);
-  return [...targets].map((target) => [target, target]);
+  return targets.size
+    ? [...targets].map((target) => [target, target])
+    : [['(No notification targets)', '__unavailable__']];
 
 }
 
