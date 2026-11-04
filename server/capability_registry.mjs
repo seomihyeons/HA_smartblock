@@ -231,7 +231,9 @@ export function createCapabilityRegistry({ serviceCatalog = [] } = {}) {
       description: text(live.description),
       fields: live.fields || {},
       target: live.target || {},
-      target_required: Object.keys(live.target || {}).length > 0,
+      // A notify entity target is required by notify.send_message even when
+      // service metadata omits the target descriptor.
+      target_required: id === 'notify.send_message' || Object.keys(live.target || {}).length > 0,
       visual_support: 'native',
       available_in_home: true,
       risk: riskForService(id),
@@ -254,6 +256,7 @@ export function createCapabilityRegistry({ serviceCatalog = [] } = {}) {
 export function servicesForEntityDomain(domain, registry = createCapabilityRegistry()) {
   return registry.services
     .filter((service) => service.domain === domain)
+    .filter((service) => domain !== 'notify' || service.id === 'notify.send_message')
     .filter((service) => service.available_in_home !== false)
     .map((service) => service.id);
 }
