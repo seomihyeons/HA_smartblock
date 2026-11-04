@@ -414,7 +414,7 @@ export function initBlockSearchFlyout({ workspace, entityStateStore } = {}) {
   // serialized copy in the editing workspace, rather than merely selecting
   // the temporary preview in this Search flyout.
   searchFlyout.setAutoClose(true);
-  const refreshSearchEntityDropdowns = installEntityDropdownSearch(searchFlyout.getWorkspace());
+  const refreshSearchEntityDropdowns = installEntityDropdownSearch(searchFlyout.getWorkspace(), entityStateStore);
   if (entityStateStore) installLiveEntityIcons(searchFlyout.getWorkspace(), entityStateStore);
   const launcher = createSvgSearchLauncher(workspace);
   if (!launcher) return;
