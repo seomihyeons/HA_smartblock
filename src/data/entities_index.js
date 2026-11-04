@@ -32,10 +32,24 @@ export let notifyDevices = mergeUnique(
 );
 
 export let runtimeEntities = [];
+export let runtimeNotifyServices = [];
+export let runtimeCatalogLoaded = false;
+
+export function setRuntimeNotifyServices(catalog) {
+  const ids = new Set();
+  for (const entry of Array.isArray(catalog) ? catalog : []) {
+    if (entry?.domain !== 'notify' || !entry.services || typeof entry.services !== 'object') continue;
+    for (const name of Object.keys(entry.services)) {
+      if (name && name !== 'send_message') ids.add(name);
+    }
+  }
+  runtimeNotifyServices = [...ids].sort();
+  return runtimeNotifyServices;
+}
 
 const XHOME_DOMAINS = new Set([
   'automation', 'binary_sensor', 'camera', 'climate', 'cover', 'fan',
-  'input_boolean', 'light', 'lock', 'media_player', 'person', 'sensor',
+  'input_boolean', 'light', 'lock', 'media_player', 'notify', 'person', 'sensor',
   'sun', 'switch',
 ]);
 
@@ -77,6 +91,7 @@ export function setRuntimeHomeAssistantEntities(states) {
     const entity = entityFromHomeAssistantState(state);
     if (entity) byId.set(entity.entity_id, entity);
   }
+  runtimeCatalogLoaded = true;
   runtimeEntities = Array.from(byId.values())
     .sort((left, right) => left.entity_id.localeCompare(right.entity_id));
   dummyEntities = runtimeEntities;
@@ -91,6 +106,8 @@ export async function loadRuntimeHomeAssistantEntities(fetchImpl = globalThis.fe
   // Do not expose the bundled corpus while waiting for, or after a failure of,
   // the XHome request. This keeps interactive selectors source-pure.
   runtimeEntities = [];
+  runtimeNotifyServices = [];
+  runtimeCatalogLoaded = false;
   dummyEntities = [];
   notifyDevices = [];
   try {
@@ -101,7 +118,14 @@ export async function loadRuntimeHomeAssistantEntities(fetchImpl = globalThis.fe
     }
     const states = await response.json();
     if (!Array.isArray(states)) throw new Error('XHome states response was not an array.');
-    return { ok: true, entities: setRuntimeHomeAssistantEntities(states) };
+    const entities = setRuntimeHomeAssistantEntities(states);
+    try {
+      const serviceResponse = await fetchImpl('/ha/api/services');
+      if (serviceResponse?.ok) setRuntimeNotifyServices(await serviceResponse.json());
+    } catch (error) {
+      console.warn('[HA-SmartBlock] Notify service discovery unavailable.', error);
+    }
+    return { ok: true, entities };
   } catch (error) {
     console.error('[HA-SmartBlock] XHome entity loading failed.', error);
     return { ok: false, entities: [], error };
