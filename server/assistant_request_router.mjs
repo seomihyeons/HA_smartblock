@@ -59,6 +59,8 @@ const MESSAGE_TEMPLATES = {
     control_completed: '요청한 동작을 완료했습니다.',
     automation_generation_invalid: '자동화 초안을 검증하지 못했습니다.',
     automation_ready: '검증된 자동화 초안을 만들었습니다.',
+    goal_automation_ready: '연결된 기기를 이용한 목표 기반 자동화 초안을 만들었습니다. Home Assistant에 저장하기 전에 블록을 검토해 주세요.',
+    goal_plan_no_actions: '목표를 이해했지만 현재 연결된 기기로 검증 가능한 자동화 초안을 생성하지 못했습니다.',
     request_not_understood: '요청을 이해하지 못했습니다.',
   },
   en: {
@@ -76,6 +78,8 @@ const MESSAGE_TEMPLATES = {
     control_completed: 'The requested action was completed.',
     automation_generation_invalid: 'The automation draft could not be validated.',
     automation_ready: 'A validated automation draft was created.',
+    goal_automation_ready: 'I prepared an automation draft for this goal using your connected devices. Review the blocks before saving it to Home Assistant.',
+    goal_plan_no_actions: 'I understood the goal, but could not prepare a verified automation draft from the available Home Assistant devices.',
     request_not_understood: 'I could not understand this request.',
   },
 };
@@ -391,13 +395,21 @@ export function createAssistantRequestRouter({
           payload, language, intent, failureReason: 'unsupported_capability', messageKey: 'other_unsupported',
         });
       }
-      if (intent === 'routine') {
-        return narratedFailure(createResponse, {
-          payload, language, intent,
-          failureReason: missingFields.length ? 'invalid_request' : 'unsupported_capability',
-          messageKey: missingFields.length ? 'routine_missing' : 'routine_unsupported',
-          extra: { missing_fields: missingFields, plan },
-        });
+      const isGoalAutomation = intent === 'routine' && plan.operation === 'automation_generation';
+      if (intent === 'routine' && !isGoalAutomation) {
+        if (missingFields.length) {
+          return narratedFailure(createResponse, {
+            payload, language, intent, failureReason: 'invalid_request',
+            messageKey: 'routine_missing', extra: { missing_fields: missingFields, plan },
+          });
+        }
+        return {
+          intent,
+          resolution: resolution('failed', 'no_grounded_goal_actions'),
+          message_key: 'goal_plan_no_actions',
+          message: message('goal_plan_no_actions', language),
+          result: { kind: 'goal_plan', goal: text(plan.goal) },
+        };
       }
 
       // The first model call may nominate a real entity even though the live
@@ -596,7 +608,7 @@ export function createAssistantRequestRouter({
         }
       }
 
-      if (intent === 'automation') {
+      if (intent === 'automation' || isGoalAutomation) {
         if (!result?.validation?.valid || !result?.automation) {
           return {
             intent,
@@ -623,6 +635,7 @@ export function createAssistantRequestRouter({
           base_context: result.automation_context || null,
           yaml: plan.yaml || '',
           normalized_yaml: result.normalized_yaml || plan.normalized_yaml || '',
+          goal: isGoalAutomation ? text(plan.goal) : null,
           automation: result.automation,
           validation: {
             ...(result.validation || {}),
@@ -635,11 +648,12 @@ export function createAssistantRequestRouter({
             roundtrip_verified: null,
           },
         };
-        const fallback = message('automation_ready', language);
+        const responseKey = isGoalAutomation ? 'goal_automation_ready' : 'automation_ready';
+        const fallback = message(responseKey, language);
         return {
           intent,
           resolution: resolution('success'),
-          message_key: 'automation_ready',
+          message_key: responseKey,
           message: await narrate(createResponse, {
             payload, language, fallback,
             toolResult: {
