@@ -268,6 +268,13 @@ module.exports = (env, argv) => {
         changeOrigin: true,
         secure: false,
       },
+      '/api/entity-state-stream': {
+        target: addonApiUrl,
+        changeOrigin: true,
+        secure: false,
+        timeout: 0,
+        proxyTimeout: 0,
+      },
     };
 
     // A local UI-only session does not need Home Assistant. Do not register a
