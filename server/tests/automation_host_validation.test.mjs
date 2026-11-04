@@ -86,3 +86,27 @@ test('empty automated plan is rejected even when its IR shape is legal', () => {
   assert.equal(result.schema_valid, false);
   assert.equal(result.valid, false);
 });
+
+test('router does not turn claimed planner Blockly compatibility into verified import', async () => {
+  const router = createAssistantRequestRouter({
+    createDraft: async () => ({
+      intent: 'automation',
+      plan: { operation: 'automation_generation', yaml: baseYaml },
+      automation: {
+        alias: 'Morning light',
+        triggers: [{ trigger: 'state', entity_id: 'binary_sensor.motion', to: 'on' }],
+        conditions: [],
+        actions: [{ action: 'light.turn_on', target: { entity_id: 'light.hall' } }],
+      },
+      validation: { valid: true, schema_valid: true, grounded: true, capability_valid: true, blockly_supported: true },
+    }),
+    previewControl: async () => { throw new Error('control not expected'); },
+    executeControl: async () => { throw new Error('execution not expected'); },
+    queryInformation: async () => { throw new Error('query not expected'); },
+  });
+  const response = await router.handle({ command: 'Create a morning light rule' });
+  assert.equal(response.resolution.status, 'success');
+  assert.equal(response.result.validation.schema_valid, true);
+  assert.equal(response.result.validation.blockly_supported, null);
+  assert.equal(response.result.validation.roundtrip_verified, null);
+});
