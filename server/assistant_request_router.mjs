@@ -1,3 +1,5 @@
+import { normalizeAutomationContext } from './automation_context.mjs';
+import { inspectSelectedAutomation } from './automation_readonly.mjs';
 const text = (value) => String(value ?? '').trim();
 
 function numericThreshold(value) {
@@ -301,6 +303,22 @@ export function createAssistantRequestRouter({
   return {
     async handle(payload = {}) {
       const language = responseLanguage(payload);
+      const selectedAutomation = normalizeAutomationContext(payload.automation_context);
+      if (selectedAutomation && ['inspect', 'explain'].includes(selectedAutomation.operation)) {
+        const inspection = inspectSelectedAutomation(selectedAutomation, selectedAutomation.operation);
+        if (!inspection.ok) {
+          return {
+            intent: 'automation', resolution: resolution('failed', 'invalid_request'),
+            message_key: 'invalid_request', message: inspection.error,
+            validation: { valid: false, errors: [inspection.detail || inspection.error] },
+          };
+        }
+        return {
+          intent: 'automation', resolution: resolution('success'),
+          message_key: 'automation_inspected', message: inspection.summary,
+          result: { kind: 'automation_readonly', ...inspection },
+        };
+      }
       const result = await createDraft({ ...payload, interaction_mode: 'auto' });
 
       // Exact duplicate names are resolved before the provider is called.
