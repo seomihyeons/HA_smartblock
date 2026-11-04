@@ -243,7 +243,29 @@ function publicControlExecution(execution = {}) {
     entity: execution.entity || null,
     entities: Array.isArray(execution.entities) ? execution.entities : [],
     target_count: Number(execution.target_count) || 0,
+    verification: execution.verification || null,
   };
+}
+
+// Use the trusted execution result rather than spending a second LLM call
+// to paraphrase a short command. Never claim a physical state unless the
+// latest Home Assistant observation confirmed it.
+function controlCompletionMessage(execution = {}, language = 'en') {
+  if (language === 'ko') return message('control_completed', language);
+  const count = Number(execution.target_count) || 0;
+  const entity = execution.entity || {};
+  const name = text(entity.display_name || entity.name || entity.entity_id);
+  const verb = text(execution.service).split('.')[1]?.replaceAll('_', ' ') || 'control';
+  const target = count === 1 && name ? name : count > 1 ? `${count} devices` : 'the selected device';
+  const observed = Array.isArray(execution.verification?.observed)
+    ? execution.verification.observed : [];
+  if (count === 1 && execution.verification?.status === 'confirmed' && observed[0]?.state != null) {
+    return `${name || 'The device'} is now ${text(observed[0].state)}.`;
+  }
+  if (execution.verification?.status === 'not_confirmed') {
+    return `I sent the command to ${verb} ${target}, but could not confirm the resulting state.`;
+  }
+  return `I sent the command to ${verb} ${target}.`;
 }
 
 function validationFailure(intent, result, language) {
@@ -570,7 +592,7 @@ export function createAssistantRequestRouter({
             };
           }
           const execution = await executeControl({ execution_id: preview.execution_id });
-          const fallback = message('control_completed', language);
+          const fallback = controlCompletionMessage(execution, language);
           return {
             intent,
             resolution: resolution('success'),
