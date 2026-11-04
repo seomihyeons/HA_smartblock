@@ -1148,7 +1148,9 @@ body.floating-buttons-hidden #btnTaskAlt {
 }
 
 .ha-entity-search-option {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 5px;
   width: 100%;
   padding: 4px 6px;
   border: 0;
@@ -1169,7 +1171,16 @@ body.floating-buttons-hidden #btnTaskAlt {
   background: var(--ha-entity-selected-bg);
 }
 
-.ha-entity-search-option.is-selected .ha-entity-search-name {
+.ha-entity-search-option.is-selected .ha-entity-search-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  pointer-events: none;
+}
+
+.ha-entity-search-name {
+  min-width: 0;
   font-weight: 700;
 }
 
