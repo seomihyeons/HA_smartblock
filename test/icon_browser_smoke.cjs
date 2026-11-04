@@ -99,7 +99,9 @@ const server=http.createServer(async(req,res)=>{
       for(const name of ['Trigger','Condition','Action']) {
         const category=toolbox.getToolboxItems().find(x=>x.getName?.()===name);
         if(!category) throw Error('Missing category: '+name);
-        category.getClickTarget().dispatchEvent(new MouseEvent('click',{bubbles:true}));
+        // Programmatically open actual flyout contents. Simulated DOM clicks
+        // do not activate Blockly's pointer-based category selector in CI.
+        toolbox.getFlyout().show(category.getContents());
         // Availability opacity is scheduled on the next frame; inspect only
         // after the class is applied so muted previews are tested as rendered.
         await new Promise(requestAnimationFrame);
