@@ -595,9 +595,13 @@ export function createAssistantRequestRouter({
           automation: result.automation,
           validation: {
             ...(result.validation || {}),
-            schema_valid: true,
-            grounded: true,
-            blockly_supported: true,
+            schema_valid: result.validation?.schema_valid === true ? true : null,
+            grounded: result.validation?.grounded === true ? true : null,
+            capability_valid: result.validation?.capability_valid === true ? true : null,
+            // Importing Blockly and verifying YAML round-trip happen later
+            // in the browser and must never be inferred from plan generation.
+            blockly_supported: null,
+            roundtrip_verified: null,
           },
         };
         const fallback = message('automation_ready', language);
