@@ -1,5 +1,7 @@
 import * as Blockly from 'blockly';
 import { enhanceBlockEntityIcons, refreshEntityIcon } from '../../icons/entity_dropdown_icons.js';
+import { resolveActualIcon } from '../../icons/icon_semantics.js';
+import { mdiDataUri } from '../../icons/mdi_svg.js';
 
 // These fields represent entities in the current block.  Other dropdowns
 // (state, service, mode, etc.) deliberately retain Blockly's normal menu.
@@ -26,7 +28,7 @@ function getEntityFieldCategory(field) {
   return 'action';
 }
 
-function openEntitySearch(field) {
+function openEntitySearch(field, stateStore) {
   const content = Blockly.DropDownDiv.getContentDiv();
   content.replaceChildren();
 
@@ -49,6 +51,7 @@ function openEntitySearch(field) {
   content.appendChild(root);
 
   const options = getEntityOptions(field);
+  const iconNodes = new Map();
   let matchingOptions = options;
   let activeIndex = -1;
 
@@ -62,6 +65,7 @@ function openEntitySearch(field) {
 
   const renderResults = () => {
     results.replaceChildren();
+    iconNodes.clear();
     if (!matchingOptions.length) {
       const empty = document.createElement('div');
       empty.className = 'ha-entity-search-empty';
@@ -81,10 +85,22 @@ function openEntitySearch(field) {
       option.classList.toggle('is-active', index === activeIndex);
       option.classList.toggle('is-selected', value === field.getValue());
 
+      const icon = document.createElement('img');
+      icon.className = 'ha-entity-search-icon';
+      icon.width = 16;
+      icon.height = 16;
+      icon.alt = '';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.setAttribute('data-ha-entity-id', value);
+      const resolved = resolveActualIcon(value, stateStore?.get(value) || null);
+      icon.src = mdiDataUri(resolved.name, resolved.color);
+      if (!iconNodes.has(value)) iconNodes.set(value, []);
+      iconNodes.get(value).push(icon);
+
       const name = document.createElement('span');
       name.className = 'ha-entity-search-name';
       name.textContent = label;
-      option.appendChild(name);
+      option.append(icon, name);
 
       option.addEventListener('pointerdown', (event) => event.preventDefault());
       option.addEventListener('click', () => choose(value));
@@ -127,25 +143,40 @@ function openEntitySearch(field) {
   });
 
   renderResults();
+  // Update only affected image nodes. Never rebuild the list on a live
+  // state event: keep text input, scroll offset, focus and keyboard selection.
+  const unsubscribe = stateStore?.subscribe((changedIds) => {
+    for (const id of changedIds) {
+      const nodes = iconNodes.get(id);
+      if (!nodes) continue;
+      const resolved = resolveActualIcon(id, stateStore.get(id));
+      const src = mdiDataUri(resolved.name, resolved.color);
+      for (const icon of nodes) icon.src = src;
+    }
+  });
   Blockly.DropDownDiv.setColour('#ffffff', '#b8c0cc');
-  Blockly.DropDownDiv.showPositionedByField(field, () => content.replaceChildren());
+  Blockly.DropDownDiv.showPositionedByField(field, () => {
+    unsubscribe?.();
+    iconNodes.clear();
+    content.replaceChildren();
+  });
   // The DropdownDiv must be visible before the input can reliably receive focus.
   requestAnimationFrame(() => input.focus());
 }
 
-export function enableEntitySearch(field) {
+export function enableEntitySearch(field, stateStore) {
   if (!(field instanceof Blockly.FieldDropdown) || field[SEARCH_ENABLED]) return;
   field[SEARCH_ENABLED] = true;
   field.showEditor_ = function showEntitySearchEditor() {
-    openEntitySearch(this);
+    openEntitySearch(this, stateStore);
   };
 }
 
-function enhanceBlockEntityFields(block) {
+function enhanceBlockEntityFields(block, stateStore) {
   if (!block?.getField) return;
   enhanceBlockEntityIcons(block);
   for (const fieldName of ENTITY_FIELD_NAMES) {
-    enableEntitySearch(block.getField(fieldName));
+    enableEntitySearch(block.getField(fieldName), stateStore);
   }
 }
 
@@ -153,15 +184,16 @@ function enhanceBlockEntityFields(block) {
  * Adds entity-only search behavior to blocks in one workspace without changing
  * their saved values, menu generators, or validators.
  */
-export function installEntityDropdownSearch(workspace) {
-  const enhanceAll = () => workspace.getAllBlocks(false).forEach(enhanceBlockEntityFields);
+export function installEntityDropdownSearch(workspace, stateStore) {
+  const enhance = (block) => enhanceBlockEntityFields(block, stateStore);
+  const enhanceAll = () => workspace.getAllBlocks(false).forEach(enhance);
   const pendingBlockIds = new Set();
   let blockRefreshQueued = false;
 
   const refreshChangedBlocks = () => {
     blockRefreshQueued = false;
     for (const blockId of pendingBlockIds) {
-      enhanceBlockEntityFields(workspace.getBlockById(blockId));
+      enhance(workspace.getBlockById(blockId));
     }
     pendingBlockIds.clear();
   };
