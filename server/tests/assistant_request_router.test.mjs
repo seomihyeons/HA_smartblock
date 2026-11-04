@@ -248,3 +248,48 @@ test('routes aggregate information without a model-generated answer', async () =
   assert.equal(result.resolution.status, 'success');
   assert.equal(result.result.aggregate.count, 4);
 });
+
+
+test('routes a validated goal automation through the draft path without executing devices', async () => {
+  let controlled = false;
+  const instance = router(async () => ({
+    intent: 'routine',
+    plan: {
+      operation: 'automation_generation',
+      goal: 'prepare_for_sleep',
+      yaml: 'alias: Sleep Preparation\\ntriggers: []\\nconditions: []\\nactions: []',
+    },
+    automation: {
+      alias: 'Sleep Preparation',
+      triggers: [{
+        trigger: 'event',
+        event_type: 'smartblock_goal_requested',
+        event_data: { goal_id: 'prepare_for_sleep' },
+      }],
+      conditions: [],
+      actions: [{ action: 'light.turn_off', target: { entity_id: 'light.bedroom' } }],
+    },
+    validation: { valid: true, schema_valid: true, grounded: true, capability_valid: true, errors: [] },
+  }), {
+    previewControl: async () => { controlled = true; throw new Error('Unexpected device preview'); },
+  });
+  const response = await instance.handle({ command: 'Prepare for sleep', response_language: 'en' });
+  assert.equal(response.intent, 'routine');
+  assert.equal(response.resolution.status, 'success');
+  assert.equal(response.result.kind, 'automation');
+  assert.equal(response.result.goal, 'prepare_for_sleep');
+  assert.equal(response.result.automation.triggers[0].event_data.goal_id, 'prepare_for_sleep');
+  assert.equal(controlled, false);
+});
+
+test('does not invent an automation when a goal has no verified device actions', async () => {
+  const response = await router(async () => ({
+    intent: 'routine',
+    plan: { operation: 'goal_plan', goal: 'prepare_for_sleep' },
+    missing_fields: [],
+    validation: { valid: true, errors: [] },
+  })).handle({ command: 'Prepare for sleep', response_language: 'en' });
+  assert.equal(response.resolution.status, 'failed');
+  assert.equal(response.resolution.failure_reason, 'no_grounded_goal_actions');
+  assert.equal(response.result.kind, 'goal_plan');
+});
