@@ -50,7 +50,7 @@ const server=http.createServer(async(req,res)=>{
     const page=await browser.newPage();
     const errors=[];
     page.on('pageerror',err=>errors.push(err.message));
-    await page.goto('http://127.0.0.1:'+port+'/',{waitUntil:'networkidle'});
+    await page.goto('http://127.0.0.1:'+port+'/',{waitUntil:'domcontentloaded'});
     await page.waitForFunction(()=>window.ws && window.Blockly,{timeout:15000});
     const initial=await page.evaluate(()=>{
       const ws=window.ws;
