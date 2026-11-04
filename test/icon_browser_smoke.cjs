@@ -155,6 +155,21 @@ const server=http.createServer(async(req,res)=>{
           const delta=Math.abs((a.top+a.height/2)-(c.top+c.height/2));
           if(a.height<=0||c.height<=0||delta>1.5)failures.push(b.type+': offset '+delta.toFixed(2));
         }
+        // Force the real disabled-preview CSS class on an eligible block so
+        // every category verifies centering at opacity 0.55, even when the
+        // smoke-test HA fixture happens to provide all selected entities.
+        const sample=blocks.find(b=>b.getField('HA_FILLED_ICON') && b.getSvgRoot());
+        if(sample) {
+          const root=sample.getSvgRoot(),image=sample.getField('HA_FILLED_ICON').getSvgRoot().querySelector('image');
+          const path=sample.pathObject?.svgPath || root.querySelector('.blocklyPath');
+          root.classList.add('ha-toolbox-unavailable');
+          const opacity=Number(getComputedStyle(root).opacity);
+          const a=image.getBoundingClientRect(),c=path.getBoundingClientRect();
+          const deviation=Math.abs((a.top+a.height/2)-(c.top+c.height/2));
+          if(opacity!==0.55 || deviation>1.5) failures.push('disabled preview CSS/center mismatch '+opacity+' '+deviation);
+          root.classList.remove('ha-toolbox-unavailable');
+          unavailableIcons++;
+        }
         result[name]={total:blocks.length,entityIcons,leadingIcons,unavailableIcons,sunDropdowns,failures};
       }
       return result;
