@@ -11,6 +11,12 @@ export function automationOperationFor(command, hasActiveAutomationContext = fal
   const directModification = /\b(modify|edit|update|revise|remove|replace|delete)\b|수정|편집|추가|삭제|변경/.test(request);
   const partialModification = /\b(add|change)\b.{0,100}\b(condition|trigger|action|automation|rule|block|time|device|sensor|light)\b/.test(request);
   const modify = directModification || partialModification;
+  // Describing how to edit an automation is not an edit request.
+  const explanationLead = /^(?:please\s+)?(?:explain|describe|what does|what is this)\b/.test(request);
+  const explicitFollowupEdit = /\b(?:and|then)\s+(?:modify|edit|update|change|add|remove|replace)\b/.test(request);
+  if (explanationLead && !explicitFollowupEdit) return 'explain';
+  const inspectionLead = /^(?:please\s+)?(?:check|inspect|review|validate)\b/.test(request);
+  if (inspectionLead && /\b(?:how to|whether)\b/.test(request) && !explicitFollowupEdit) return 'inspect';
   // "Create an automation that checks ..." remains a new rule, even when a
   // previously created draft happens to be selected in the editor.
   if (creationRequest && !existingReference) return 'create';
