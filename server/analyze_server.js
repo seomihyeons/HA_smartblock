@@ -416,6 +416,9 @@ async function createDraftResponse(body = {}) {
             entity_cards: entityCards,
             capability_context: homeContext.capabilityContext,
         });
+    // Ollama's draft adapter predates the provider-neutral intent envelope.
+    // Normalize a successful automation without changing its YAML contents.
+    if (result?.automation && !result.intent) result.intent = 'automation';
     // Both LLM backends must pass the same trusted, live HA validation.
     // The planner's own flags cannot assert Blockly import or round-trip success.
     if (result?.intent === 'automation' && result?.automation) {
