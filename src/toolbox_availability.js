@@ -1,3 +1,4 @@
+import { runtimeNotifyServices } from './data/entities_index.js';
 const ENTITY_BOUND_ACTION_DOMAINS = new Set([
   'light', 'switch', 'lock', 'media_player', 'climate', 'cover', 'fan',
   'input_boolean', 'input_number', 'input_select', 'input_text', 'automation',
@@ -87,7 +88,7 @@ export function isToolboxBlockAvailable(type, entities) {
     case 'action_script_target_entity':
       return capabilities.domains.has('script');
     case 'action_notify':
-      return capabilities.entityIds.has('notify.test_user');
+      return capabilities.domains.has('notify') || runtimeNotifyServices.length > 0;
     case 'event_group_entities':
     case 'event_group_numeric_entities':
     case 'event_group_entity_item':
