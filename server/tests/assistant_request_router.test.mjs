@@ -293,3 +293,45 @@ test('does not invent an automation when a goal has no verified device actions',
   assert.equal(response.resolution.failure_reason, 'no_grounded_goal_actions');
   assert.equal(response.result.kind, 'goal_plan');
 });
+
+
+test('reports a confirmed observed state instead of a generic completion', async () => {
+  const response = await router(async () => ({
+    intent: 'control',
+    plan: {
+      operation: 'service_control',
+      target: { selector: 'entity', entity_id: 'light.bedroom' },
+      effect: { service: 'light.turn_off', data: {} },
+    },
+    validation: { valid: true, errors: [] },
+  }), {
+    executeControl: async () => ({
+      status: 'success', service: 'light.turn_off',
+      entity: { entity_id: 'light.bedroom', display_name: 'Bedroom Light' },
+      target_count: 1,
+      verification: { status: 'confirmed', observed: [{ entity_id: 'light.bedroom', state: 'off' }] },
+    }),
+  }).handle({ command: 'Turn off the bedroom light', response_language: 'en' });
+  assert.equal(response.message, 'Bedroom Light is now off.');
+});
+
+test('does not claim an unverified device state', async () => {
+  const response = await router(async () => ({
+    intent: 'control',
+    plan: {
+      operation: 'service_control',
+      target: { selector: 'entity', entity_id: 'light.bedroom' },
+      effect: { service: 'light.turn_off', data: {} },
+    },
+    validation: { valid: true, errors: [] },
+  }), {
+    executeControl: async () => ({
+      status: 'success', service: 'light.turn_off',
+      entity: { entity_id: 'light.bedroom', display_name: 'Bedroom Light' },
+      target_count: 1,
+      verification: { status: 'not_confirmed', observed: [{ entity_id: 'light.bedroom', state: 'on' }] },
+    }),
+  }).handle({ command: 'Turn off the bedroom light', response_language: 'en' });
+  assert.match(response.message, /could not confirm the resulting state/);
+  assert.doesNotMatch(response.message, /is now off/);
+});
