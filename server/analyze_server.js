@@ -1,4 +1,5 @@
 import express from "express";
+import yaml from "js-yaml";
 import { spawn } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -20,11 +21,21 @@ import {
     publicInformationServices,
     publicCapabilityContext,
 } from "./capability_registry.mjs";
-import { resolveExplicitEntityReferences, retrieveEntityContext } from "./entity_retriever.mjs";
+import {
+    resolveExplicitEntityReferences,
+    retrieveEntityContext,
+    withoutAutomationRuleReferences,
+} from "./entity_retriever.mjs";
 import { executeInformationQuery } from "./information_query.mjs";
 import { buildAutomationPlannerCommand, normalizeAutomationContext } from "./automation_context.mjs";
+import {
+    catalogEntryFromConfig,
+    isActiveAutomationState,
+    resolveAutomationReference,
+} from "./automation_catalog.mjs";
 import { filterAssistantEntityStates } from "./entity_visibility_policy.mjs";
 import { validateHostAutomation } from "./automation_host_validation.mjs";
+import { validateModificationPreservation } from "./modification_preservation.mjs";
 
 dotenv.config();
 
@@ -42,6 +53,9 @@ const LLM_ASSISTANT_BACKEND = String(process.env.LLM_ASSISTANT_BACKEND || "ollam
 const CAPABILITY_CACHE_TTL_MS = Math.max(5_000, Number(process.env.HA_CAPABILITY_CACHE_TTL_MS || "60000"));
 const providerNeutralAssistant = createProviderNeutralAssistantAdapter();
 let cachedCapabilityRegistry = null;
+const AUTOMATION_CONFIG_CACHE_TTL_MS = Math.max(5_000, Number(process.env.HA_AUTOMATION_CACHE_TTL_MS || "60000"));
+const AUTOMATION_CONFIG_CONCURRENCY = Math.max(1, Math.min(8, Number(process.env.HA_AUTOMATION_FETCH_CONCURRENCY || "4")));
+const cachedAutomationConfigs = new Map();
 const GROUNDING_MIN_MARGIN = Math.max(0, Number(process.env.LLM_GROUNDING_MIN_MARGIN || "0.02"));
 
 function buildHaBaseUrl() {
@@ -111,6 +125,106 @@ async function fetchHomeAssistantServices() {
         throw new Error("Home Assistant services response was not an array");
     }
     return services;
+}
+
+async function fetchHomeAssistantAutomationConfig(id) {
+    const haBase = buildHaBaseUrl();
+    const haToken = process.env.HA_TOKEN || "";
+    if (!haBase || !haToken) {
+        throw new Error("Missing HA_BASE_URL(or HA_IP/HA_PORT) or HA_TOKEN in server .env");
+    }
+    const response = await fetch(`${haBase.replace(/\/$/, "")}/api/config/automation/config/${encodeURIComponent(id)}`, {
+        headers: {
+            Authorization: `Bearer ${haToken}`,
+            "Content-Type": "application/json",
+        },
+        signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) throw new Error(`Home Assistant automation config request failed: ${response.status}`);
+    const config = await response.json();
+    if (!config || typeof config !== "object" || Array.isArray(config)) {
+        throw new Error("Home Assistant automation config response was not an object");
+    }
+    return config;
+}
+
+async function mapLimit(items, limit, mapper) {
+    const results = new Array(items.length);
+    let index = 0;
+    const workers = Array.from({ length: Math.max(1, limit) }, async () => {
+        while (true) {
+            const current = index++;
+            if (current >= items.length) return;
+            results[current] = await mapper(items[current]);
+        }
+    });
+    await Promise.all(workers);
+    return results;
+}
+
+/**
+ * The live state list is authoritative for deletion and enabled/disabled
+ * status. Config YAML is fetched only for live `on` automations and cached
+ * briefly, so a disabled or deleted automation can never be selected.
+ */
+async function loadActiveAutomationCatalog() {
+    const states = await fetchHomeAssistantStates();
+    const active = states.filter(isActiveAutomationState);
+    const now = Date.now();
+    const entries = await mapLimit(active, AUTOMATION_CONFIG_CONCURRENCY, async (meta) => {
+        const id = String(meta.attributes.id);
+        const cached = cachedAutomationConfigs.get(id);
+        let config;
+        try {
+            if (cached?.expires_at > now) config = cached.config;
+            else {
+                config = await fetchHomeAssistantAutomationConfig(id);
+                cachedAutomationConfigs.set(id, { config, expires_at: Date.now() + AUTOMATION_CONFIG_CACHE_TTL_MS });
+            }
+        } catch {
+            // A config that cannot be read is not safe to edit through the assistant.
+            return null;
+        }
+        return catalogEntryFromConfig(meta, config);
+    });
+    const liveIds = new Set(active.map((state) => String(state.attributes.id)));
+    for (const id of cachedAutomationConfigs.keys()) {
+        if (!liveIds.has(id)) cachedAutomationConfigs.delete(id);
+    }
+    return entries.filter(Boolean);
+}
+
+function requestedAutomationOperation(body, context) {
+    const requested = String(body?.automation_operation || context?.operation || "create").trim().toLowerCase();
+    return ["create", "modify", "explain", "inspect"].includes(requested) ? requested : "create";
+}
+
+export function entityIdsInYaml(value) {
+    const ids = new Set();
+    const collect = (node) => {
+        if (Array.isArray(node)) return node.forEach(collect);
+        if (!node || typeof node !== "object") return;
+        for (const [key, child] of Object.entries(node)) {
+            if (key === "entity_id") {
+                const values = Array.isArray(child) ? child : [child];
+                for (const item of values) {
+                    for (const id of String(item || "").split(",")) {
+                        const normalized = id.trim();
+                        if (/^[a-z_]+\.[a-z0-9_]+$/i.test(normalized)) ids.add(normalized);
+                    }
+                }
+            }
+            collect(child);
+        }
+    };
+    try {
+        // js-yaml is already used by the app's import path; parsing here only
+        // extracts IDs and never executes YAML content.
+        collect(yaml.load(String(value || ""), { schema: yaml.JSON_SCHEMA }));
+    } catch {
+        for (const match of String(value || "").matchAll(/\b[a-z_]+\.[a-z0-9_]+\b/gi)) ids.add(match[0]);
+    }
+    return ids;
 }
 
 async function loadHomeCapabilityContext() {
@@ -295,23 +409,64 @@ async function assessEntityGrounding({ plan, entityCards, entityResolution }) {
 }
 
 async function createDraftResponse(body = {}) {
-    const automationContext = normalizeAutomationContext(body.automation_context);
+    let automationContext = normalizeAutomationContext(body.automation_context);
+    const automationOperation = requestedAutomationOperation(body, automationContext);
     const requestCommand = String(body.command || "");
-    const plannerCommand = buildAutomationPlannerCommand(requestCommand, automationContext);
     const suppliedCards = Array.isArray(body.entity_cards) ? body.entity_cards : null;
-    const homeContext = suppliedCards
-        ? {
+    const homeContextRequest = suppliedCards
+        ? Promise.resolve({
             entityCards: suppliedCards,
             capabilityContext: { ...publicCapabilityContext(createCapabilityRegistry()), information_services: [] },
             serviceCatalog: [],
-        }
-        : await loadHomeCapabilityContext();
+        })
+        : loadHomeCapabilityContext();
+    // An explicit selected context remains authoritative for generic edits
+    // ("change the delay"). A uniquely named active HA automation can replace
+    // it, which makes "edit Bedroom Climate" work without first loading it.
+    const catalogRequest = automationOperation === "modify"
+        ? loadActiveAutomationCatalog().catch(() => [])
+        : Promise.resolve([]);
+    const [homeContext, catalog] = await Promise.all([homeContextRequest, catalogRequest]);
+    const catalogResolution = automationOperation === "modify"
+        ? resolveAutomationReference(requestCommand, catalog)
+        : { status: "no_match", candidates: [] };
+    if (catalogResolution.status === "selected") {
+        automationContext = normalizeAutomationContext({
+            ...catalogResolution.candidate,
+            operation: "modify",
+        });
+    }
+    if (automationOperation === "modify" && !automationContext) {
+        const candidates = catalogResolution.status === "ambiguous"
+            ? catalogResolution.candidates
+            : catalog;
+        return {
+            status: "needs_automation_selection",
+            intent: "automation",
+            role: "automation_reference",
+            question: candidates.length
+                ? "Select an active Home Assistant automation to edit."
+                : "No active Home Assistant automation is available to edit.",
+            candidates,
+            validation: { schema_valid: false, grounded: false, blockly_supported: false },
+            pipeline: { mode: "deterministic_automation_resolution", timings_ms: { total: 0 } },
+        };
+    }
+    const plannerCommand = buildAutomationPlannerCommand(requestCommand, automationContext);
     const entityCards = homeContext.entityCards;
+    const fullLiveEntityCards = homeContext.entityCards;
+    const fullLiveEntityIds = new Set(fullLiveEntityCards.map((card) => card.entity_id));
     const interactionContext = resolveInteractionContext(body.interaction_context, entityCards);
     const inventory = informationInventory(entityCards);
-    const entityResolution = resolveExplicitEntityReferences(
+    const rawEntityResolution = resolveExplicitEntityReferences(
         requestCommand, entityCards, body.slots,
     );
+    // An automation title can match an existing `automation.*` entity. In a
+    // create/modify request that text identifies the rule, not a device that
+    // must be embedded in the generated YAML.
+    const entityResolution = ["create", "modify"].includes(automationOperation)
+        ? withoutAutomationRuleReferences(rawEntityResolution)
+        : rawEntityResolution;
     const ambiguousReference = entityResolution.find((reference) => reference.status === "ambiguous");
     // A duplicate display name is a real ambiguity.  Resolve it before any
     // provider call, so a model cannot silently choose between devices.
@@ -348,6 +503,25 @@ async function createDraftResponse(body = {}) {
     const retrievedEntityCards = [...(retrieval?.cards || entityCards)];
     const retrievedIds = new Set(retrievedEntityCards.map((card) => card.entity_id));
     const entityById = new Map(entityCards.map((card) => [card.entity_id, card]));
+    const unavailableBaseEntityIds = [...entityIdsInYaml(automationContext?.base_yaml)]
+        .filter((entityId) => !fullLiveEntityIds.has(entityId));
+    if (automationOperation === "modify" && unavailableBaseEntityIds.length) {
+        return {
+            status: "base_automation_entities_unavailable",
+            intent: "automation",
+            unavailable_entity_ids: unavailableBaseEntityIds,
+            validation: {
+                valid: false,
+                schema_valid: true,
+                grounded: false,
+                blockly_supported: false,
+                errors: unavailableBaseEntityIds.map((entityId) => (
+                    `The selected automation references an unavailable Home Assistant entity: ${entityId}`
+                )),
+            },
+            pipeline: { mode: "deterministic_base_automation_validation", timings_ms: { total: 0 } },
+        };
+    }
     // A deterministic binding is always part of the provider's validation
     // scope, even if a bounded retriever would otherwise omit it.
     for (const reference of entityResolution) {
@@ -356,6 +530,17 @@ async function createDraftResponse(body = {}) {
         if (card) {
             retrievedEntityCards.push(card);
             retrievedIds.add(card.entity_id);
+        }
+    }
+    // A modification must be allowed to preserve devices already present in
+    // its selected YAML even when the short edit command does not repeat their
+    // names. Only IDs that still exist in live HA are admitted.
+    for (const entityId of entityIdsInYaml(automationContext?.base_yaml)) {
+        if (retrievedIds.has(entityId)) continue;
+        const card = entityById.get(entityId);
+        if (card) {
+            retrievedEntityCards.push(card);
+            retrievedIds.add(entityId);
         }
     }
     // Entity-targeted services (such as notify.send_message) need their
@@ -399,6 +584,8 @@ async function createDraftResponse(body = {}) {
             slots: body.slots,
             interactionContext,
             defaultPersonEntity: defaultPersonEntity(entityCards),
+            automationOperation,
+            baseYaml: automationContext?.base_yaml || '',
             informationInventory: inventory,
             retrieval: retrieval && {
                 method: retrieval.method,
@@ -423,7 +610,9 @@ async function createDraftResponse(body = {}) {
     // The planner's own flags cannot assert Blockly import or round-trip success.
     if (result?.intent === 'automation' && result?.automation) {
         const hostValidation = validateHostAutomation(
-            result.automation, entityCards, homeContext.registry || createCapabilityRegistry(),
+            // Retrieval is bounded for prompt quality; host grounding is not.
+            // This full live HA list is the final authority for every entity.
+            result.automation, fullLiveEntityCards, homeContext.registry || createCapabilityRegistry(),
         );
         const providerErrors = Array.isArray(result.validation?.errors) ? result.validation.errors : [];
         result.validation = {
@@ -433,6 +622,19 @@ async function createDraftResponse(body = {}) {
             host_valid: hostValidation.valid,
             errors: [...providerErrors, ...hostValidation.errors],
         };
+        if (automationOperation === 'modify' && automationContext?.base_yaml) {
+            const preservation = validateModificationPreservation({
+                baseYaml: automationContext.base_yaml,
+                automation: result.automation,
+                command: requestCommand,
+            });
+            result.validation = {
+                ...result.validation,
+                valid: result.validation.valid && preservation.valid,
+                preservation_valid: preservation.valid,
+                errors: [...result.validation.errors, ...preservation.errors],
+            };
+        }
     }
     const groundingAssessment = LLM_ASSISTANT_BACKEND === "provider_neutral"
         ? await assessEntityGrounding({
@@ -460,7 +662,7 @@ async function createDraftResponse(body = {}) {
     }));
     return {
         ...result,
-        automation_operation: automationContext?.operation || 'create',
+        automation_operation: automationOperation,
         automation_context: automationContext ? {
             source: automationContext.source,
             title: automationContext.title,

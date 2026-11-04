@@ -14,6 +14,15 @@ function positiveInteger(value, fallback) {
   return Number.isInteger(number) && number > 0 ? number : fallback;
 }
 
+/** Adaptive Output Budget v1. This is based only on selected rule size. */
+export function outputBudget(operation, baseYaml = '') {
+  if (String(operation || '').toLowerCase() !== 'modify') return 2000;
+  const length = String(baseYaml || '').length;
+  if (length <= 3000) return 2400;
+  if (length <= 9000) return 2800;
+  return 3000;
+}
+
 function publicFailure(response, fallback) {
   const message = String(response?.reason || response?.error || fallback).trim();
   return message || fallback;
@@ -106,7 +115,7 @@ export function createProviderNeutralAssistantAdapter({
       };
     },
 
-    async createDraft({ command, conversation, provider, entityCards, capabilityContext, retrieval, entityResolution, slots, interactionContext, defaultPersonEntity, informationInventory }) {
+    async createDraft({ command, conversation, provider, entityCards, capabilityContext, retrieval, entityResolution, slots, interactionContext, defaultPersonEntity, informationInventory, automationOperation = 'create', baseYaml = '' }) {
       const requestedProvider = String(provider || process.env.LLM_ASSISTANT_PROVIDER || '').trim().toLowerCase();
       if (requestedProvider && !SELECTABLE_PROVIDERS.has(requestedProvider)) {
         throw new ProviderNeutralAssistantError('Unsupported provider.', 400);
@@ -118,7 +127,7 @@ export function createProviderNeutralAssistantAdapter({
           command,
           conversation: Array.isArray(conversation) ? conversation : [],
           provider: requestedProvider || undefined,
-          max_tokens: positiveInteger(process.env.LLM_ASSISTANT_MAX_TOKENS, 1200),
+          max_tokens: outputBudget(automationOperation, baseYaml),
           home_context: {
             entity_cards: Array.isArray(entityCards) ? entityCards : [],
             capabilities: capabilityContext || { services: [] },

@@ -41,6 +41,22 @@ The optional `client.model` or `client.model_name` value is displayed only as
 model metadata. The factory, model SDK, `.env`, and credentials are deployment
 concerns and intentionally remain outside this package.
 
+## Adaptive Output Budget v1
+
+The Node boundary supplies an initial output limit of 2000 tokens for ordinary
+requests. A selected automation modification receives 2400, 2800, or 3000
+tokens according to the selected YAML length (`<=3000`, `<=9000`, or larger).
+The runtime retries exactly once at 3500 tokens only when the first response
+has a recoverable JSON/YAML parse or Automation IR shape failure. It never
+retries entity-grounding, capability, or missing-user-information failures.
+
+Every `/v1/assistant` response includes `metrics.initial_output_token_limit`,
+`final_output_token_limit`, `attempts`, `retry_reason`, and per-attempt model,
+budget, result, and output-token details. `output_tokens_estimated` is a
+character-based estimate, not provider usage. `output_tokens_reported` remains
+`null` unless a future provider adapter explicitly exposes verified provider
+usage.
+
 ## Run
 
 ```powershell

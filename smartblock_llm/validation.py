@@ -168,6 +168,11 @@ def validate_response(response: Any, home_context: Any) -> dict[str, Any]:
     ir_result = validate_automation_ir(result["automation"])
     if not ir_result["valid"]:
         return generation_failure("The automation did not match the Automation IR contract.", errors=ir_result["errors"])
+    if not result["automation"].get("triggers") or not result["automation"].get("actions"):
+        return generation_failure(
+            "The automation is missing a required trigger or action.",
+            errors=["automation is missing trigger or action"],
+        )
 
     cards = {card["entity_id"]: card for card in normalize_entity_cards(source.get("entity_cards") or source.get("entities"))}
     capabilities = normalize_capabilities(source.get("capabilities"))

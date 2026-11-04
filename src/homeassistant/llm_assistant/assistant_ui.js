@@ -147,7 +147,11 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     const context = activeAutomationContext;
     contextBar.hidden = !context;
     if (!context) return;
-    const source = context.source === 'recent_draft' ? 'recent draft' : 'current Blockly workspace';
+    const source = context.source === 'recent_draft'
+      ? 'recent draft'
+      : context.source === 'home_assistant'
+        ? 'Home Assistant'
+        : 'current Blockly workspace';
     contextBar.appendChild(createElement('span', 'ai-automation-context-label', `Editing: ${context.title} · ${source}`));
   }
 
@@ -426,6 +430,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           selections,
           slots,
           interaction_context: interactionContext,
+          automation_operation: activeAutomationOperation,
           automation_context: activeAutomationOperation !== 'create' && activeAutomationContext ? {
             operation: activeAutomationOperation,
             source: activeAutomationContext.source,
@@ -516,7 +521,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
         const list = createElement('section', 'ai-candidate-list');
         const cards = createElement('div', 'ai-candidate-cards');
         for (const candidate of result.candidates || []) {
-          const displayName = candidate.display_name || candidate.name || candidate.entity_id;
+          const displayName = candidate.title || candidate.display_name || candidate.name || candidate.entity_id;
           const label = candidate.area ? `${displayName} · ${candidate.area}` : displayName;
           const button = createElement('button', 'ai-candidate-card');
           button.type = 'button';
@@ -529,10 +534,31 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           }
           button.appendChild(top);
           button.addEventListener('click', async () => {
-            const selectionMessage = `Selected entity: ${candidate.entity_id}`;
+            const isAutomation = result.role === 'automation_reference';
+            const selectionMessage = isAutomation
+              ? `Selected automation: ${candidate.title || candidate.display_name || candidate.automation_id}`
+              : `Selected entity: ${candidate.entity_id}`;
             appendMessage('user', korean ? `${label} 선택` : `${label} selected`);
             list.querySelectorAll('button').forEach((item) => { item.disabled = true; });
             button.classList.add('is-selected');
+            if (isAutomation) {
+              const context = {
+                source: 'home_assistant',
+                title: String(candidate.title || candidate.display_name || candidate.automation_id || 'Home Assistant automation'),
+                automation_id: candidate.automation_id || null,
+                enabled: candidate.enabled !== false,
+                base_yaml: String(candidate.base_yaml || ''),
+              };
+              if (!context.base_yaml) {
+                appendMessage('assistant', 'The selected automation configuration is unavailable.');
+                return;
+              }
+              selectContext(context);
+              activeAutomationOperation = 'modify';
+              conversation.push({ role: 'user', content: selectionMessage });
+              await requestAssistant();
+              return;
+            }
             if (result.role === 'entity_reference' && result.resolution_key) {
               slots.entity_references[result.resolution_key] = candidate.entity_id;
             } else {

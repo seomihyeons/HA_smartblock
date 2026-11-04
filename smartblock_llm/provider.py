@@ -91,7 +91,7 @@ def public_provider_catalog(read_env: Callable[[str, str], str] | None = None) -
     }
 
 
-def bounded_max_tokens(value: Any, default: int = 1200) -> int:
+def bounded_max_tokens(value: Any, default: int = 2000) -> int:
     try:
         requested = int(value)
     except (TypeError, ValueError):

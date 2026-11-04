@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
+from math import ceil
 from time import perf_counter
 from typing import Any, Callable
 
 from .context import public_context
 from .contracts import generation_failure
-from .provider import ProviderError, configured_client_factory, request_text
+from .provider import ProviderError, bounded_max_tokens, configured_client_factory, request_text
 from .validation import validate_response
 
 
@@ -181,6 +182,68 @@ def _default_client_factory(provider: str | None):
     return configured_client_factory(provider)
 
 
+RETRY_OUTPUT_TOKEN_LIMIT = 3500
+
+
+def _estimated_output_tokens(text: str) -> int:
+    """A clearly labelled character-based estimate, never provider usage."""
+    return ceil(len(str(text or "")) / 4)
+
+
+def _retry_reason(result: dict[str, Any]) -> str | None:
+    """Classify only recoverable output-format failures for one retry.
+
+    Validation is intentionally ordered as output parsing/IR shape first, then
+    grounding and capability checks. The latter are semantic live-HA failures
+    and must never spend another model call merely by increasing the limit.
+    """
+    errors = [str(item).lower() for item in (
+        result.get("validation", {}).get("errors", []) if isinstance(result.get("validation"), dict) else []
+    )]
+    if result.get("generation_error"):
+        errors.append(str(result["generation_error"]).lower())
+    combined = " ".join(errors)
+    if any(marker in combined for marker in (
+        "outside home assistant context", "server-resolved entity", "requires a grounded target",
+        "is not supported by", "outside capability context", "service outside capability",
+        "unsupported", "unresolved",
+    )):
+        return None
+    if "did not contain a json object" in combined or "not a json object" in combined:
+        return "json_parse_failure"
+    if any(marker in combined for marker in (
+        "could not be parsed", "exactly one yaml", "yaml automation must be a mapping",
+    )):
+        return "yaml_parse_failure"
+    if any(marker in combined for marker in (
+        "missing trigger", "missing action", "missing a required trigger", "empty automation",
+    )):
+        return "automation_schema_incomplete"
+    if any(marker in combined for marker in (
+        "must be an array", "must be an object", "must use the normalized",
+        "automation ir contract", "conflicting compatibility aliases",
+    )):
+        return "automation_schema_failure"
+    return None
+
+
+def _plan_attempt(*, provider: str | None, request: dict[str, Any], max_tokens: int,
+                  system_prompt: str, client_factory: Callable[[str | None], Any],
+                  validation_context: dict[str, Any]) -> tuple[dict[str, Any], Any | None, int]:
+    try:
+        reply = request_text(
+            provider=provider,
+            prompt=json.dumps(request, ensure_ascii=False, separators=(",", ":")),
+            system_prompt=system_prompt,
+            max_tokens=max_tokens,
+            client_factory=client_factory,
+        )
+        generated = _extract_json(reply.text)
+    except (ProviderError, ValueError) as exc:
+        return generation_failure(str(exc)), None, 0
+    return validate_response(generated, validation_context), reply, _estimated_output_tokens(reply.text)
+
+
 def create_assistant_response(
     payload: dict[str, Any],
     *,
@@ -197,19 +260,6 @@ def create_assistant_response(
         "conversation": payload.get("conversation") if isinstance(payload.get("conversation"), list) else [],
         "home_context": context,
     }
-    pipeline_started = perf_counter()
-    try:
-        reply = request_text(
-            provider=provider,
-            prompt=json.dumps(request, ensure_ascii=False, separators=(",", ":")),
-            system_prompt=SYSTEM_PROMPT,
-            max_tokens=payload.get("max_tokens", 1200),
-            client_factory=client_factory,
-        )
-        generated = _extract_json(reply.text)
-    except (ProviderError, ValueError) as exc:
-        return generation_failure(str(exc))
-
     validation_context = {
         "entity_cards": context["entity_cards"],
         "capabilities": context["capabilities"],
@@ -217,13 +267,67 @@ def create_assistant_response(
         "entity_resolution": context["entity_resolution"],
         "information_inventory": context["information_inventory"],
     }
-    result = validate_response(generated, validation_context)
+    pipeline_started = perf_counter()
+    initial_limit = bounded_max_tokens(payload.get("max_tokens"), 2000)
+    result, reply, estimated_tokens = _plan_attempt(
+        provider=provider,
+        request=request,
+        max_tokens=initial_limit,
+        system_prompt=SYSTEM_PROMPT,
+        client_factory=client_factory,
+        validation_context=validation_context,
+    )
+    retry_reason = _retry_reason(result)
+    attempt_details = [{
+        "attempt": 1,
+        "model": reply.model if reply else "configured-default",
+        "output_token_limit": initial_limit,
+        "result": retry_reason or ("success" if result.get("validation", {}).get("valid") else "semantic_or_provider_failure"),
+        "output_tokens_reported": None,
+        "output_tokens_estimated": estimated_tokens if reply is not None else None,
+    }]
+
+    # A second call is reserved for output truncation/shape repair. Entity,
+    # capability, and missing-user-information failures never enter here.
+    if retry_reason:
+        repair_prompt = (
+            f"{SYSTEM_PROMPT}\n\nYour previous response could not be parsed or did not meet "
+            "the required plan shape. Return one complete JSON object only; do not omit "
+            "required automation fields or truncate the YAML."
+        )
+        result, reply, estimated_tokens = _plan_attempt(
+            provider=provider,
+            request=request,
+            max_tokens=RETRY_OUTPUT_TOKEN_LIMIT,
+            system_prompt=repair_prompt,
+            client_factory=client_factory,
+            validation_context=validation_context,
+        )
+        retry_result = _retry_reason(result)
+        attempt_details.append({
+            "attempt": 2,
+            "model": reply.model if reply else "configured-default",
+            "output_token_limit": RETRY_OUTPUT_TOKEN_LIMIT,
+            "result": retry_result or ("success" if result.get("validation", {}).get("valid") else "semantic_or_provider_failure"),
+            "output_tokens_reported": None,
+            "output_tokens_estimated": estimated_tokens if reply is not None else None,
+        })
+
+    last_reply = reply
     result["metrics"] = {
-        "provider": reply.provider,
-        "model": reply.model,
-        "last_request_latency_ms": reply.latency_ms,
+        "provider": last_reply.provider if last_reply else (provider or "configured-default"),
+        "model": last_reply.model if last_reply else "configured-default",
+        "last_request_latency_ms": last_reply.latency_ms if last_reply else None,
         "total_latency_ms": round((perf_counter() - pipeline_started) * 1000, 2),
-        "attempts": 1,
+        "initial_output_token_limit": initial_limit,
+        "final_output_token_limit": attempt_details[-1]["output_token_limit"],
+        "attempts": len(attempt_details),
+        "retry_reason": retry_reason,
+        "attempt_details": attempt_details,
+        "output_tokens_reported": None,
+        "output_tokens_estimated": sum(
+            detail["output_tokens_estimated"] or 0 for detail in attempt_details
+        ) or None,
         "candidate_entities": len(context["candidates"]),
         "retrieval_method": context.get("retrieval", {}).get("method"),
     }

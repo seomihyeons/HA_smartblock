@@ -20,7 +20,10 @@ export function automationOperationFor(command, hasActiveAutomationContext = fal
   // "Create an automation that checks ..." remains a new rule, even when a
   // previously created draft happens to be selected in the editor.
   if (creationRequest && !existingReference) return 'create';
-  if (modify && (hasActiveAutomationContext || existingReference)) return 'modify';
+  // An explicit "modify/edit/update" command may name an automation stored in
+  // Home Assistant. The server resolves that live catalog reference; it does
+  // not require a Blockly or recent-draft context first.
+  if (directModification || (modify && (hasActiveAutomationContext || existingReference))) return 'modify';
   if (/\b(explain|describe|what does|what is this)\b|설명|무슨.{0,12}동작/.test(request)) return 'explain';
   if (/\b(inspect|check|validate|review)\b|검사|점검|검토/.test(request)) return 'inspect';
   return 'create';

@@ -93,9 +93,17 @@ export function resolveExplicitEntityReferences(query, cards, slots = {}) {
   const groups = new Map();
 
   for (const card of eligible) {
+    const friendlyName = compact(card.friendly_name);
+    const areaName = compact(card.area);
+    const entityLabel = compact(card.entity_id.split('.').slice(1).join(' '));
+    const entityLabelIsSpecific = entityLabel.split(' ').filter(Boolean).length > 1
+      || entityLabel === friendlyName;
     const labels = new Set([
-      compact(card.friendly_name),
-      compact(card.entity_id.split('.').slice(1).join(' ')),
+      // A label identical to an area is a location mention ("in Bedroom"),
+      // not reliable evidence that the user selected the entity named
+      // "Bedroom". Entity IDs remain explicit and eligible below.
+      friendlyName && friendlyName !== areaName ? friendlyName : '',
+      entityLabel && entityLabel !== areaName && entityLabelIsSpecific ? entityLabel : '',
     ]);
     for (const label of labels) {
       if (!label || !phrases.has(label)) continue;
@@ -142,6 +150,39 @@ export function resolveExplicitEntityReferences(query, cards, slots = {}) {
         evidence: 'multiple_normalized_name_matches',
       };
     });
+}
+
+/**
+ * During automation creation/modification, an automation's display name is
+ * metadata, not a device target. Keep actual device bindings but prevent an
+ * existing `automation.*` entity with the same alias from becoming a required
+ * YAML reference. Explicit automation entities remain available for
+ * information/control flows, which use the unfiltered resolver output.
+ */
+export function withoutAutomationRuleReferences(references) {
+  const result = [];
+  for (const reference of Array.isArray(references) ? references : []) {
+    if (reference?.status === 'resolved') {
+      if (!String(reference.entity_id || '').startsWith('automation.')) result.push(reference);
+      continue;
+    }
+    if (reference?.status === 'ambiguous') {
+      const candidates = (Array.isArray(reference.candidates) ? reference.candidates : [])
+        .filter((candidate) => candidate?.domain !== 'automation' && !String(candidate?.entity_id || '').startsWith('automation.'));
+      if (!candidates.length) continue;
+      if (candidates.length === 1) {
+        result.push({
+          reference: reference.reference,
+          status: 'resolved',
+          entity_id: candidates[0].entity_id,
+          evidence: 'unique_non_automation_name_match',
+        });
+      } else {
+        result.push({ ...reference, candidates });
+      }
+    }
+  }
+  return result;
 }
 
 function lexicalScore(query, card, documentFrequency, documentCount) {

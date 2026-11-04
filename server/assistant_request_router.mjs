@@ -321,6 +321,34 @@ export function createAssistantRequestRouter({
       }
       const result = await createDraft({ ...payload, interaction_mode: 'auto' });
 
+      if (result?.status === 'base_automation_entities_unavailable') {
+        const unavailable = Array.isArray(result.unavailable_entity_ids) ? result.unavailable_entity_ids : [];
+        const detail = unavailable.length ? unavailable.join(', ') : 'an existing entity';
+        return {
+          intent: 'automation',
+          resolution: resolution('failed', 'base_automation_entity_unavailable'),
+          message_key: 'base_automation_entity_unavailable',
+          message: `The selected automation references unavailable Home Assistant entity IDs: ${detail}. It was not modified.`,
+          unavailable_entity_ids: unavailable,
+          validation: result.validation,
+        };
+      }
+
+      if (result?.status === 'needs_automation_selection' && Array.isArray(result?.candidates)) {
+        return {
+          intent: 'automation',
+          resolution: resolution(result.candidates.length ? 'ambiguous' : 'failed',
+            result.candidates.length ? null : 'automation_context_required'),
+          message_key: result.candidates.length ? 'select_automation' : 'invalid_request',
+          message: result.question || (result.candidates.length
+            ? 'Select an active Home Assistant automation to edit.'
+            : 'No active Home Assistant automation is available to edit.'),
+          role: 'automation_reference',
+          candidates: result.candidates,
+          missing_fields: result.candidates.length ? [] : ['automation_context'],
+        };
+      }
+
       // Exact duplicate names are resolved before the provider is called.
       if (result?.status === 'needs_confirmation' && Array.isArray(result?.candidates)) {
         const fallback = message('select_entity', language);
@@ -437,7 +465,10 @@ export function createAssistantRequestRouter({
           payload, language, intent, failureReason: 'invalid_request', messageKey: 'invalid_request',
         });
       }
-      if (unresolvedReference) {
+      // `plan.target` is a control/information planning selector. Automation
+      // modifications are validated from their YAML and must not be rejected
+      // merely because this optional general-control field is unresolved.
+      if (unresolvedReference && intent !== 'automation') {
         return narratedFailure(createResponse, {
           payload, language, intent, failureReason: 'entity_not_found', messageKey: 'entity_not_found',
         });
