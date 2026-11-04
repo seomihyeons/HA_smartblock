@@ -608,7 +608,7 @@ async function createDraftResponse(body = {}) {
     if (result?.automation && !result.intent) result.intent = 'automation';
     // Both LLM backends must pass the same trusted, live HA validation.
     // The planner's own flags cannot assert Blockly import or round-trip success.
-    if (result?.intent === 'automation' && result?.automation) {
+    if ((result?.intent === 'automation' || (result?.intent === 'routine' && result?.plan?.operation === 'automation_generation')) && result?.automation) {
         const hostValidation = validateHostAutomation(
             // Retrieval is bounded for prompt quality; host grounding is not.
             // This full live HA list is the final authority for every entity.
