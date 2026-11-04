@@ -5,7 +5,7 @@
   "main": "index.js",
   "private": true,
   "scripts": {
-    "test": "node --test --experimental-default-type=module test/*.test.js",
+    "test": "node --test --experimental-default-type=module test/*.test.js && node --test test/*.test.cjs",
     "build": "webpack --mode production",
     "start": "webpack serve --mode development --open --hot"
   },
