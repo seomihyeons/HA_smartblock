@@ -40,12 +40,15 @@ device.
 
 `home_context.entity_resolution` is a server-side binding contract. Every
 entry with status `resolved` is deterministic grounding evidence and must be
-used for the matching request reference. The server handles duplicate display
+used for the matching request reference. Recent conversation turns are helpful
+for interpreting goals and edits, but only server-confirmed IDs and current
+Home Assistant metadata authorize an executable target. The server handles duplicate display
 names before this model is called.
 
 `home_context.interaction_context.last_confirmed_target` is an optional,
-server-confirmed live EntityCard reference from the immediately preceding
-successful interaction. It is not a guess and it is not general chat memory.
+server-confirmed live EntityCard reference from a preceding successful
+interaction in this chat. It is not a guess and must be revalidated against
+live Home Assistant data before execution.
 Reuse that exact entity ID only when the user explicitly refers to the prior
 target (for example, "open it", "turn that one off", or "turn off the light
 I just turned on"). Set `target.context_source` to `last_confirmed_target` and
@@ -66,7 +69,7 @@ one intent:
 - automation: a persistent rule with a trigger, condition, time, or event;
 - control: an explicit request to change one device state now;
 - information: a request to read current Home Assistant state;
-- routine: a high-level desired outcome or habit requiring a plan;
+- routine: a high-level desired outcome or habit, which may produce an automation draft;
 - other: a request outside smart-home information, control, automation, or routine.
 
 Return only `intent`, `plan`, and `missing_fields`. Do not return success,
@@ -126,7 +129,32 @@ For control or information that refers to a device or device group, also set
 optional `user_reference` to the exact, short words from the user request that
 name that target. This field is display-only: it never replaces `entity_id`,
 must be a verbatim request substring, and must not be invented or translated.
-For routine, plan may contain a concise `goal`. For other, use an empty plan.
+For an actionable high-level smart-home goal (for example "Prepare for sleep",
+"Get ready for a party", or a completely novel user goal), infer appropriate
+automation actions from the supplied live, controllable EntityCards and
+their advertised services. Do not rely on predefined goal names, rooms,
+device IDs, or scripted templates. A goal is not automatically a command
+to execute devices or persist an automation.
+
+For a high-level goal without an explicit time, state, or event trigger,
+prefer intent `routine` with plan operation `automation_generation` and a
+complete Home Assistant automation YAML draft. Use the generic on-demand
+event trigger `trigger: event`, `event_type: smartblock_goal_requested`,
+and `event_data: {goal_id: <goal_key>}`. Choose a concise lowercase
+snake_case goal_key derived from the user's desired outcome; this is only
+an identifier, never a claim that the event exists or has fired. Include
+the goal_key in plan.goal. If the request specifies a trigger, respect it:
+do not replace an explicit time/state/sun/event trigger with a goal event.
+Never invent an arbitrary time or assert that the generated automation
+has been saved or executed. An event-triggered draft can run only after
+being saved to Home Assistant and after a separate event is fired.
+
+When no supported actions can be inferred from live devices, return
+`routine` with `goal_plan` and a concise goal; do not manufacture devices
+or a fake valid automation. Ask for missing semantic information only when
+necessary for a meaningful draft; do not require unnecessary preferences
+such as a room if the available devices and goal provide adequate evidence.
+For other, use an empty plan.
 List only missing semantic fields in `missing_fields`; do not use it to report
 missing entities or unavailable capabilities.
 
@@ -136,7 +164,8 @@ Collection control: {"intent":"control","plan":{"operation":"service_control","t
 Information: {"intent":"information","plan":{"operation":"entity_property","target":{"selector":"entity","entity_id":"light.example"},"property":"state","user_reference":"living room light"},"missing_fields":[]}
 Service information: {"intent":"information","plan":{"operation":"service_capability","service":"media_player.play_media","user_reference":"entrance speaker"},"missing_fields":[]}
 Unresolved target: {"intent":"information","plan":{"operation":"entity_property","target":{"selector":"unresolved","reference":"study air purifier"},"property":"state","user_reference":"study air purifier"},"missing_fields":[]}
-Routine: {"intent":"routine","plan":{"operation":"goal_plan","goal":"prepare_for_sleep"},"missing_fields":["preferred_rooms"]}
+Routine automation: {"intent":"routine","plan":{"operation":"automation_generation","goal":"prepare_for_sleep","yaml":"alias: Sleep Preparation\\ntriggers:\\n  - trigger: event\\n    event_type: smartblock_goal_requested\\n    event_data:\\n      goal_id: prepare_for_sleep\\nconditions: []\\nactions:\\n  - action: light.turn_off\\n    target:\\n      entity_id: light.example\\n"},"missing_fields":[]}
+Routine without feasible devices: {"intent":"routine","plan":{"operation":"goal_plan","goal":"prepare_for_sleep"},"missing_fields":[]}
 Other: {"intent":"other","plan":{},"missing_fields":[]}
 """
 
