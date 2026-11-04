@@ -94,6 +94,65 @@ const server=http.createServer(async(req,res)=>{
     },notify);
     assert.ok(!notifyAlignment.missing&&notifyAlignment.delta<=1.5,
       'Notify icon must stay centred in its renderer-owned field: '+JSON.stringify(notifyAlignment));
+    const ruleTooltips=await page.evaluate(()=>{
+      const block=window.ws.newBlock('event_condition_action');
+      block.initSvg(); block.render();
+      // Keep the target away from the Toolbox overlay so Playwright hovers the
+      // actual SVG label rather than a screen-level toolbox element.
+      block.moveBy(420,180);
+      return {
+        trigger:block.getInput('EVENT').fieldRow[0].getTooltip(),
+        condition:block.getInput('CONDITION').fieldRow[0].getTooltip(),
+        action:block.getInput('ACTION').fieldRow[0].getTooltip(),
+      };
+    });
+    assert.equal(ruleTooltips.trigger,'','Rule labels must not use Blockly\'s stock tooltip');
+    assert.equal(ruleTooltips.condition,'','Rule labels must not use Blockly\'s stock tooltip');
+    assert.equal(ruleTooltips.action,'','Rule labels must not use Blockly\'s stock tooltip');
+    const triggerLabelBounds=await page.evaluate(()=>{
+      const block=window.ws.getTopBlocks(false).find(b=>b.type==='event_condition_action');
+      const rect=block.getInput('EVENT').fieldRow[0].getSvgRoot().querySelector('rect');
+      const bounds=rect.getBoundingClientRect();
+      return {x:bounds.x,y:bounds.y,width:bounds.width,height:bounds.height};
+    });
+    await page.mouse.move(
+      triggerLabelBounds.x+triggerLabelBounds.width/2,
+      triggerLabelBounds.y+triggerLabelBounds.height/2,
+    );
+    await page.waitForFunction(
+      ()=>document.querySelector('.ha-rule-section-tooltip')?.textContent.includes('When the sun sets'),
+      // Rule guidance is a custom popover with a short delay. Keep it well
+      // below one second while avoiding flicker during normal block dragging.
+      {timeout:1000},
+    );
+    const conditionLabelBounds=await page.evaluate(()=>{
+      const block=window.ws.getTopBlocks(false).find(b=>b.type==='event_condition_action');
+      const rect=block.getInput('CONDITION').fieldRow[0].getSvgRoot().querySelector('rect');
+      const bounds=rect.getBoundingClientRect();
+      return {x:bounds.x,y:bounds.y,width:bounds.width,height:bounds.height};
+    });
+    await page.mouse.move(
+      conditionLabelBounds.x+conditionLabelBounds.width/2,
+      conditionLabelBounds.y+conditionLabelBounds.height/2,
+    );
+    await page.waitForFunction(
+      ()=>document.querySelector('.ha-rule-section-tooltip')?.textContent.includes('All conditions added here'),
+      {timeout:500},
+    );
+    await page.mouse.click(
+      conditionLabelBounds.x+conditionLabelBounds.width/2,
+      conditionLabelBounds.y+conditionLabelBounds.height/2,
+    );
+    await page.mouse.move(1100,700);
+    await page.waitForFunction(
+      ()=>!document.querySelector('.ha-rule-section-tooltip')?.hidden,
+      {timeout:500},
+    );
+    await page.mouse.click(1100,700);
+    await page.waitForFunction(
+      ()=>document.querySelector('.ha-rule-section-tooltip')?.hidden,
+      {timeout:500},
+    );
     const baseline=await page.evaluate(id=>{
       const b=window.ws.getBlockById(id),f=b.getField('ENTITY_ID');
       const img=f.getSvgRoot().querySelector('image[data-ha-actual-icon="true"]');

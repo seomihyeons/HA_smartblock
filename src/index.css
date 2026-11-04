@@ -139,6 +139,46 @@ code {
   fill: #000000 !important;
 }
 
+/* Rule guidance is deliberately separate from Blockly's stock tooltip so its
+   typography, colour accent and dimensions can be adjusted without touching
+   tooltips used by the rest of the editor. */
+.ha-rule-section-tooltip {
+  --ha-rule-tooltip-accent: #64748b;
+  position: fixed;
+  z-index: 30000;
+  width: min(720px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--ha-rule-tooltip-accent) 55%, #ffffff);
+  border-left: 5px solid var(--ha-rule-tooltip-accent);
+  border-radius: 8px;
+  background: #ffffff;
+  color: #172033;
+  box-shadow: 0 8px 22px rgb(15 23 42 / 22%);
+  font-family: Arial, sans-serif;
+  pointer-events: none;
+  transform: translate(-50%, -100%);
+}
+
+.ha-rule-section-tooltip[hidden] {
+  display: none;
+}
+
+.ha-rule-section-tooltip-title {
+  margin-bottom: 6px;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.ha-rule-section-tooltip-body {
+  color: #374151;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 /* btnDebug: Blockly 위로 올리고 클릭 가능하게 강제 */
 #btnDebug {
   position: fixed !important;
