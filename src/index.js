@@ -180,7 +180,7 @@ window.ws = ws;
 installLiveEntityIcons(ws,entityStateStore);
 const nativeFlyoutWorkspace = ws.getToolbox?.()?.getFlyout?.()?.getWorkspace?.();
 if (nativeFlyoutWorkspace) installLiveEntityIcons(nativeFlyoutWorkspace,entityStateStore);
-const refreshEntityDropdownSearch = installEntityDropdownSearch(ws);
+const refreshEntityDropdownSearch = installEntityDropdownSearch(ws, entityStateStore);
 entityStateStore.start();
 
 // This starts with an empty baseline deliberately. If `load(ws)` restores a
