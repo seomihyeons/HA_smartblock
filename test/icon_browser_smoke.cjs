@@ -7,6 +7,15 @@ const assert=require('node:assert/strict');
 const { chromium }=require('playwright');
 const root=path.resolve(__dirname,'../dist');
 let actual='off';
+const streamClients=new Set();
+function changeActual(next) {
+  actual=next;
+  const payload={entity_id:'light.living_room',entity:{
+    entity_id:'light.living_room',state:actual,domain:'light',
+    attributes:{friendly_name:'Living Room Light'},
+  }};
+  for(const res of streamClients) res.write('event: state\\ndata: '+JSON.stringify(payload)+'\\n\\n');
+}
 const fixture=()=>({source:'homeassistant',entities:[
   {entity_id:'light.living_room',state:actual,domain:'light',attributes:{friendly_name:'Living Room Light'}},
   {entity_id:'binary_sensor.living_motion',state:'off',domain:'binary_sensor',attributes:{friendly_name:'Living Motion',device_class:'motion'}},
@@ -14,6 +23,13 @@ const fixture=()=>({source:'homeassistant',entities:[
 ]});
 const server=http.createServer(async(req,res)=>{
   const requestPath=new URL(req.url,'http://localhost').pathname;
+  if(requestPath==='/api/entity-state-stream') {
+    res.writeHead(200,{'content-type':'text/event-stream; charset=utf-8','cache-control':'no-cache'});
+    res.write('event: status\\ndata: {"connected":true}\\n\\n');
+    streamClients.add(res);
+    req.on('close',()=>streamClients.delete(res));
+    return;
+  }
   if(requestPath==='/api/entities') {
     res.writeHead(200,{'content-type':'application/json'});
     res.end(JSON.stringify(fixture())); return;
@@ -72,7 +88,7 @@ const server=http.createServer(async(req,res)=>{
       const source=decodeURIComponent(block.getField('HA_FILLED_ICON').getValue().split(',')[1]);
       if (!source.includes('fill="#000000"')) throw Error('Filled icon must use black palette');
     },initial);
-    actual='on';
+    changeActual('on');
     await page.waitForFunction(({id,before})=>{
       const img=window.ws.getBlockById(id)?.getField('ENTITY_ID')?.getSvgRoot()?.querySelector('image[data-ha-actual-icon="true"]');
       return !!img && img.getAttribute('href')!==before;
@@ -99,7 +115,7 @@ const server=http.createServer(async(req,res)=>{
     const listBefore=await listIcon.getAttribute('src');
     await page.locator('.ha-entity-search-input').fill('Living');
     const queryBefore=await page.locator('.ha-entity-search-input').inputValue();
-    actual='off';
+    changeActual('off');
     await page.waitForFunction(before=>{
       const image=document.querySelector('.ha-entity-search-option img[data-ha-entity-id="light.living_room"]');
       return image?.getAttribute('src')!==before;
