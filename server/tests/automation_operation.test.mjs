@@ -1,0 +1,26 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { automationOperationFor } from '../../src/homeassistant/llm_assistant/automation_operation.mjs';
+
+test('RuleBot-style modification is not misclassified by an embedded check condition', () => {
+  const command = 'Modify the air quality automation we created earlier. Before turning on the air purifier, also check whether someone is present in the bedroom.';
+  assert.equal(automationOperationFor(command, true), 'modify');
+});
+test('checks of existing automation remain read-only inspections', () => {
+  assert.equal(automationOperationFor('Check this automation for problems', true), 'inspect');
+  assert.equal(automationOperationFor('Inspect current blocks', true), 'inspect');
+});
+test('explanation requests are read-only', () => {
+  assert.equal(automationOperationFor('Explain this automation', true), 'explain');
+});
+test('explicit modifications beat an embedded inspection verb', () => {
+  assert.equal(automationOperationFor('Check this automation and modify the time condition', true), 'modify');
+});
+test('new automation creation wins over a selected prior draft', () => {
+  assert.equal(automationOperationFor('Create an automation that checks motion and turns on the light', true), 'create');
+});
+test('Korean modification, inspection and explanation use the same operations', () => {
+  assert.equal(automationOperationFor('이전 자동화에 조건을 추가해줘', true), 'modify');
+  assert.equal(automationOperationFor('현재 자동화 검사해줘', true), 'inspect');
+  assert.equal(automationOperationFor('이 자동화 설명해줘', true), 'explain');
+});
