@@ -92,6 +92,26 @@ const server=http.createServer(async(req,res)=>{
       {id:initial,old:baseline.filled},{timeout:5000});
     await page.evaluate(id=>window.ws.getBlockById(id).getField('ENTITY_ID').showEditor_(),initial);
     await page.waitForSelector('.ha-entity-search-input',{timeout:5000});
+    // Every entity option contains the same state-specific MDI image as its
+    // selected dropdown. While the menu stays open, only the icon changes.
+    const listIcon=page.locator('.ha-entity-search-option img[data-ha-entity-id="light.living_room"]');
+    await listIcon.waitFor({state:'visible'});
+    const listBefore=await listIcon.getAttribute('src');
+    await page.locator('.ha-entity-search-input').fill('Living');
+    const queryBefore=await page.locator('.ha-entity-search-input').inputValue();
+    actual='off';
+    await page.waitForFunction(before=>{
+      const image=document.querySelector('.ha-entity-search-option img[data-ha-entity-id="light.living_room"]');
+      return image?.getAttribute('src')!==before;
+    },listBefore,{timeout:13000});
+    assert.equal(await page.locator('.ha-entity-search-input').inputValue(),queryBefore,
+      'State changes must not reset the search query');
+    assert.equal(await page.locator('.ha-entity-search-option').count(),1,
+      'State changes must not rebuild or expand the filtered options');
+    // The option has only a decorative image and its original label, no
+    // newly introduced ON/OFF badges or status text.
+    assert.equal(await page.locator('.ha-entity-search-option').first().innerText(),'Living Room Light');
+    await page.locator('.ha-entity-search-input').fill('');
     // Native Toolbox preview: verify Trigger, Condition and Action before drag.
     const native=await page.evaluate(async()=>{
       const toolbox=window.ws.getToolbox();
