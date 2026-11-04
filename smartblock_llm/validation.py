@@ -145,7 +145,14 @@ def validate_response(response: Any, home_context: Any) -> dict[str, Any]:
         result["validation"] = {"valid": True, "errors": [], "schema_version": None, "normalizations": []}
         return result
 
-    if result["intent"] != INTENT_AUTOMATION:
+    # Goal-oriented requests may produce a full automation draft even though
+    # their semantic intent is "routine". Validate this exactly like any
+    # explicit automation; an LLM cannot mark its own draft as valid.
+    is_goal_automation = (
+        result["intent"] == "routine"
+        and result["plan"].get("operation") == "automation_generation"
+    )
+    if result["intent"] != INTENT_AUTOMATION and not is_goal_automation:
         result["validation"] = {"valid": True, "errors": []}
         return result
 
@@ -173,6 +180,23 @@ def validate_response(response: Any, home_context: Any) -> dict[str, Any]:
             "The automation is missing a required trigger or action.",
             errors=["automation is missing trigger or action"],
         )
+
+    # A dynamic goal event must be a valid, scoped event selector. An explicit
+    # user-provided time/state/event trigger remains valid without this marker.
+    for index, trigger in enumerate(result["automation"]["triggers"]):
+        if trigger.get("trigger") != "event" or trigger.get("event_type") != "smartblock_goal_requested":
+            continue
+        event_data = trigger.get("event_data")
+        goal_id = event_data.get("goal_id") if isinstance(event_data, dict) else None
+        if (not isinstance(goal_id, str)
+                or not goal_id
+                or len(goal_id) > 80
+                or not all(char.islower() or char.isdigit() or char == "_" for char in goal_id)
+                or not goal_id[0].isalpha()):
+            return generation_failure(
+                "The generated goal event has an invalid goal_id.",
+                errors=[f"triggers[{index}] must use a lowercase snake_case goal_id"],
+            )
 
     cards = {card["entity_id"]: card for card in normalize_entity_cards(source.get("entity_cards") or source.get("entities"))}
     capabilities = normalize_capabilities(source.get("capabilities"))
