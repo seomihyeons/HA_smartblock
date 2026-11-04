@@ -166,14 +166,14 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     section.appendChild(createElement(
       'p',
       '',
-      'Describe an automation or request a supported device action. Clear, grounded device commands run immediately; automation saving still requires Push to HA.',
+      'Describe a smart-home goal, create an automation, or request a supported device action. Goal-based automation drafts can be reviewed as blocks; saving still requires Push to HA.',
     ));
     const example = createElement('div', 'ai-welcome-example');
     example.appendChild(createElement('span', '', 'Examples'));
     example.appendChild(createElement(
       'code',
       '',
-      'When entrance motion is detected, turn on the living room light. · Turn on the coffee maker.',
+      'Prepare for sleep. · When entrance motion is detected, turn on the living room light. · Turn on the coffee maker.',
     ));
     section.appendChild(example);
     section.appendChild(createElement(
