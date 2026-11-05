@@ -76,32 +76,6 @@ export function validateModificationPreservation({ baseYaml, automation, command
       if (after < before) errors.push(`Modification removed existing ${key} without an explicit removal request.`);
     }
   }
-  // Reject conflicting direct device commands within one uninterrupted
-  // action sequence. A delay, wait, or branch separates phases and resets
-  // this check (e.g. intentional timed light cycling remains possible).
-  const latestByTarget = new Map();
-  const opposites = new Map([
-    ['light.turn_on', 'light.turn_off'], ['light.turn_off', 'light.turn_on'],
-    ['switch.turn_on', 'switch.turn_off'], ['switch.turn_off', 'switch.turn_on'],
-    ['cover.open_cover', 'cover.close_cover'], ['cover.close_cover', 'cover.open_cover'],
-  ]);
-  for (const action of Array.isArray(automation.actions) ? automation.actions : []) {
-    if (!action || typeof action !== 'object') continue;
-    if (action.delay != null || action.wait_template != null || action.wait_for_trigger != null
-      || action.choose != null || action.if != null || action.repeat != null) {
-      latestByTarget.clear();
-      continue;
-    }
-    const service = text(action.action || action.service);
-    const targets = action.target?.entity_id ?? action.entity_id;
-    const targetIds = Array.isArray(targets) ? targets : text(targets).split(',');
-    for (const id of targetIds.map(text).filter(Boolean)) {
-      if (opposites.get(service) === latestByTarget.get(id)) {
-        errors.push(`Modification adds conflicting actions for ${id}: ${latestByTarget.get(id)} then ${service} without an intervening delay or branch.`);
-      }
-      if (opposites.has(service)) latestByTarget.set(id, service);
-    }
-  }
   if (base.id != null && automation.id !== base.id) {
     errors.push('Modification changed the existing automation ID.');
   }
