@@ -324,7 +324,7 @@ function groundingCandidates(assessment) {
  * owns those values after checking the live Home Assistant boundary.
  */
 export function createAssistantRequestRouter({
-  createDraft, previewControl, executeControl, queryInformation, createResponse,
+  createDraft, previewControl, executeControl, queryInformation, createResponse, explainAutomation,
 }) {
   if (
     typeof createDraft !== 'function'
@@ -374,10 +374,28 @@ export function createAssistantRequestRouter({
             validation: { valid: false, errors: [inspection.detail || inspection.error] },
           };
         }
+        let explanation = inspection.summary;
+        if (selectedAutomation.operation === 'explain' && typeof explainAutomation === 'function') {
+          try {
+            const generated = await explainAutomation({
+              command: payload.command,
+              responseLanguage: language,
+              provider: payload.provider,
+              title: selectedAutomation.title,
+              yaml: selectedAutomation.base_yaml,
+              inspection,
+            });
+            if (text(generated?.response)) explanation = text(generated.response);
+          } catch {
+            // Read-only deterministic review remains available when provider
+            // explanation is unavailable or produces an empty response.
+          }
+        }
         return {
           intent: 'automation', resolution: resolution('success'),
-          message_key: 'automation_inspected', message: inspection.summary,
+          message_key: 'automation_inspected', message: explanation,
           result: { kind: 'automation_readonly', ...inspection },
+          pipeline: result.pipeline,
         };
       }
       if (result?.status === 'base_automation_entities_unavailable') {
