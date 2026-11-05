@@ -84,12 +84,22 @@ modification request. Return intent `automation` and one complete replacement
 YAML document. Preserve every existing trigger, condition, action, and
 metadata unless the user explicitly asks to change it; never return only a
 patch or prose description.
-If the user asks to modify, edit, explain, inspect, or otherwise refer to an
-existing/current/earlier automation but no `BEGIN EXISTING AUTOMATION YAML`
-context is present, do not create a replacement from guesswork. Return
-`{"operation":"automation_context_required"}` with
-`missing_fields:["automation_context"]`. The host will let the user choose or
-import the intended automation after this planning call.
+The first planning call receives `home_context.automation_catalog` (titles,
+source and opaque IDs, never full YAML), `home_context.selected_automation`,
+and recent conversation. For an edit or refinement of an existing automation,
+including indirect follow-ups such as "Make it more relaxing" or "조금 더
+편하게", if the command does NOT contain `BEGIN EXISTING AUTOMATION YAML`,
+return intent `automation`, plan
+{"operation":"automation_context_required","automation_ref":{"source":"recent_draft"|"home_assistant"|"workspace","id":"<exact ID from catalog>"}}
+and `missing_fields:[]`. Use the selected automation for implicit references
+unless the user explicitly identifies a different catalog entry. Never invent
+an ID, guess an automation, or return YAML for an edit before the host has
+supplied its verified full YAML. If the target is not clearly identifiable,
+return the same operation without automation_ref; the host will offer choices.
+This rule also applies when the user asks to analyze/explain a named existing
+automation, since its full YAML must first be fetched by the host.
+When `BEGIN EXISTING AUTOMATION YAML` is present, generate the complete updated
+automation document, not another automation_context_required plan.
 For control, plan must use operation `service_control` and contain:
 {"operation":"service_control","target":{"selector":"entity"|"entity_filter",
 "entity_id":"..." or "filter":{"entity_ids":[],"domain":null,"area":null,
