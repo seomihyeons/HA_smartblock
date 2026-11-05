@@ -98,6 +98,15 @@ function normalizedText(value) {
 
 // A model may suggest the user-facing reference, but it is never authoritative
 // metadata. Only echo it if it can be traced to the original user request.
+// Capitalize ordinary English display labels at sentence start, while keeping
+// literal Home Assistant entity IDs unchanged for users who need to copy them.
+function sentenceInitialReference(value) {
+  const label = text(value);
+  if (!label) return '';
+  if (/^[a-z_]+\\.[a-z0-9_]+$/i.test(label)) return `The device ${label}`;
+  return label.replace(/^[a-z]/, (letter) => letter.toUpperCase());
+}
+
 function verifiedUserReference(reference, command) {
   const candidate = text(reference);
   if (!candidate || candidate.length > 120) return '';
@@ -131,7 +140,7 @@ function informationMessage(information, plan, command, language) {
     const entity = information.entity || {};
     return language === 'ko'
       ? `${reference || '요청하신 사용자'}의 Entity ID는 ${entity.entity_id}이며 현재 상태는 ${localizedState(entity.state, language)}.`
-      : `${reference || 'The requested entity'} is ${entity.entity_id} (currently ${localizedState(entity.state, language)}).`;
+      : `${sentenceInitialReference(reference) || 'The requested entity'} is ${entity.entity_id} (currently ${localizedState(entity.state, language)}).`;
   }
   if (information?.kind === 'service_collection') {
     const services = (information.services || []).map((service) => text(service.id)).filter(Boolean);
@@ -171,7 +180,7 @@ function informationMessage(information, plan, command, language) {
       ? `${reference}${koreanTopicParticle(reference)} 현재 ${state}.`
       : `${reference}: ${state}`;
   }
-  return `${reference} is currently ${state}.`;
+  return `${sentenceInitialReference(reference) || 'The device'} is currently ${state}.`;
 }
 
 function resolution(status, failureReason = null) {
@@ -260,7 +269,7 @@ function controlCompletionMessage(execution = {}, language = 'en') {
   const observed = Array.isArray(execution.verification?.observed)
     ? execution.verification.observed : [];
   if (count === 1 && execution.verification?.status === 'confirmed' && observed[0]?.state != null) {
-    return `${name || 'The device'} is now ${text(observed[0].state)}.`;
+    return `${sentenceInitialReference(name) || 'The device'} is now ${text(observed[0].state)}.`;
   }
   if (execution.verification?.status === 'not_confirmed') {
     return `I sent the command to ${verb} ${target}, but could not confirm the resulting state.`;
