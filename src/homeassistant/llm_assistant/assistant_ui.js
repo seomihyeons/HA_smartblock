@@ -2,6 +2,8 @@ import './assistant.css';
 import { setModalOpenState } from '../../utils/floating_modal_state';
 import { yamlTextToInternalJson } from '../../import/yaml_import.js';
 import { pushYamlToHomeAssistant } from '../push_automation.js';
+import { runConflictAnalyzer } from '../conflict_analyzer/run_conflict_analyzer.js';
+import { formatConflictChatReport, classifyConflictError } from '../conflict_analyzer/conflict_report_format.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -456,17 +458,42 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     const analyzeButton = createElement('button', '', 'Import and analyze conflicts');
     analyzeButton.type = 'button';
     analyzeButton.addEventListener('click', async () => {
+      // Reuse the existing analyzer endpoint without opening its separate
+      // modal. The draft is imported first, exactly as this button promises.
       const imported = await importDraft(automation, analyzeButton, artifact);
       if (!imported) return;
-      closePanel();
-      document.dispatchEvent(new CustomEvent('open-conflict-analyzer', {
-        detail: {
-          autoRun: true,
-          source: 'ai-assistant',
-          draftYaml: typeof getWorkspaceYaml === 'function' ? getWorkspaceYaml() : null,
-          automationId: result.base_context?.automation_id || null,
-        },
-      }));
+      const draftYaml = typeof getWorkspaceYaml === 'function'
+        ? String(getWorkspaceYaml() || '').trim() : '';
+      if (!draftYaml) {
+        appendMessage('assistant', 'Conflict analysis failed: Blockly did not export the imported draft.', 'ai-message-error');
+        setStatus(status, 'error', 'Conflict analysis failed');
+        return;
+      }
+      analyzeButton.disabled = true;
+      const previousLabel = analyzeButton.textContent;
+      analyzeButton.textContent = 'Analyzing...';
+      setStatus(status, 'running', 'Analyzing conflicts...');
+      const started = performance.now();
+      try {
+        const report = await runConflictAnalyzer({
+          onlyEnabled: true,
+          concurrency: 8,
+          draftYaml,
+          automationId: artifact?.automation_id || result.base_context?.automation_id || null,
+        });
+        if (!report || typeof report.summary !== 'object'
+          || report.analysis_scope?.draft_count !== 1) {
+          throw new Error('The analyzer did not confirm that the imported draft was included.');
+        }
+        appendMessage('assistant', formatConflictChatReport(report, Math.round(performance.now() - started)));
+        setStatus(status, 'done', 'Analysis complete');
+      } catch (error) {
+        appendMessage('assistant', classifyConflictError(error), 'ai-message-error');
+        setStatus(status, 'error', 'Conflict analysis failed');
+      } finally {
+        analyzeButton.disabled = false;
+        analyzeButton.textContent = previousLabel;
+      }
     });
     actions.appendChild(analyzeButton);
 
