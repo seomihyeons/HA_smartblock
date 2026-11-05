@@ -331,7 +331,7 @@ def public_context(home_context: Any, command: str) -> dict[str, Any]:
                 "title": text(item.get("title"))[:240],
                 "enabled": item.get("enabled") is not False,
             }
-            for item in (source.get("automation_catalog") or [])[:60]
+            for item in (source.get("automation_catalog") if isinstance(source.get("automation_catalog"), list) else [])[:60]
             if isinstance(item, dict) and text(item.get("id")) and text(item.get("title"))
         ],
         "selected_automation": {
