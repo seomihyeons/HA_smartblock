@@ -339,6 +339,28 @@ export function createAssistantRequestRouter({
     async handle(payload = {}) {
       const language = responseLanguage(payload);
       const result = await createDraft({ ...payload, interaction_mode: 'auto' });
+      if (result?.status === 'automation_collection_ready') {
+        const ha = result.automation_list?.home_assistant || [];
+        const drafts = result.automation_list?.recent_drafts || [];
+        const messageText = language === 'ko'
+          ? [
+              ha.length ? `Home Assistant 자동화 (${ha.length}개):` : 'Home Assistant 자동화가 없습니다.',
+              ...ha.map((item) => `• ${item.title} (${item.enabled ? '활성' : '비활성'})`),
+              ...(drafts.length ? [`현재 채팅 초안 (${drafts.length}개):`, ...drafts.map((item) => `• ${item.title}`)] : []),
+            ].join('\n')
+          : [
+              ha.length ? `Home Assistant automations (${ha.length}):` : 'No Home Assistant automations found.',
+              ...ha.map((item) => `• ${item.title} (${item.enabled ? 'enabled' : 'disabled'})`),
+              ...(drafts.length ? [`Chat drafts (${drafts.length}):`, ...drafts.map((item) => `• ${item.title}`)] : []),
+            ].join('\n');
+        return {
+          intent: 'information', resolution: resolution('success'),
+          message_key: 'automation_collection', message: messageText,
+          result: { kind: 'information', kind_detail: 'automation_collection',
+            home_assistant: ha, recent_drafts: drafts },
+          pipeline: result.pipeline,
+        };
+      }
       if (result?.status === 'automation_readonly_ready') {
         const selectedAutomation = normalizeAutomationContext(result.automation_context);
         if (!selectedAutomation || !['inspect', 'explain'].includes(selectedAutomation.operation)) {
