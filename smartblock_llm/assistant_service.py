@@ -77,14 +77,14 @@ failure, no-match, unsupported, clarification labels, questions, candidate
 lists, or a natural-language answer. The host decides resolution outcomes from
 live metadata and creates user-visible messages.
 
-For automation, plan must contain `yaml`. Use the root keys and trigger,
+For automation generation (not automation_context_required), plan must contain `yaml`. Use the root keys and trigger,
 condition, action, and service-data syntax advertised by the dialect contract.
 If the command includes `BEGIN EXISTING AUTOMATION YAML`, it is an automation
 modification request. Return intent `automation` and one complete replacement
 YAML document. Preserve every existing trigger, condition, action, and
 metadata unless the user explicitly asks to change it; never return only a
 patch or prose description.
-The first planning call receives `home_context.automation_catalog` (titles,
+An explicit request to create a NEW automation is creation, even when a prior\nautomation is selected. Information queries and immediate device controls are\nnot edits merely because earlier messages concerned automations.\nThe first planning call receives `home_context.automation_catalog` (titles,
 source and opaque IDs, never full YAML), `home_context.selected_automation`,
 and recent conversation. For an edit or refinement of an existing automation,
 including indirect follow-ups such as "Make it more relaxing" or "조금 더
