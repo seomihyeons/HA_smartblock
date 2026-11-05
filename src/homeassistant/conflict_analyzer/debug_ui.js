@@ -1,5 +1,6 @@
 import { runConflictAnalyzer } from "./run_conflict_analyzer";
 import { setModalOpenState } from "../../utils/floating_modal_state";
+import { buildConflictSummary, classifyConflictError } from "./conflict_report_format.js";
 
 function $(id) { return document.getElementById(id); }
 function setText(el, text) { if (el) el.textContent = text; }
@@ -68,26 +69,6 @@ function renderIssueCards(host, report) {
     );
 }
 
-function summarizeConflictTypes(issues) {
-    const counts = {};
-    for (const issue of Array.from(issues || [])) {
-        const key = String(issue?.issue || "unknown");
-        counts[key] = Number(counts[key] || 0) + 1;
-    }
-    const names = Object.keys(counts).sort((a, b) => a.localeCompare(b));
-    if (!names.length) return "-";
-    return names.map((name) => `${name}=${counts[name]}`).join(", ");
-}
-
-function countConflictingEntities(issues) {
-    const entities = new Set();
-    for (const issue of Array.from(issues || [])) {
-        const entity = String(issue?.entity || "").trim();
-        if (entity) entities.add(entity);
-    }
-    return entities.size;
-}
-
 export function initConflictAnalyzerUI() {
     const btnDebug = $("btnDebug");
     const modal = $("debugModal");
@@ -145,47 +126,6 @@ export function initConflictAnalyzerUI() {
         spinnerEl.classList.toggle("hidden", !on);
     };
 
-    const buildSummary = (report, elapsedMs) => {
-        const s = report?.summary || {};
-        const issues = Array.isArray(report?.inconsistency) ? report.inconsistency : [];
-        const incCount = s.inconsistency_issues ?? issues.length ?? "-";
-        const elapsed = elapsedMs != null ? `${elapsedMs} ms` : "-";
-        const conflictTypes = summarizeConflictTypes(issues);
-        const conflictingEntities = countConflictingEntities(issues);
-        const lines = [
-            `Automations analyzed: ${s.automations ?? "-"}`,
-            ...(report?.analysis_scope?.draft_count ? [
-                `Analysis scope: ${report.analysis_scope.existing_count} existing + ${report.analysis_scope.draft_count} current draft`,
-            ] : []),
-            `Events: ${s.events ?? "-"}`,
-            `Actions: ${s.actions ?? "-"}`,
-            `Rule edges: ${s.edges ?? "-"}`,
-            `Inconsistency issues: ${incCount}`,
-            `Conflict types: ${conflictTypes}`,
-            `Conflicting entities: ${incCount === "-" ? "-" : conflictingEntities}`,
-            `Elapsed: ${elapsed}`,
-        ];
-
-        if (incCount === 0) {
-            lines.push("");
-            lines.push("No inconsistency detected.");
-            lines.push("System logic is consistent.");
-        }
-
-        return lines.join("\n");
-    };
-
-    const classifyError = (err) => {
-        const msg = String(err?.message || err || "Unknown error");
-        if (msg.includes("Failed to fetch")) {
-            return "Analyzer server not running or unreachable. Start the analyzer server and retry.";
-        }
-        if (msg.startsWith("Analyze failed:")) {
-            return `Analyzer request failed. ${msg}`;
-        }
-        return `Unexpected error: ${msg}`;
-    };
-
     let pendingDraft = null;
     const run = async () => {
         setText(out, "");
@@ -199,15 +139,15 @@ export function initConflictAnalyzerUI() {
         try {
             const report = await runConflictAnalyzer({ onlyEnabled: true, concurrency: 8, ...(pendingDraft || {}) });
             const ms = Math.round(performance.now() - startedAt);
-            setSummary(buildSummary(report, ms));
+            setSummary(buildConflictSummary(report, ms));
             renderIssueCards(out, report);
             setStatus("done", "Analysis Complete");
         } catch (e) {
-            const msg = classifyError(e);
+            const msg = classifyConflictError(e);
             setText(out, String(e?.message || e));
             setError(msg);
             const ms = Math.round(performance.now() - startedAt);
-            setSummary(buildSummary(null, ms));
+            setSummary(buildConflictSummary(null, ms));
             setStatus("error", "Error");
         } finally {
             toggleSpinner(false);
