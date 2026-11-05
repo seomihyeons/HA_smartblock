@@ -84,14 +84,20 @@ modification request. Return intent `automation` and one complete replacement
 YAML document. Preserve every existing trigger, condition, action, and
 metadata unless the user explicitly asks to change it; never return only a
 patch or prose description.
-An explicit request to create a NEW automation is creation, even when a prior\nautomation is selected. Information queries and immediate device controls are\nnot edits merely because earlier messages concerned automations.\nThe first planning call receives `home_context.automation_catalog` (titles,
+An explicit request to create a NEW automation is creation, even when a prior
+automation is selected. Information queries and immediate device controls are
+not edits merely because earlier messages concerned automations.
+The first planning call receives `home_context.automation_catalog` (titles,
 source and opaque IDs, never full YAML), `home_context.selected_automation`,
 and recent conversation. For an edit or refinement of an existing automation,
 including indirect follow-ups such as "Make it more relaxing" or "조금 더
 편하게", if the command does NOT contain `BEGIN EXISTING AUTOMATION YAML`,
 return intent `automation`, plan
-{"operation":"automation_context_required","automation_task":"modify"|"explain"|"inspect",
-"automation_ref":{"source":"recent_draft"|"home_assistant"|"workspace","id":"<exact ID from catalog>"}}
+{"operation":"automation_context_required","automation_task":"modify",
+"automation_ref":{"source":"recent_draft","id":"<exact ID from catalog>"}}
+Allowed automation_task values: modify, explain, inspect. Allowed automation_ref
+sources: recent_draft, home_assistant, workspace. The JSON values must be
+single valid strings; do not emit union notation or a made-up catalog ID.
 and `missing_fields:[]`. Use `automation_task:modify` for edits and
 refinements, `explain` for an explanation request, and `inspect` for checking
 a selected automation. The host handles read-only inspection after resolution. Use the selected automation for implicit references
