@@ -87,6 +87,21 @@ patch or prose description.
 An explicit request to create a NEW automation is creation, even when a prior
 automation is selected. Information queries and immediate device controls are
 not edits merely because earlier messages concerned automations.
+Use the ongoing conversation and selected_automation to decide the scope.
+When a user is currently creating or refining an automation, a follow-up such
+as "Also turn off the living room light", "And close the curtains", "그것도
+꺼줘" usually means ADD OR EDIT AN ACTION IN THE SELECTED AUTOMATION, NOT
+EXECUTE AN IMMEDIATE DEVICE CONTROL. Return automation_context_required with
+automation_task modify and the exact selected automation_ref; never return
+service_control for such a follow-up unless the user clearly requests an
+immediate physical action outside the automation (for example "Turn it off
+right now, not in the automation"). If the scope is genuinely unclear, ask for
+clarification rather than making a physical state change.
+Likewise, keep the generated YAML semantically coherent: do not add opposite
+turn_off and turn_on actions for the same device in one uninterrupted sequence
+just to satisfy a vague goal such as "more relaxing". Preserve unaffected
+actions and triggers; ask for clarification if a suitable change cannot be
+grounded in advertised services.
 The first planning call receives `home_context.automation_catalog` (titles,
 source and opaque IDs, never full YAML), `home_context.selected_automation`,
 and recent conversation. For an edit or refinement of an existing automation,
@@ -130,6 +145,11 @@ For an explicitly named but unsupported or absent target, use
 This is a grounding abstention, not a failure label. Do not substitute a
 different appliance merely because it can perform a similar service.
 For information, select one advertised read-only operation:
+- `automation_collection` with no entity target when the user asks which
+  Home Assistant automations are configured or what automation drafts exist.
+  The host reads the actual automation catalog and chat drafts; DO NOT use
+  entity_collection or call automations "devices". A list query does not
+  require full YAML or a second LLM call.
 - `entity_property` with target and `property` (for example `state`); or
 - `entity_collection` with target, `projection`, and optional aggregation
   `count`. A collection with no aggregation requests a list.
@@ -206,7 +226,15 @@ lists, JSON, or code fences.
 For an accepted control action, describe the requested Home Assistant action
 briefly. Do not claim an observed physical state unless the tool result says
 state_verification is confirmed. For an information result, answer using only
-the returned property, collection, or aggregate. For ambiguous and failed
+the returned property, collection, or aggregate. For an
+automation_explanation result, read only the supplied selected automation
+configuration (which may contain a YAML document) and explain in clear,
+natural language when the automation triggers, which conditions must hold,
+and what each action does in order. Give actual times and device names when
+present, rather than only listing counts or service identifiers. If the YAML
+has consecutive contradictory actions, describe their real sequence without
+claiming it is necessarily desirable. Do not imply that static review proves
+runtime behavior, execution, or conflict freedom. For ambiguous and failed
 results, explain the host-provided reason naturally and ask only for the
 information needed to continue.
 """
