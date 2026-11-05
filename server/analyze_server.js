@@ -168,6 +168,21 @@ async function mapLimit(items, limit, mapper) {
  * status. Config YAML is fetched only for live `on` automations and cached
  * briefly, so a disabled or deleted automation can never be selected.
  */
+async function loadAutomationList() {
+    // All live HA automations, including disabled ones. No YAML is needed for
+    // a read-only listing, and no individual config fetch is required.
+    const states = await fetchHomeAssistantStates();
+    return states.filter((state) => String(state?.entity_id || '').startsWith('automation.')
+        && ['on', 'off'].includes(String(state?.state || '')))
+        .map((state) => ({
+            source: 'home_assistant',
+            title: String(state.attributes?.friendly_name || state.entity_id),
+            automation_id: String(state.attributes?.id || '') || null,
+            entity_id: String(state.entity_id),
+            enabled: state.state === 'on',
+        }));
+}
+
 async function loadActiveAutomationCatalog() {
     const states = await fetchHomeAssistantStates();
     const active = states.filter(isActiveAutomationState);
@@ -606,6 +621,28 @@ async function createDraftResponse(body = {}) {
             entity_cards: entityCards,
             capability_context: homeContext.capabilityContext,
         });
+    // Listing automations is a read-only host operation, not an EntityCard
+    // collection: include disabled HA automations and recent chat drafts.
+    if (LLM_ASSISTANT_BACKEND === "provider_neutral"
+        && result?.intent === 'information'
+        && result?.plan?.operation === 'automation_collection') {
+        const allHa = suppliedCards
+            ? catalog.map(({ title, automation_id, enabled }) => ({ title, automation_id, enabled }))
+            : await loadAutomationList();
+        return {
+            intent: 'information',
+            plan: { operation: 'automation_collection' },
+            validation: { valid: true, errors: [] },
+            status: 'automation_collection_ready',
+            automation_list: {
+                home_assistant: allHa,
+                recent_drafts: plannerCatalog.entries.filter((item) => item.source === 'recent_draft')
+                    .map(({ title, draft_id }) => ({ title, draft_id })),
+            },
+            pipeline: { mode: 'host_automation_catalog',
+                model_calls: result?.metrics?.attempts || 1 },
+        };
+    }
     // Only a host-verified reference can authorize a second LLM call with
     // the entire YAML. A model-provided ID alone is not authorization.
     if (LLM_ASSISTANT_BACKEND === "provider_neutral"
