@@ -20,10 +20,15 @@ export function automationOperationFor(command, hasActiveAutomationContext = fal
   // "Create an automation that checks ..." remains a new rule, even when a
   // previously created draft happens to be selected in the editor.
   if (creationRequest && !existingReference) return 'create';
+  // Follow-up references are refinements only when a real automation draft is
+  // selected. A new unrelated goal must not silently overwrite that draft.
+  // Recognize grammatical references, not particular goal names or devices.
+  const contextualRefinement = /^(?:(?:also|instead|and|then|plus)\b|(?:please\s+)?(?:make|keep|set|adjust)\s+(?:it|this|that|them)\b|(?:could|can|would)\s+you\s+(?:make|keep|set|adjust)\s+(?:it|this|that|them)\b|(?:more|less)\s+)|\b(?:in that automation|to that rule|for those blocks)\b|(?:좀\s*더|더\s+|추가로|그리고|대신|차라리|그\s*자동화|이\s*자동화)/.test(request);
   // An explicit "modify/edit/update" command may name an automation stored in
   // Home Assistant. The server resolves that live catalog reference; it does
   // not require a Blockly or recent-draft context first.
-  if (directModification || (modify && (hasActiveAutomationContext || existingReference))) return 'modify';
+  if (directModification || (modify && (hasActiveAutomationContext || existingReference))
+    || (hasActiveAutomationContext && contextualRefinement)) return 'modify';
   if (/\b(explain|describe|what does|what is this)\b|설명|무슨.{0,12}동작/.test(request)) return 'explain';
   if (/\b(inspect|check|validate|review)\b|검사|점검|검토/.test(request)) return 'inspect';
   return 'create';
