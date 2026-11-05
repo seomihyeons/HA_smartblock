@@ -338,8 +338,12 @@ export function createAssistantRequestRouter({
   return {
     async handle(payload = {}) {
       const language = responseLanguage(payload);
-      const selectedAutomation = normalizeAutomationContext(payload.automation_context);
-      if (selectedAutomation && ['inspect', 'explain'].includes(selectedAutomation.operation)) {
+      const result = await createDraft({ ...payload, interaction_mode: 'auto' });
+      if (result?.status === 'automation_readonly_ready') {
+        const selectedAutomation = normalizeAutomationContext(result.automation_context);
+        if (!selectedAutomation || !['inspect', 'explain'].includes(selectedAutomation.operation)) {
+          return failed('automation', 'invalid_request', 'invalid_request', language);
+        }
         const inspection = inspectSelectedAutomation(selectedAutomation, selectedAutomation.operation);
         if (!inspection.ok) {
           return {
@@ -354,8 +358,6 @@ export function createAssistantRequestRouter({
           result: { kind: 'automation_readonly', ...inspection },
         };
       }
-      const result = await createDraft({ ...payload, interaction_mode: 'auto' });
-
       if (result?.status === 'base_automation_entities_unavailable') {
         const unavailable = Array.isArray(result.unavailable_entity_ids) ? result.unavailable_entity_ids : [];
         const detail = unavailable.length ? unavailable.join(', ') : 'an existing entity';
