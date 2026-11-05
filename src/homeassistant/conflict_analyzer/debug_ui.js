@@ -154,6 +154,9 @@ export function initConflictAnalyzerUI() {
         const conflictingEntities = countConflictingEntities(issues);
         const lines = [
             `Automations analyzed: ${s.automations ?? "-"}`,
+            ...(report?.analysis_scope?.draft_count ? [
+                `Analysis scope: ${report.analysis_scope.existing_count} existing + ${report.analysis_scope.draft_count} current draft`,
+            ] : []),
             `Events: ${s.events ?? "-"}`,
             `Actions: ${s.actions ?? "-"}`,
             `Rule edges: ${s.edges ?? "-"}`,
@@ -183,6 +186,7 @@ export function initConflictAnalyzerUI() {
         return `Unexpected error: ${msg}`;
     };
 
+    let pendingDraft = null;
     const run = async () => {
         setText(out, "");
         setSummary("Automations analyzed: -\nEvents: -\nActions: -\nRule edges: -\nInconsistency issues: -\nConflict types: -\nConflicting entities: -\nElapsed: running...");
@@ -193,7 +197,7 @@ export function initConflictAnalyzerUI() {
 
         const startedAt = performance.now();
         try {
-            const report = await runConflictAnalyzer({ onlyEnabled: true, concurrency: 8 });
+            const report = await runConflictAnalyzer({ onlyEnabled: true, concurrency: 8, ...(pendingDraft || {}) });
             const ms = Math.round(performance.now() - startedAt);
             setSummary(buildSummary(report, ms));
             renderIssueCards(out, report);
@@ -211,7 +215,16 @@ export function initConflictAnalyzerUI() {
         }
     };
 
-    btnDebug.addEventListener("click", () => { open(); });
+    btnDebug.addEventListener("click", () => { pendingDraft = null; open(); });
+    document.addEventListener('open-conflict-analyzer', (event) => {
+        const detail = event?.detail || {};
+        pendingDraft = detail.draftYaml ? {
+            draftYaml: String(detail.draftYaml),
+            automationId: detail.automationId || null,
+        } : null;
+        open();
+        if (detail.autoRun === true && !btnRun.disabled) void run();
+    });
     backdrop?.addEventListener("click", close);
     btnClose?.addEventListener("click", close);
     btnCopy.addEventListener("click", copy);
