@@ -27,7 +27,7 @@ deployment-owned factory before running the API:
 
 ```text
 SMARTBLOCK_LLM_CLIENT_FACTORY=your_package.provider:get_llm_client
-LLM_PROVIDER=chatgpt
+LLM_ASSISTANT_PROVIDER=chatgpt
 OPENAI_API_KEY=...
 ```
 
@@ -56,6 +56,13 @@ budget, result, and output-token details. `output_tokens_estimated` is a
 character-based estimate, not provider usage. `output_tokens_reported` remains
 `null` unless a future provider adapter explicitly exposes verified provider
 usage.
+
+## Entity retrieval
+
+Set `LLM_ENTITY_RETRIEVAL=fastembed_hybrid` on the Node host and
+`FASTEMBED_MODEL=intfloat/multilingual-e5-small` for the local FastEmbed/ONNX
+endpoint. Use `LLM_ENTITY_RETRIEVAL=lexical` for search without embeddings.
+No Ollama server is required.
 
 ## Run
 

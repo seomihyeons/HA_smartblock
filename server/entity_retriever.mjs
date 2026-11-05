@@ -299,19 +299,6 @@ function balancedOperationalRanking(ranking, maxCards) {
   return selected;
 }
 
-function cosineSimilarity(left, right) {
-  if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length || !left.length) return -1;
-  let dot = 0;
-  let leftNorm = 0;
-  let rightNorm = 0;
-  for (let index = 0; index < left.length; index += 1) {
-    dot += left[index] * right[index];
-    leftNorm += left[index] ** 2;
-    rightNorm += right[index] ** 2;
-  }
-  return leftNorm && rightNorm ? dot / Math.sqrt(leftNorm * rightNorm) : -1;
-}
-
 export function reciprocalRankFusion(rankings, k = DEFAULT_RRF_K) {
   const scores = new Map();
   const cards = new Map();
@@ -325,26 +312,6 @@ export function reciprocalRankFusion(rankings, k = DEFAULT_RRF_K) {
   return [...scores.entries()]
     .map(([entityId, score]) => ({ card: cards.get(entityId), score }))
     .sort((a, b) => b.score - a.score || a.card.entity_id.localeCompare(b.card.entity_id));
-}
-
-async function ollamaEmbeddings(inputs, options) {
-  const env = options.env || process.env;
-  const fetchImpl = options.embeddingFetchImpl || fetch;
-  const baseUrl = text(env.OLLAMA_BASE_URL) || 'http://127.0.0.1:11434';
-  const model = text(env.OLLAMA_EMBED_MODEL) || 'qwen3-embedding:0.6b';
-  const timeout = Number.parseInt(String(env.LLM_EMBED_TIMEOUT_MS || ''), 10) || 30_000;
-  const response = await fetchImpl(`${baseUrl.replace(/\/$/, '')}/api/embed`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, input: inputs, truncate: true, keep_alive: '30m' }),
-    signal: AbortSignal.timeout(timeout),
-  });
-  if (!response.ok) throw new Error(`Embedding request failed: ${response.status}`);
-  const body = await response.json();
-  if (!Array.isArray(body?.embeddings) || body.embeddings.length !== inputs.length) {
-    throw new Error('Embedding response has an unexpected shape.');
-  }
-  return { embeddings: body.embeddings, model: text(body.model) || model };
 }
 
 function externalDenseRanking(cards, response) {
@@ -370,8 +337,10 @@ export async function retrieveEntityContext(query, cards, options = {}) {
   const diversifiedLexical = lexicalEvidence.length ? lexicalEvidence : diversifyRanking(lexical);
   const mode = text(options.mode || options.env?.LLM_ENTITY_RETRIEVAL || process.env.LLM_ENTITY_RETRIEVAL || 'lexical')
     .toLocaleLowerCase();
-  const hybridMode = mode === 'hybrid' || mode === 'ollama_hybrid' || mode === 'fastembed_hybrid';
-  if (!hybridMode || lexical.length < 2) {
+  if (!['lexical', 'fastembed_hybrid'].includes(mode)) {
+    throw new Error(`Unsupported entity retrieval mode: ${mode}. Use lexical or fastembed_hybrid.`);
+  }
+  if (mode === 'lexical' || lexical.length < 2) {
     const ranking = balancedOperationalRanking(diversifiedLexical, maxCards);
     return {
       cards: ranking.map(({ card }) => card),
@@ -386,38 +355,11 @@ export async function retrieveEntityContext(query, cards, options = {}) {
   }
 
   try {
-    if (mode === 'fastembed_hybrid') {
-      if (typeof options.fastembed !== 'function') {
-        throw new Error('FastEmbed retrieval is not configured.');
-      }
-      const external = await options.fastembed({ query: text(query), cards: lexical.map(({ card }) => card) });
-      const dense = externalDenseRanking(lexical.map(({ card }) => card), external);
-      const ranking = balancedOperationalRanking(
-        reciprocalRankFusion(lexicalEvidence.length ? [lexicalEvidence, dense] : [dense]),
-        maxCards,
-      );
-      return {
-        cards: ranking.map(({ card }) => card),
-        ranking: ranking.map(({ card, score }, index) => ({
-          entity_id: card.entity_id,
-          rank: index + 1,
-          fused_score: score,
-        })),
-        method: 'fastembed_hybrid_rrf',
-        embedding_model: text(external?.embedding_model) || null,
-        cache: external?.cache && typeof external.cache === 'object' ? external.cache : null,
-        fallback: false,
-      };
+    if (typeof options.fastembed !== 'function') {
+      throw new Error('FastEmbed retrieval is not configured.');
     }
-
-    const documents = lexical.map(({ card }) => entityCardDocument(card));
-    const embed = options.embed || ((inputs) => ollamaEmbeddings(inputs, options));
-    const instructedQuery = `Instruct: Retrieve Home Assistant entities matching the device, room, event, or state described by the home-automation request.\nQuery: ${text(query)}`;
-    const { embeddings, model } = await embed([instructedQuery, ...documents]);
-    const [queryEmbedding, ...documentEmbeddings] = embeddings;
-    const dense = lexical
-      .map(({ card }, index) => ({ card, score: cosineSimilarity(queryEmbedding, documentEmbeddings[index]) }))
-      .sort((a, b) => b.score - a.score || a.card.entity_id.localeCompare(b.card.entity_id));
+    const external = await options.fastembed({ query: text(query), cards: lexical.map(({ card }) => card) });
+    const dense = externalDenseRanking(lexical.map(({ card }) => card), external);
     const ranking = balancedOperationalRanking(
       reciprocalRankFusion(lexicalEvidence.length ? [lexicalEvidence, dense] : [dense]),
       maxCards,
@@ -429,8 +371,9 @@ export async function retrieveEntityContext(query, cards, options = {}) {
         rank: index + 1,
         fused_score: score,
       })),
-      method: 'hybrid_rrf',
-      embedding_model: model || null,
+      method: 'fastembed_hybrid_rrf',
+      embedding_model: text(external?.embedding_model) || null,
+      cache: external?.cache && typeof external.cache === 'object' ? external.cache : null,
       fallback: false,
     };
   } catch (error) {

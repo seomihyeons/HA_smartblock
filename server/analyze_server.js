@@ -7,9 +7,7 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import dotenv from "dotenv";
-import { buildEntityCards, createAutomationDraft, LLM_PIPELINE_VERSION } from "./llm_draft_service.mjs";
-import { GOAL_PROMPT_VERSION } from "./automation_goal_analyzer.mjs";
-import { DRAFT_PROMPT_VERSION } from "./ollama_automation_provider.mjs";
+import { buildEntityCards } from "./entity_cards.mjs";
 import { ControlNowError, createControlNowService } from "./control_now_service.mjs";
 import { createAssistantRequestRouter } from "./assistant_request_router.mjs";
 import {
@@ -32,7 +30,6 @@ import { buildAutomationPlannerCatalog, resolveAutomationPlannerReference } from
 import {
     catalogEntryFromConfig,
     isActiveAutomationState,
-    resolveAutomationReference,
 } from "./automation_catalog.mjs";
 import { filterAssistantEntityStates } from "./entity_visibility_policy.mjs";
 import { validateHostAutomation } from "./automation_host_validation.mjs";
@@ -50,7 +47,10 @@ const PY_PATH = path.resolve(
 const PY_CMD = "python";
 const HOST = process.env.ANALYZER_HOST || "127.0.0.1";
 const PORT = Number(process.env.ANALYZER_PORT || "8787");
-const LLM_ASSISTANT_BACKEND = String(process.env.LLM_ASSISTANT_BACKEND || "ollama").trim().toLowerCase();
+const LLM_ASSISTANT_BACKEND = "provider_neutral";
+if (process.env.LLM_ASSISTANT_BACKEND && process.env.LLM_ASSISTANT_BACKEND.trim().toLowerCase() !== LLM_ASSISTANT_BACKEND) {
+    throw new Error("Only provider_neutral is supported by LLM_ASSISTANT_BACKEND.");
+}
 const CAPABILITY_CACHE_TTL_MS = Math.max(5_000, Number(process.env.HA_CAPABILITY_CACHE_TTL_MS || "60000"));
 const providerNeutralAssistant = createProviderNeutralAssistantAdapter();
 let cachedCapabilityRegistry = null;
@@ -440,34 +440,15 @@ async function createDraftResponse(body = {}) {
     // decides whether this request actually needs an existing automation.
     // Tests supplying mock EntityCards do not need a live HA connection.
     const catalogRequest = !suppliedCards
-        && (LLM_ASSISTANT_BACKEND === "provider_neutral" || automationOperation === "modify")
         ? loadActiveAutomationCatalog().catch(() => [])
         : Promise.resolve([]);
     const [homeContext, catalog] = await Promise.all([homeContextRequest, catalogRequest]);
-    if (LLM_ASSISTANT_BACKEND !== "provider_neutral" && automationOperation === 'modify') {
-        const match = resolveAutomationReference(requestCommand, catalog);
-        if (match.status === 'selected') {
-            automationContext = normalizeAutomationContext({ ...match.candidate, operation: 'modify' });
-        }
-        if (!automationContext) {
-            return {
-                status: "needs_automation_selection",
-                intent: "automation",
-                role: "automation_reference",
-                question: "Select an active Home Assistant automation to edit.",
-                candidates: match.status === 'ambiguous' ? match.candidates : catalog,
-                validation: { schema_valid: false, grounded: false, blockly_supported: false },
-            };
-        }
-    }
     const plannerCatalog = buildAutomationPlannerCatalog({
         haCatalog: catalog,
         recentAutomations: Array.isArray(body.recent_automations) ? body.recent_automations : [],
         selectedContext: automationContext,
     });
-    const plannerCommand = buildAutomationPlannerCommand(
-        requestCommand, LLM_ASSISTANT_BACKEND === "provider_neutral" ? null : automationContext
-    );
+    const plannerCommand = buildAutomationPlannerCommand(requestCommand, null);
     const entityCards = homeContext.entityCards;
     const fullLiveEntityCards = homeContext.entityCards;
     const fullLiveEntityIds = new Set(fullLiveEntityCards.map((card) => card.entity_id));
@@ -503,40 +484,19 @@ async function createDraftResponse(body = {}) {
     // live EntityCards, so entity naming conventions are data rather than
     // per-home rules embedded in an LLM prompt.
     const retrievalMode = String(process.env.LLM_ENTITY_RETRIEVAL || "lexical").trim().toLowerCase();
-    const retrieval = LLM_ASSISTANT_BACKEND === "provider_neutral"
-        ? await retrieveEntityContext(requestCommand, entityCards, {
-            mode: retrievalMode,
-            maxCards: Number(process.env.LLM_ENTITY_CANDIDATE_LIMIT || 24),
-            fastembed: retrievalMode === "fastembed_hybrid"
-                ? ({ query, cards }) => providerNeutralAssistant.retrieveFastembed({
-                    query,
-                    entityCards: cards,
-                })
-                : undefined,
-        })
-        : null;
+    const retrieval = await retrieveEntityContext(requestCommand, entityCards, {
+        mode: retrievalMode,
+        maxCards: Number(process.env.LLM_ENTITY_CANDIDATE_LIMIT || 24),
+        fastembed: retrievalMode === "fastembed_hybrid"
+            ? ({ query, cards }) => providerNeutralAssistant.retrieveFastembed({
+                query,
+                entityCards: cards,
+            })
+            : undefined,
+    });
     const retrievedEntityCards = [...(retrieval?.cards || entityCards)];
     const retrievedIds = new Set(retrievedEntityCards.map((card) => card.entity_id));
     const entityById = new Map(entityCards.map((card) => [card.entity_id, card]));
-    const unavailableBaseEntityIds = [...entityIdsInYaml(automationContext?.base_yaml)]
-        .filter((entityId) => !fullLiveEntityIds.has(entityId));
-    if (LLM_ASSISTANT_BACKEND !== "provider_neutral" && automationOperation === "modify" && unavailableBaseEntityIds.length) {
-        return {
-            status: "base_automation_entities_unavailable",
-            intent: "automation",
-            unavailable_entity_ids: unavailableBaseEntityIds,
-            validation: {
-                valid: false,
-                schema_valid: true,
-                grounded: false,
-                blockly_supported: false,
-                errors: unavailableBaseEntityIds.map((entityId) => (
-                    `The selected automation references an unavailable Home Assistant entity: ${entityId}`
-                )),
-            },
-            pipeline: { mode: "deterministic_base_automation_validation", timings_ms: { total: 0 } },
-        };
-    }
     // A deterministic binding is always part of the provider's validation
     // scope, even if a bounded retriever would otherwise omit it.
     for (const reference of entityResolution) {
@@ -588,43 +548,33 @@ async function createDraftResponse(body = {}) {
             retrievedIds.add(card.entity_id);
         }
     }
-    let effectiveAutomationOperation = LLM_ASSISTANT_BACKEND === "provider_neutral" ? "create" : automationOperation;
-    let result = LLM_ASSISTANT_BACKEND === "provider_neutral"
-        ? await providerNeutralAssistant.createDraft({
-            command: plannerCommand,
-            conversation: body.conversation,
-            provider: body.provider,
-            entityCards: retrievedEntityCards,
-            capabilityContext: homeContext.capabilityContext,
-            entityResolution,
-            slots: body.slots,
-            interactionContext,
-            defaultPersonEntity: defaultPersonEntity(entityCards),
-            automationOperation: 'create',
-            baseYaml: '',
-            automationCatalog: plannerCatalog.summaries,
-            selectedAutomation: plannerCatalog.selectedSummary,
-            informationInventory: inventory,
-            retrieval: retrieval && {
-                method: retrieval.method,
-                fallback: retrieval.fallback === true,
-                embedding_model: retrieval.embedding_model || null,
-                candidate_entity_ids: retrievedEntityCards.map((card) => card.entity_id),
-                ranking: retrieval.ranking || [],
-            },
-        })
-        : await createAutomationDraft({
-            command: plannerCommand,
-            conversation: body.conversation,
-            selections: body.selections,
-            interaction_mode: body.interaction_mode || "automation",
-            entity_cards: entityCards,
-            capability_context: homeContext.capabilityContext,
-        });
+    let effectiveAutomationOperation = "create";
+    let result = await providerNeutralAssistant.createDraft({
+        command: plannerCommand,
+        conversation: body.conversation,
+        provider: body.provider,
+        entityCards: retrievedEntityCards,
+        capabilityContext: homeContext.capabilityContext,
+        entityResolution,
+        slots: body.slots,
+        interactionContext,
+        defaultPersonEntity: defaultPersonEntity(entityCards),
+        automationOperation: "create",
+        baseYaml: "",
+        automationCatalog: plannerCatalog.summaries,
+        selectedAutomation: plannerCatalog.selectedSummary,
+        informationInventory: inventory,
+        retrieval: {
+            method: retrieval.method,
+            fallback: retrieval.fallback === true,
+            embedding_model: retrieval.embedding_model || null,
+            candidate_entity_ids: retrievedEntityCards.map((card) => card.entity_id),
+            ranking: retrieval.ranking || [],
+        },
+    });
     // Listing automations is a read-only host operation, not an EntityCard
     // collection: include disabled HA automations and recent chat drafts.
-    if (LLM_ASSISTANT_BACKEND === "provider_neutral"
-        && result?.intent === 'information'
+    if (result?.intent === 'information'
         && (result?.plan?.operation === 'automation_collection'
             || (result?.plan?.operation === 'entity_collection'
                 && result?.plan?.target?.filter?.domain === 'automation'))) {
@@ -647,8 +597,7 @@ async function createDraftResponse(body = {}) {
     }
     // Only a host-verified reference can authorize a second LLM call with
     // the entire YAML. A model-provided ID alone is not authorization.
-    if (LLM_ASSISTANT_BACKEND === "provider_neutral"
-        && ['automation', 'routine'].includes(result?.intent)
+    if (['automation', 'routine'].includes(result?.intent)
         && result?.plan?.operation === 'automation_context_required') {
         const chosen = resolveAutomationPlannerReference(result.plan, plannerCatalog);
         if (!chosen) {
@@ -724,14 +673,13 @@ async function createDraftResponse(body = {}) {
             stages: ['intent_and_reference', 'automation_yaml_modification'],
         };
     }
-    if (LLM_ASSISTANT_BACKEND === "provider_neutral" && result?.pipeline?.model_calls == null) {
+    if (result?.pipeline?.model_calls == null) {
         result.pipeline = { ...(result.pipeline || {}), model_calls: result?.metrics?.attempts || 1,
             stages: ['intent_and_plan'] };
     }
-    // Ollama's draft adapter predates the provider-neutral intent envelope.
-    // Normalize a successful automation without changing its YAML contents.
+    // Normalize generated automation YAML without rewriting its content.
     if (result?.automation && !result.intent) result.intent = 'automation';
-    // Both LLM backends must pass the same trusted, live HA validation.
+    // Every generated draft must pass trusted, live Home Assistant validation.
     // The planner's own flags cannot assert Blockly import or round-trip success.
     if ((result?.intent === 'automation' || (result?.intent === 'routine' && result?.plan?.operation === 'automation_generation')) && result?.automation) {
         const hostValidation = validateHostAutomation(
@@ -769,13 +717,11 @@ async function createDraftResponse(body = {}) {
             }
         }
     }
-    const groundingAssessment = LLM_ASSISTANT_BACKEND === "provider_neutral"
-        ? await assessEntityGrounding({
-            plan: result?.plan,
-            entityCards,
-            entityResolution,
-        })
-        : null;
+    const groundingAssessment = await assessEntityGrounding({
+        plan: result?.plan,
+        entityCards,
+        entityResolution,
+    });
     const pipeline = result?.pipeline || {};
     console.info("[llm-draft]", JSON.stringify({
         intent: result?.intent,
@@ -791,7 +737,6 @@ async function createDraftResponse(body = {}) {
             fallback: retrieval.fallback === true,
             cache: retrieval.cache || null,
         } : null,
-        ollama_calls: pipeline.ollama_calls || [],
     }));
     return {
         ...result,
@@ -804,12 +749,7 @@ async function createDraftResponse(body = {}) {
             enabled: automationContext.enabled,
         } : null,
         _grounding_assessment: groundingAssessment,
-        system: {
-            pipeline_version: LLM_PIPELINE_VERSION,
-            goal_prompt_version: GOAL_PROMPT_VERSION,
-            draft_prompt_version: DRAFT_PROMPT_VERSION,
-            backend: LLM_ASSISTANT_BACKEND,
-        },
+        system: { backend: LLM_ASSISTANT_BACKEND },
         context: {
             source: suppliedCards ? "request" : "live_ha",
             entity_count: entityCards.length,
@@ -827,8 +767,7 @@ const assistantRouter = createAssistantRequestRouter({
     previewControl: (payload) => controlNow.preview(payload),
     executeControl: (payload) => controlNow.execute(payload),
     queryInformation: queryHomeAssistantInformation,
-    explainAutomation: LLM_ASSISTANT_BACKEND === "provider_neutral"
-        ? ({ command, responseLanguage, provider, title, yaml, inspection }) =>
+    explainAutomation: ({ command, responseLanguage, provider, title, yaml, inspection }) =>
             providerNeutralAssistant.createResponse({
                 command, responseLanguage, provider,
                 toolResult: {
@@ -841,13 +780,11 @@ const assistantRouter = createAssistantRequestRouter({
                         counts: inspection.counts,
                     },
                 },
-            })
-        : undefined,
+            }),
     // The draft already carries the user-visible result. A second provider
     // request only paraphrases that verified result and otherwise doubles
     // perceived latency. It remains opt-in for experiments that need it.
-    createResponse: LLM_ASSISTANT_BACKEND === "provider_neutral"
-        && String(process.env.LLM_ASSISTANT_NARRATION || "").toLowerCase() === "provider"
+    createResponse: String(process.env.LLM_ASSISTANT_NARRATION || "").toLowerCase() === "provider"
         ? (payload) => providerNeutralAssistant.createResponse(payload)
         : undefined,
 });
@@ -856,28 +793,14 @@ app.get("/api/llm/status", (req, res) => {
     if (!guardLocal(req, res)) return;
     return res.json({
         status: "ready",
-        provider: LLM_ASSISTANT_BACKEND === "provider_neutral"
-            ? String(process.env.LLM_ASSISTANT_PROVIDER || "configured-default").toLowerCase()
-            : String(process.env.LLM_PROVIDER || "fake").toLowerCase(),
-        model: LLM_ASSISTANT_BACKEND === "provider_neutral"
-            ? null
-            : process.env.LLM_PROVIDER === "ollama"
-            ? String(process.env.OLLAMA_MODEL || "qwen3:4b")
-            : null,
-        system: {
-            pipeline_version: LLM_PIPELINE_VERSION,
-            goal_prompt_version: GOAL_PROMPT_VERSION,
-            draft_prompt_version: DRAFT_PROMPT_VERSION,
-            backend: LLM_ASSISTANT_BACKEND,
-        },
+        provider: String(process.env.LLM_ASSISTANT_PROVIDER || "configured-default").toLowerCase(),
+        model: null,
+        system: { backend: LLM_ASSISTANT_BACKEND },
     });
 });
 
 app.get("/api/llm/providers", async (req, res) => {
     if (!guardLocal(req, res)) return;
-    if (LLM_ASSISTANT_BACKEND !== "provider_neutral") {
-        return res.json({ providers: [], default_provider: null, backend: LLM_ASSISTANT_BACKEND });
-    }
     try {
         const catalog = await providerNeutralAssistant.getProviders();
         const requestedDefault = String(process.env.LLM_ASSISTANT_PROVIDER || "").trim().toLowerCase();

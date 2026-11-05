@@ -18,16 +18,16 @@ from typing import Any, Callable
 
 
 PROVIDER_ALIASES = {
-    "ollama": "ollama", "claude": "claude", "chatgpt": "chatgpt",
+    "claude": "claude", "chatgpt": "chatgpt",
     "openai": "chatgpt", "gpt": "chatgpt", "gemini": "gemini",
     "google": "gemini", "grok": "grok", "xai": "grok",
 }
+
 PUBLIC_PROVIDERS = (
     ("chatgpt", "ChatGPT", "OPENAI_API_KEY"),
     ("claude", "Claude", "ANTHROPIC_API_KEY"),
     ("gemini", "Gemini", "GOOGLE_API_KEY"),
     ("grok", "Grok", "XAI_API_KEY"),
-    ("ollama", "Ollama (local)", None),
 )
 
 
@@ -66,7 +66,7 @@ def normalize_provider(provider: str | None) -> str | None:
     if not value:
         return None
     if value not in PROVIDER_ALIASES:
-        allowed = ", ".join(sorted({"claude", "chatgpt", "gemini", "grok", "ollama"}))
+        allowed = ", ".join(sorted({"claude", "chatgpt", "gemini", "grok"}))
         raise ProviderError(f"Unsupported provider. Choose one of: {allowed}.")
     return PROVIDER_ALIASES[value]
 
@@ -76,7 +76,7 @@ def public_provider_catalog(read_env: Callable[[str, str], str] | None = None) -
     _load_project_env()
     if read_env is None:
         read_env = os.getenv
-    default_provider = normalize_provider(read_env("LLM_PROVIDER", "ollama")) or "chatgpt"
+    default_provider = normalize_provider(read_env("LLM_ASSISTANT_PROVIDER", "chatgpt")) or "chatgpt"
     factory_configured = bool(read_env("SMARTBLOCK_LLM_CLIENT_FACTORY", ""))
     return {
         "providers": [
