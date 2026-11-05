@@ -36,7 +36,7 @@ import {
 } from "./automation_catalog.mjs";
 import { filterAssistantEntityStates } from "./entity_visibility_policy.mjs";
 import { validateHostAutomation } from "./automation_host_validation.mjs";
-import { validateModificationPreservation } from "./modification_preservation.mjs";
+import { validateModificationPreservation, hasAutomationChanged } from "./modification_preservation.mjs";
 
 dotenv.config();
 
@@ -759,6 +759,14 @@ async function createDraftResponse(body = {}) {
                 preservation_valid: preservation.valid,
                 errors: [...result.validation.errors, ...preservation.errors],
             };
+            // Syntax/grounding/preservation passing is not proof that a user
+            // requested edit was performed. A no-op must not show a success card.
+            if (result.validation.valid && !hasAutomationChanged({
+                baseYaml: automationContext.base_yaml,
+                automation: result.automation,
+            })) {
+                result.status = 'automation_unchanged';
+            }
         }
     }
     const groundingAssessment = LLM_ASSISTANT_BACKEND === "provider_neutral"
