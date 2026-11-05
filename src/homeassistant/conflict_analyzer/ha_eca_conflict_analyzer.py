@@ -439,6 +439,7 @@ def main(argv=None) -> int:
     p.add_argument("--ha_token", dest="ha_token")
     p.add_argument("--only_enabled", action="store_true", default=True)
     p.add_argument("--concurrency", type=int, default=8)
+    p.add_argument("--replaced_automation_id", default="")
     args = p.parse_args(argv)
 
     if args.ha:
@@ -452,6 +453,24 @@ def main(argv=None) -> int:
             only_enabled=bool(args.only_enabled),
             concurrency=int(args.concurrency),
         )
+        # An unsaved Blockly automation is analyzed with active HA rules. When
+        # editing an existing rule, replace it rather than comparing it to its
+        # own prior version. No Home Assistant configuration is changed.
+        draft_text = sys.stdin.buffer.read().decode("utf-8", errors="replace").strip()
+        if draft_text:
+            draft = yaml.safe_load(draft_text)
+            if not isinstance(draft, dict):
+                raise ValueError("The analyzer expects one draft automation mapping")
+            if not (draft.get("triggers") or draft.get("trigger")) or not (draft.get("actions") or draft.get("action")):
+                raise ValueError("Draft must contain at least one trigger and action")
+            original_id = str(args.replaced_automation_id or draft.get("id") or "").strip()
+            if original_id:
+                configs = [cfg for cfg in configs if str(cfg.get("id") or "") != original_id]
+            existing_count = len(configs)
+            configs.append(draft)
+            analysis_scope = {"existing_count": existing_count, "draft_count": 1}
+        else:
+            analysis_scope = None
         yaml_text = yaml.safe_dump(configs, allow_unicode=True, sort_keys=False)
     else:
         if args.infile:
@@ -463,6 +482,8 @@ def main(argv=None) -> int:
             yaml_text = sys.stdin.buffer.read().decode("utf-8", errors="replace")
 
     report = analyze_ha_automations(yaml_text)
+    if args.ha and analysis_scope is not None:
+        report["analysis_scope"] = analysis_scope
     # Keep stdout ASCII-safe on Windows consoles with legacy encodings.
     out_json = json.dumps(report, ensure_ascii=True, indent=2)
 
