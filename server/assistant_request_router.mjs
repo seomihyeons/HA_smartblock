@@ -611,6 +611,25 @@ export function createAssistantRequestRouter({
       }
 
       if (intent === 'control') {
+        // A discourse continuation next to a selected automation draft can
+        // mean "add this action", not "execute now". Never physically change
+        // devices on that ambiguous interpretation, even if a model guessed
+        // control. Only a clear immediate-execution request can bypass it.
+        const continuation = /^(?:also\b|and\b|plus\b|그리고|추가로|그것도)/i.test(text(payload.command));
+        const immediate = /\b(?:now|right now|immediately)\b|지금|즉시|바로\s*(?:실행|켜|꺼)/i.test(text(payload.command));
+        const selectedDraft = normalizeAutomationContext({
+          ...(payload.automation_context || {}), operation: 'modify',
+        });
+        if (continuation && !immediate && selectedDraft?.source === 'recent_draft') {
+          return {
+            intent: 'control', resolution: resolution('ambiguous'),
+            message_key: 'automation_or_immediate_control',
+            message: language === 'ko'
+              ? '현재 자동화에 동작을 추가할까요, 아니면 기기를 지금 제어할까요? 자동으로 실행하지 않았습니다.'
+              : 'Do you want to add this action to the automation or control the device now? Nothing was executed.',
+            role: 'operation_scope',
+          };
+        }
         const effect = plan.effect && typeof plan.effect === 'object' ? plan.effect : {};
         if (!text(effect.service) || !plan.target) {
           return narratedFailure(createResponse, {
