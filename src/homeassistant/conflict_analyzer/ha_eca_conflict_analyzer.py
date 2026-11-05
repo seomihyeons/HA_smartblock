@@ -435,6 +435,12 @@ def merge_ha_automations_with_draft(configs: List[Dict[str, Any]], draft_text: s
     if not draft_text.strip():
         return list(configs), None
     draft = yaml.safe_load(draft_text)
+    # Blockly exports one automation inside a YAML list, while the assistant
+    # can also supply a single mapping. Both represent the same draft.
+    if isinstance(draft, list):
+        if len(draft) != 1:
+            raise ValueError("The analyzer expects exactly one draft automation")
+        draft = draft[0]
     if not isinstance(draft, dict):
         raise ValueError("The analyzer expects one draft automation mapping")
     if not (draft.get("triggers") or draft.get("trigger")) or not (draft.get("actions") or draft.get("action")):
