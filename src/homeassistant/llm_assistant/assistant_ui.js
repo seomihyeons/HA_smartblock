@@ -644,7 +644,8 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
   };
 
   async function resumeSelectedAutomationCommand(command, context) {
-    const operation = automationOperationFor(command, Boolean(context?.base_yaml));
+    // The model, not browser regexes, selects the requested operation.
+    const operation = 'auto';
     selectContext(context);
     activeAutomationOperation = operation;
     activeCommand = command;
@@ -690,7 +691,8 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       const request = String(command).normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
       return title.length >= 4 && request.includes(title);
     });
-    const operation = automationOperationFor(command, Boolean(activeAutomationContext?.base_yaml) || mentionsRecentDraft);
+    // Context selection is a UI hint. The first LLM decides the intent.
+    const operation = 'auto';
     $('aiAssistantWelcome')?.remove();
     appendMessage('user', command);
     input.value = '';
