@@ -553,6 +553,10 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
         const question = result.message || 'Select the entity to use.';
         appendMessage('assistant', question);
         const korean = responseLanguageFor(activeCommand) === 'ko';
+        if (!Array.isArray(result.candidates) || result.candidates.length === 0) {
+          setStatus(status, 'idle', 'Clarification needed');
+          return;
+        }
         const list = createElement('section', 'ai-candidate-list');
         const cards = createElement('div', 'ai-candidate-cards');
         for (const candidate of result.candidates || []) {
