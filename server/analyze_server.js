@@ -609,7 +609,7 @@ async function createDraftResponse(body = {}) {
     // Only a host-verified reference can authorize a second LLM call with
     // the entire YAML. A model-provided ID alone is not authorization.
     if (LLM_ASSISTANT_BACKEND === "provider_neutral"
-        && result?.intent === 'automation'
+        && ['automation', 'routine'].includes(result?.intent)
         && result?.plan?.operation === 'automation_context_required') {
         const chosen = resolveAutomationPlannerReference(result.plan, plannerCatalog);
         if (!chosen) {
