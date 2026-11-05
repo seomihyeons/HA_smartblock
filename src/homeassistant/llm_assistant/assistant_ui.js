@@ -2,6 +2,7 @@ import './assistant.css';
 import { setModalOpenState } from '../../utils/floating_modal_state';
 import { yamlTextToInternalJson } from '../../import/yaml_import.js';
 import { pushYamlToHomeAssistant } from '../push_automation.js';
+import YAML from 'js-yaml';
 import { runConflictAnalyzer } from '../conflict_analyzer/run_conflict_analyzer.js';
 import { formatConflictChatReport, classifyConflictError } from '../conflict_analyzer/conflict_report_format.js';
 
@@ -351,35 +352,66 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     }
   };
 
-  const pushDraft = async (artifact, button) => {
-    // Push this card's validated draft, never an unrelated Blockly workspace.
-    // Manual edits to imported blocks can be saved with the main editor's
-    // existing "Push to HA" action instead.
-    const draftYaml = String(artifact?.draft_yaml || '').trim();
-    if (!draftYaml) {
-      setStatus(status, 'error', 'Draft unavailable');
+  // Both card actions must consume the same normalized output produced by
+  // importing this exact AI draft into native Blockly and exporting its scope.
+  // Never send the original LLM YAML or a stale/unrelated workspace export.
+  const importAndExportDraft = async (automation, button, artifact) => {
+    if (!await importDraft(automation, button, artifact)) return null;
+    const yaml = typeof getWorkspaceYaml === 'function'
+      ? String(getWorkspaceYaml() || '').trim() : '';
+    if (!yaml) {
+      appendMessage('assistant', 'Blockly export failed after importing the draft.', 'ai-message-error');
+      setStatus(status, 'error', 'Blockly export failed');
+      return null;
+    }
+    return yaml;
+  };
+
+  const pushDraft = async (automation, artifact, button) => {
+    const exportedYaml = await importAndExportDraft(automation, button, artifact);
+    if (!exportedYaml) return;
+
+    // Check the exported YAML itself, not the model's original draft, before
+    // deciding whether to create or overwrite a Home Assistant automation.
+    let exportedAutomation;
+    try {
+      const document = YAML.load(exportedYaml, { schema: YAML.JSON_SCHEMA });
+      exportedAutomation = Array.isArray(document)
+        ? (document.length === 1 ? document[0] : null) : document;
+      if (!exportedAutomation || typeof exportedAutomation !== 'object'
+        || Array.isArray(exportedAutomation)) {
+        throw new Error('Expected exactly one exported Blockly automation.');
+      }
+    } catch (error) {
+      appendMessage('assistant', `Could not read exported Blockly YAML.\n${error?.message || error}`, 'ai-message-error');
+      setStatus(status, 'error', 'Blockly export failed');
       return;
     }
-    const existingId = String(artifact.automation_id || '').trim();
-    const declaredId = String(artifact.automation?.id || '').trim();
+
+    const existingId = String(artifact?.automation_id || '').trim();
+    const declaredId = String(exportedAutomation.id || '').trim();
     if (existingId && declaredId && declaredId !== existingId) {
       setStatus(status, 'error', 'Automation ID mismatch');
-      appendMessage('assistant', 'This draft has a different automation ID from the selected Home Assistant automation. Nothing was saved.', 'ai-message-error');
+      appendMessage('assistant',
+        'The exported Blockly YAML has a different automation ID from the selected Home Assistant automation. Nothing was saved.',
+        'ai-message-error');
       return;
     }
-    const title = String(artifact.title || 'this automation');
+    const title = String(exportedAutomation.alias || artifact?.title || 'this automation');
     const question = existingId
-      ? `Update "${title}" in Home Assistant?\n\nThis will overwrite automation ID: ${existingId}.`
+      ? `Update "${title}" in Home Assistant?\n\nThis will overwrite automation ID: ${existingId}.\nThe content comes from the imported Blockly YAML.`
       : declaredId
-        ? `Push "${title}" to Home Assistant using automation ID ${declaredId}?\n\nIf that ID exists, its configuration may be overwritten. This saves the draft, not later manual Blockly changes.`
-        : `Save "${title}" as a new Home Assistant automation?\n\nThis saves the proposed draft, not later manual changes to Blockly blocks.`;
+        ? `Push "${title}" to Home Assistant using automation ID ${declaredId}?\n\nIf that ID exists, it may be overwritten. The content comes from the imported Blockly YAML.`
+        : `Save "${title}" as a new Home Assistant automation?\n\nThe content comes from the imported Blockly YAML.`;
     if (!window.confirm(question)) return;
 
     button.disabled = true;
     const originalLabel = button.textContent;
     button.textContent = 'Pushing...';
     try {
-      const saved = await pushYamlToHomeAssistant(draftYaml, existingId ? { id: existingId } : {});
+      const saved = await pushYamlToHomeAssistant(
+        exportedYaml, existingId ? { id: existingId } : {},
+      );
       artifact.automation_id = saved.id;
       artifact.saved_to_ha = true;
       button.textContent = 'Pushed to Home Assistant';
@@ -460,15 +492,8 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     analyzeButton.addEventListener('click', async () => {
       // Reuse the existing analyzer endpoint without opening its separate
       // modal. The draft is imported first, exactly as this button promises.
-      const imported = await importDraft(automation, analyzeButton, artifact);
-      if (!imported) return;
-      const draftYaml = typeof getWorkspaceYaml === 'function'
-        ? String(getWorkspaceYaml() || '').trim() : '';
-      if (!draftYaml) {
-        appendMessage('assistant', 'Conflict analysis failed: Blockly did not export the imported draft.', 'ai-message-error');
-        setStatus(status, 'error', 'Conflict analysis failed');
-        return;
-      }
+      const draftYaml = await importAndExportDraft(automation, analyzeButton, artifact);
+      if (!draftYaml) return;
       analyzeButton.disabled = true;
       const previousLabel = analyzeButton.textContent;
       analyzeButton.textContent = 'Analyzing...';
@@ -499,7 +524,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
 
     const pushButton = createElement('button', 'ai-draft-push-button', 'Push to Home Assistant');
     pushButton.type = 'button';
-    pushButton.addEventListener('click', () => pushDraft(artifact, pushButton));
+    pushButton.addEventListener('click', () => pushDraft(automation, artifact, pushButton));
     actions.appendChild(pushButton);
     card.appendChild(actions);
     messages.appendChild(card);
