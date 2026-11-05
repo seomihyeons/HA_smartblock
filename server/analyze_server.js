@@ -817,6 +817,22 @@ const assistantRouter = createAssistantRequestRouter({
     previewControl: (payload) => controlNow.preview(payload),
     executeControl: (payload) => controlNow.execute(payload),
     queryInformation: queryHomeAssistantInformation,
+    explainAutomation: LLM_ASSISTANT_BACKEND === "provider_neutral"
+        ? ({ command, responseLanguage, provider, title, yaml, inspection }) =>
+            providerNeutralAssistant.createResponse({
+                command, responseLanguage, provider,
+                toolResult: {
+                    outcome: 'success',
+                    intent: 'automation',
+                    kind: 'automation_explanation',
+                    selected_automation: { title, yaml },
+                    static_review: {
+                        validation: inspection.validation,
+                        counts: inspection.counts,
+                    },
+                },
+            })
+        : undefined,
     // The draft already carries the user-visible result. A second provider
     // request only paraphrases that verified result and otherwise doubles
     // perceived latency. It remains opt-in for experiments that need it.
