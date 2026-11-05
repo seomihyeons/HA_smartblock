@@ -451,8 +451,10 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           slots,
           interaction_context: interactionContext,
           automation_operation: activeAutomationOperation,
-          automation_context: activeAutomationOperation !== 'create' && activeAutomationContext ? {
-            operation: activeAutomationOperation,
+          // The selected full YAML stays at the trusted Node boundary; the
+          // first LLM receives only a catalog summary and decides the intent.
+          automation_context: activeAutomationContext?.base_yaml ? {
+            operation: ['inspect', 'explain'].includes(activeAutomationOperation) ? activeAutomationOperation : 'modify',
             source: activeAutomationContext.source,
             title: activeAutomationContext.title,
             draft_id: activeAutomationContext.draft_id || null,
@@ -460,6 +462,14 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
             enabled: activeAutomationContext.enabled !== false,
             base_yaml: activeAutomationContext.base_yaml,
           } : undefined,
+          recent_automations: recentDrafts.map((draft) => ({
+            source: 'recent_draft',
+            title: draft.title,
+            draft_id: draft.draft_id,
+            automation_id: draft.automation_id || null,
+            enabled: draft.enabled !== false,
+            base_yaml: draft.base_yaml,
+          })),
           selected_entity_id: selectedEntityId,
           provider: selectedProvider || undefined,
         }),
@@ -523,6 +533,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
             base_yaml: String(payload.normalized_yaml || payload.yaml || ''),
             automation: payload.automation,
             enabled: payload.base_context?.enabled !== false,
+            automation_id: payload.base_context?.automation_id || null,
             imported_to_blockly: false,
             created_at: Date.now(),
           };
