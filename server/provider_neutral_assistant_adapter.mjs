@@ -115,7 +115,7 @@ export function createProviderNeutralAssistantAdapter({
       };
     },
 
-    async createDraft({ command, conversation, provider, entityCards, capabilityContext, retrieval, entityResolution, slots, interactionContext, defaultPersonEntity, informationInventory, automationOperation = 'create', baseYaml = '' }) {
+    async createDraft({ command, conversation, provider, entityCards, capabilityContext, retrieval, entityResolution, slots, interactionContext, defaultPersonEntity, informationInventory, automationCatalog = [], selectedAutomation = null, automationOperation = 'create', baseYaml = '' }) {
       const requestedProvider = String(provider || process.env.LLM_ASSISTANT_PROVIDER || '').trim().toLowerCase();
       if (requestedProvider && !SELECTABLE_PROVIDERS.has(requestedProvider)) {
         throw new ProviderNeutralAssistantError('Unsupported provider.', 400);
@@ -156,6 +156,10 @@ export function createProviderNeutralAssistantAdapter({
                 count: Number(item?.count) || 0,
               })).filter((item) => item.domain)
               : [],
+            // Metadata only. Full automation YAML is supplied only for the
+            // second model call after host-verified target resolution.
+            automation_catalog: Array.isArray(automationCatalog) ? automationCatalog : [],
+            selected_automation: selectedAutomation || null,
           },
         }),
       });
