@@ -24,10 +24,28 @@ function actionName(action) {
   return String(action?.action || action?.service || '');
 }
 
+function displayValue(value) {
+  if (Array.isArray(value)) return value.join(', ');
+  return String(value ?? '').trim();
+}
+
+function formatDelay(value) {
+  if (typeof value === 'string' || typeof value === 'number') return String(value).trim() || '(unspecified)';
+  if (!value || typeof value !== 'object') return '(unspecified)';
+
+  const hours = Number(value.hours ?? value.hour ?? 0);
+  const minutes = Number(value.minutes ?? value.minute ?? 0);
+  const seconds = Number(value.seconds ?? value.second ?? 0);
+  if (![hours, minutes, seconds].every(Number.isFinite)) return '(unspecified)';
+  return [hours, minutes, seconds]
+    .map((part) => String(Math.max(0, Math.trunc(part))).padStart(2, '0'))
+    .join(':');
+}
+
 // Show each Home Assistant trigger using its own native fields.
 function describeTrigger(trigger = {}) {
   const kind = String(trigger?.trigger || trigger?.platform || '').trim();
-  const value = (item) => Array.isArray(item) ? item.join(', ') : String(item ?? '').trim();
+  const value = displayValue;
   if (kind === 'time') return `Time · ${value(trigger.at) || '(unspecified)'}`;
   if (kind === 'event') {
     const goal = trigger.event_data?.goal_id ? ` · Goal: ${trigger.event_data.goal_id}` : '';
@@ -38,6 +56,49 @@ function describeTrigger(trigger = {}) {
   if (kind === 'sun') return `Sun · ${value(trigger.event) || '(unspecified)'}`;
   if (kind === 'time_pattern') return 'Time pattern';
   return kind ? `${kind} · ${value(trigger.entity_id || trigger.event_type || '')}`.trim() : 'Unknown';
+}
+
+function describeCondition(condition = {}) {
+  const kind = String(condition?.condition || condition?.type || '').trim();
+  const entityId = displayValue(condition?.entity_id);
+  if (kind === 'state') return `State · ${entityId || '(unspecified)'} = ${displayValue(condition?.state) || '(unspecified)'}`;
+  if (kind === 'numeric_state') {
+    const limits = [
+      condition?.above != null ? `above ${displayValue(condition.above)}` : '',
+      condition?.below != null ? `below ${displayValue(condition.below)}` : '',
+    ].filter(Boolean).join(' · ');
+    return `Numeric state · ${entityId || '(unspecified)'}${limits ? ` · ${limits}` : ''}`;
+  }
+  if (kind === 'sun') {
+    const limits = [
+      condition?.after ? `after ${displayValue(condition.after)}` : '',
+      condition?.before ? `before ${displayValue(condition.before)}` : '',
+    ].filter(Boolean).join(' · ');
+    return `Sun${limits ? ` · ${limits}` : ''}`;
+  }
+  if (kind === 'time') {
+    const limits = [
+      condition?.after ? `after ${displayValue(condition.after)}` : '',
+      condition?.before ? `before ${displayValue(condition.before)}` : '',
+      condition?.weekday ? `on ${displayValue(condition.weekday)}` : '',
+    ].filter(Boolean).join(' · ');
+    return `Time${limits ? ` · ${limits}` : ''}`;
+  }
+  if (kind === 'and' || kind === 'or' || kind === 'not') {
+    const nested = Array.isArray(condition.conditions) ? condition.conditions.length : 0;
+    return `${kind.toUpperCase()} · ${nested} nested condition${nested === 1 ? '' : 's'}`;
+  }
+  if (kind === 'template') return 'Template condition';
+  return `${kind || 'Unknown condition'}${entityId ? ` · ${entityId}` : ''}`;
+}
+
+function describeAction(action = {}) {
+  if (action?.delay != null) return `Delay · ${formatDelay(action.delay)}`;
+  const service = actionName(action) || 'Unknown action';
+  const targets = Array.isArray(action.target?.entity_id)
+    ? action.target.entity_id.join(', ')
+    : firstEntityId(action.target?.entity_id);
+  return `${service}${targets ? ` · ${targets}` : ''}`;
 }
 
 function setStatus(element, state, message) {
@@ -443,14 +504,18 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
         ? `Trigger · ${describeTrigger(trigger)}`
         : 'Trigger · Not specified',
     ));
-    actionsList.forEach((action, index) => {
-      const targets = Array.isArray(action.target?.entity_id)
-        ? action.target.entity_id.join(', ')
-        : firstEntityId(action.target?.entity_id);
+    (Array.isArray(automation.conditions) ? automation.conditions : []).forEach((condition, index) => {
       card.appendChild(createElement(
         'div',
         'ai-draft-row',
-        `Action ${index + 1} · ${actionName(action)} · ${targets}`,
+        `Condition ${index + 1} · ${describeCondition(condition)}`,
+      ));
+    });
+    actionsList.forEach((action, index) => {
+      card.appendChild(createElement(
+        'div',
+        'ai-draft-row',
+        `Action ${index + 1} · ${describeAction(action)}`,
       ));
     });
 

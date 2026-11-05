@@ -6,7 +6,7 @@ body.floating-buttons-hidden #btnAiAssistant { opacity: 0 !important; pointer-ev
 #aiAssistantPanel { position: fixed; inset: 0; z-index: 2147483646; display: flex; align-items: flex-end; justify-content: flex-end; padding: 24px; box-sizing: border-box; }
 #aiAssistantPanel.hidden { display: none !important; }
 #aiAssistantPanel #aiAssistantBackdrop { position: absolute; inset: 0; background: rgba(0,0,0,.18); }
-#aiAssistantPanel .modal-panel { position: relative; z-index: 1; width: min(760px, calc(100vw - 48px)); height: min(560px, calc(100vh - 48px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #e5e7eb; border-radius: 14px; background: #f3f4f6; color: #111827; }
+#aiAssistantPanel .modal-panel { position: relative; z-index: 1; width: min(570px, calc(100vw - 48px)); height: min(672px, calc(100vh - 48px)); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #e5e7eb; border-radius: 14px; background: #f3f4f6; color: #111827; }
 #aiAssistantPanel .modal-header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 16px; background:#f3f4f6; border-bottom:1px solid #e5e7eb; }
 #aiAssistantPanel .modal-title { font-size:18px; font-weight:700; color:#111827; }
 #aiAssistantPanel .modal-actions { display:flex; align-items:center; gap:8px; }

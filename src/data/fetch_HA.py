@@ -122,7 +122,8 @@ def build_entities(raw: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     for e in raw:
         entity_id = e.get("entity_id", "")
         domain = safe_domain(entity_id)
-        if not should_include(domain):
+        state = str(e.get("state") or "").strip().lower()
+        if not should_include(domain) or state == "unavailable":
             continue
 
         attrs = e.get("attributes") or {}

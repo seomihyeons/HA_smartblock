@@ -8,7 +8,10 @@ const INTERNAL_ONLY_ENTITY_IDS = new Set([
 export function filterAssistantEntityStates(states) {
   return (Array.isArray(states) ? states : []).filter((state) => {
     const entityId = String(state?.entity_id || '').trim();
-    return entityId && !INTERNAL_ONLY_ENTITY_IDS.has(entityId);
+    const entityState = String(state?.state || '').trim().toLowerCase();
+    return entityId
+      && entityState !== 'unavailable'
+      && !INTERNAL_ONLY_ENTITY_IDS.has(entityId);
   });
 }
 

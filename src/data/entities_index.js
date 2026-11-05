@@ -62,7 +62,8 @@ const ENTITY_ATTRIBUTE_KEYS = [
 function entityFromHomeAssistantState(state) {
   const entityId = String(state?.entity_id || '').trim();
   const domain = entityId.split('.', 1)[0];
-  if (!entityId || !XHOME_DOMAINS.has(domain)) return null;
+  const entityState = String(state?.state || '').trim().toLowerCase();
+  if (!entityId || !XHOME_DOMAINS.has(domain) || entityState === 'unavailable') return null;
 
   const sourceAttributes = state?.attributes && typeof state.attributes === 'object'
     ? state.attributes
