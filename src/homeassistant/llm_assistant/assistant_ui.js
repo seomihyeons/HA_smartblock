@@ -409,6 +409,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           autoRun: true,
           source: 'ai-assistant',
           draftYaml: typeof getWorkspaceYaml === 'function' ? getWorkspaceYaml() : null,
+          automationId: result.base_context?.automation_id || null,
         },
       }));
     });
