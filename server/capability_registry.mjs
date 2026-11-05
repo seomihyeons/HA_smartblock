@@ -30,7 +30,7 @@ export const AGENT_OPERATIONS = Object.freeze([
     intents: ['control'],
     selectors: ['entity', 'entity_filter'],
   },
-  { id: 'automation_generation', intents: ['automation'] },
+  { id: 'automation_generation', intents: ['automation', 'routine'] },
   { id: 'goal_plan', intents: ['routine'] },
 ]);
 
