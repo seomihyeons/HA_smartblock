@@ -44,4 +44,7 @@ test('read-only requests and direct control remain distinct from refinement', ()
   assert.equal(automationOperationFor('Explain what this automation does.', true), 'explain');
   assert.equal(automationOperationFor('Turn off the hallway light.', true), 'create');
   assert.equal(automationOperationFor('Is the hallway light on?', true), 'create');
+  assert.equal(automationOperationFor("And what's the bedroom light state?", true), 'create');
+  assert.equal(automationOperationFor('그리고 거실 조명 상태 알려줘', true), 'create');
+  assert.equal(automationOperationFor('Also turn off the hallway light now.', true), 'create');
 });
