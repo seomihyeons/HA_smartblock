@@ -218,11 +218,16 @@ export function initConflictAnalyzerUI() {
     btnDebug.addEventListener("click", () => { pendingDraft = null; open(); });
     document.addEventListener('open-conflict-analyzer', (event) => {
         const detail = event?.detail || {};
-        pendingDraft = detail.draftYaml ? {
+        pendingDraft = String(detail.draftYaml || '').trim() ? {
             draftYaml: String(detail.draftYaml),
             automationId: detail.automationId || null,
         } : null;
         open();
+        if (detail.source === 'ai-assistant' && !pendingDraft) {
+            setStatus('error', 'Draft unavailable');
+            setError('The current Blockly automation could not be exported. Conflict analysis was not started.');
+            return;
+        }
         if (detail.autoRun === true && !btnRun.disabled) void run();
     });
     backdrop?.addEventListener("click", close);
