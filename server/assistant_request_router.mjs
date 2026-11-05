@@ -398,6 +398,17 @@ export function createAssistantRequestRouter({
           pipeline: result.pipeline,
         };
       }
+      if (result?.status === 'automation_unchanged') {
+        return {
+          intent: 'automation',
+          resolution: resolution('failed', 'automation_unchanged'),
+          message_key: 'automation_unchanged',
+          message: language === 'ko'
+            ? '요청하신 변경을 적용하지 못했습니다. 기존 자동화는 그대로 유지됩니다. 요청한 기기가 Home Assistant에 있는지 확인하거나 다른 방법으로 요청해 주세요.'
+            : 'I couldn\'t apply the requested change. The automation is unchanged. Check whether the requested device exists in Home Assistant or clarify the request.',
+          pipeline: result.pipeline,
+        };
+      }
       if (result?.status === 'base_automation_entities_unavailable') {
         const unavailable = Array.isArray(result.unavailable_entity_ids) ? result.unavailable_entity_ids : [];
         const detail = unavailable.length ? unavailable.join(', ') : 'an existing entity';
