@@ -625,7 +625,9 @@ async function createDraftResponse(body = {}) {
     // collection: include disabled HA automations and recent chat drafts.
     if (LLM_ASSISTANT_BACKEND === "provider_neutral"
         && result?.intent === 'information'
-        && result?.plan?.operation === 'automation_collection') {
+        && (result?.plan?.operation === 'automation_collection'
+            || (result?.plan?.operation === 'entity_collection'
+                && result?.plan?.target?.filter?.domain === 'automation'))) {
         const allHa = suppliedCards
             ? catalog.map(({ title, automation_id, enabled }) => ({ title, automation_id, enabled }))
             : await loadAutomationList();
