@@ -359,10 +359,18 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       return;
     }
     const existingId = String(artifact.automation_id || '').trim();
+    const declaredId = String(artifact.automation?.id || '').trim();
+    if (existingId && declaredId && declaredId !== existingId) {
+      setStatus(status, 'error', 'Automation ID mismatch');
+      appendMessage('assistant', 'This draft has a different automation ID from the selected Home Assistant automation. Nothing was saved.', 'ai-message-error');
+      return;
+    }
     const title = String(artifact.title || 'this automation');
     const question = existingId
       ? `Update "${title}" in Home Assistant?\n\nThis will overwrite automation ID: ${existingId}.`
-      : `Save "${title}" as a new Home Assistant automation?\n\nThis saves the proposed draft, not later manual changes to Blockly blocks.`;
+      : declaredId
+        ? `Push "${title}" to Home Assistant using automation ID ${declaredId}?\n\nIf that ID exists, its configuration may be overwritten. This saves the draft, not later manual Blockly changes.`
+        : `Save "${title}" as a new Home Assistant automation?\n\nThis saves the proposed draft, not later manual changes to Blockly blocks.`;
     if (!window.confirm(question)) return;
 
     button.disabled = true;
