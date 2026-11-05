@@ -96,17 +96,17 @@ function normalizedText(value) {
   return text(value).normalize('NFKC').replace(/\s+/g, ' ').toLocaleLowerCase();
 }
 
-// A model may suggest the user-facing reference, but it is never authoritative
-// metadata. Only echo it if it can be traced to the original user request.
 // Capitalize ordinary English display labels at sentence start, while keeping
 // literal Home Assistant entity IDs unchanged for users who need to copy them.
 function sentenceInitialReference(value) {
   const label = text(value);
   if (!label) return '';
-  if (/^[a-z_]+\\.[a-z0-9_]+$/i.test(label)) return `The device ${label}`;
+  if (/^[a-z_]+\.[a-z0-9_]+$/i.test(label)) return `The device ${label}`;
   return label.replace(/^[a-z]/, (letter) => letter.toUpperCase());
 }
 
+// A model may suggest the user-facing reference, but it is never authoritative
+// metadata. Only echo it if it can be traced to the original user request.
 function verifiedUserReference(reference, command) {
   const candidate = text(reference);
   if (!candidate || candidate.length > 120) return '';
