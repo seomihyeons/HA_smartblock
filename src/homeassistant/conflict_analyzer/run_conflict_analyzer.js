@@ -1,4 +1,4 @@
-export async function runConflictAnalyzer({ onlyEnabled = true, concurrency = 8 } = {}) {
+export async function runConflictAnalyzer({ onlyEnabled = true, concurrency = 8, draftYaml = null, automationId = null } = {}) {
     const res = await fetch("/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -6,6 +6,7 @@ export async function runConflictAnalyzer({ onlyEnabled = true, concurrency = 8 
             mode: "ha",
             onlyEnabled,
             concurrency,
+            ...(draftYaml ? { draftYaml, automationId } : {}),
         }),
     });
 
