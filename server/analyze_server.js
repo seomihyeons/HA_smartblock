@@ -824,6 +824,12 @@ app.post("/analyze", (req, res) => {
         if (!haBase || !haToken) {
             return res.status(500).json({ error: "Missing HA_BASE_URL(or HA_IP/HA_PORT) or HA_TOKEN in server .env" });
         }
+        if (req.body?.draftYaml != null && (typeof req.body.draftYaml !== "string" || req.body.draftYaml.length > 100_000)) {
+            return res.status(400).json({ error: "Invalid draftYaml (expected a single automation YAML up to 100000 characters)" });
+        }
+        if (req.body?.automationId != null && (typeof req.body.automationId !== "string" || req.body.automationId.length > 240)) {
+            return res.status(400).json({ error: "Invalid automationId" });
+        }
         args = [
             PY_PATH,
             "--ha",
@@ -831,6 +837,7 @@ app.post("/analyze", (req, res) => {
             "stdout",
             "--concurrency",
             String(req.body?.concurrency ?? 8),
+            ...(req.body?.automationId ? ["--replaced_automation_id", req.body.automationId] : []),
         ];
     } else {
         const yamlText = req.body?.yaml;
@@ -867,10 +874,11 @@ app.post("/analyze", (req, res) => {
     });
 
     if (mode !== "ha") {
-        p.stdin.write(req.body.yaml);
-        p.stdin.end();
+        p.stdin.end(req.body.yaml);
     } else {
-        p.stdin.end();
+        // Optional unsaved draft is appended by Python after fetching the live
+        // HA catalog. No draft is persisted or sent to HA.
+        p.stdin.end(req.body?.draftYaml || "");
     }
 });
 
