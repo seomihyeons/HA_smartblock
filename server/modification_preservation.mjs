@@ -24,8 +24,20 @@ function entityIds(value) {
 }
 
 function loadAutomation(baseYaml) {
+  // Blockly exports one automation in HA's conventional "- alias: ..." list
+  // form, while LLM drafts can be a single mapping. Both represent one rule.
   const parsed = yaml.load(text(baseYaml), { schema: yaml.JSON_SCHEMA });
-  return normalizeToAutomationIr(parsed).automation;
+  const source = Array.isArray(parsed)
+    ? (parsed.length === 1 ? parsed[0] : null)
+    : parsed;
+  if (!source || typeof source !== 'object' || Array.isArray(source)) {
+    throw new Error('Expected exactly one existing automation mapping.');
+  }
+  const normalized = normalizeToAutomationIr(source);
+  if (normalized.conflicts.length) {
+    throw new Error(normalized.conflicts.join('; '));
+  }
+  return normalized.automation;
 }
 
 function permitsRemoval(command) {
@@ -42,10 +54,16 @@ export function validateModificationPreservation({ baseYaml, automation, command
   let base;
   try {
     base = loadAutomation(baseYaml);
-  } catch {
-    return { valid: true, errors: [] };
+  } catch (error) {
+    // A malformed or ambiguous base must never bypass preservation checks.
+    return {
+      valid: false,
+      errors: [`Could not validate existing automation for preservation: ${error.message}`],
+    };
   }
-  if (!base || !automation || typeof automation !== 'object') return { valid: true, errors: [] };
+  if (!automation || typeof automation !== 'object' || Array.isArray(automation)) {
+    return { valid: false, errors: ['The modified automation must be a mapping.'] };
+  }
   const allowsRemoval = permitsRemoval(command);
   if (!allowsRemoval) {
     const retained = entityIds(automation);
