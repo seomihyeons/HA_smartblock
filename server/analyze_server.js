@@ -625,8 +625,22 @@ async function createDraftResponse(body = {}) {
                 pipeline: { mode: "llm_context_resolution", model_calls: result?.metrics?.attempts || 1 },
             };
         }
-        automationContext = normalizeAutomationContext({ ...chosen, operation: 'modify' });
-        effectiveAutomationOperation = 'modify';
+        const requestedTask = ['explain', 'inspect'].includes(result.plan.automation_task)
+            ? result.plan.automation_task : 'modify';
+        automationContext = normalizeAutomationContext({ ...chosen, operation: requestedTask });
+        effectiveAutomationOperation = requestedTask;
+        if (requestedTask !== 'modify') {
+            return {
+                status: 'automation_readonly_ready',
+                intent: 'automation',
+                automation_context: automationContext,
+                pipeline: {
+                    mode: 'llm_context_resolution',
+                    model_calls: result?.metrics?.attempts || 1,
+                    stages: ['intent_and_reference', 'read_only_analysis'],
+                },
+            };
+        }
         const missingBaseIds = [...entityIdsInYaml(automationContext.base_yaml)]
             .filter((entityId) => !fullLiveEntityIds.has(entityId));
         if (missingBaseIds.length) {
