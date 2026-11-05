@@ -90,8 +90,11 @@ and recent conversation. For an edit or refinement of an existing automation,
 including indirect follow-ups such as "Make it more relaxing" or "조금 더
 편하게", if the command does NOT contain `BEGIN EXISTING AUTOMATION YAML`,
 return intent `automation`, plan
-{"operation":"automation_context_required","automation_ref":{"source":"recent_draft"|"home_assistant"|"workspace","id":"<exact ID from catalog>"}}
-and `missing_fields:[]`. Use the selected automation for implicit references
+{"operation":"automation_context_required","automation_task":"modify"|"explain"|"inspect",
+"automation_ref":{"source":"recent_draft"|"home_assistant"|"workspace","id":"<exact ID from catalog>"}}
+and `missing_fields:[]`. Use `automation_task:modify` for edits and
+refinements, `explain` for an explanation request, and `inspect` for checking
+a selected automation. The host handles read-only inspection after resolution. Use the selected automation for implicit references
 unless the user explicitly identifies a different catalog entry. Never invent
 an ID, guess an automation, or return YAML for an edit before the host has
 supplied its verified full YAML. If the target is not clearly identifiable,
