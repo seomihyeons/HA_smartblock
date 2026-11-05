@@ -1,6 +1,7 @@
 import './assistant.css';
 import { setModalOpenState } from '../../utils/floating_modal_state';
 import { yamlTextToInternalJson } from '../../import/yaml_import.js';
+import { pushYamlToHomeAssistant } from '../push_automation.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -332,10 +333,8 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       } else {
         selectContext(workspaceContext());
       }
-      appendMessage('assistant', rawBlocks.length
-        ? `Imported with ${rawBlocks.length} Raw Block(s). Round-trip not verified; use Push to HA to save.`
-        : 'Imported to Blockly. Round-trip not verified; use Push to HA to save.');
-      setStatus(status, 'done', 'Imported');
+      // Importing is a local workspace action. Keep the chat history focused
+      // on the user's requests and the generated draft, not status narration.
       if (button?.textContent === 'Import blocks') button.textContent = 'Re-import blocks';
       return true;
     } catch (error) {
@@ -346,6 +345,41 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     } finally {
       // Import replaces the current workspace but is intentionally repeatable:
       // users may return to a draft after editing or inspecting other blocks.
+      button.disabled = false;
+    }
+  };
+
+  const pushDraft = async (artifact, button) => {
+    // Push this card's validated draft, never an unrelated Blockly workspace.
+    // Manual edits to imported blocks can be saved with the main editor's
+    // existing "Push to HA" action instead.
+    const draftYaml = String(artifact?.draft_yaml || '').trim();
+    if (!draftYaml) {
+      setStatus(status, 'error', 'Draft unavailable');
+      return;
+    }
+    const existingId = String(artifact.automation_id || '').trim();
+    const title = String(artifact.title || 'this automation');
+    const question = existingId
+      ? `Update "${title}" in Home Assistant?\n\nThis will overwrite automation ID: ${existingId}.`
+      : `Save "${title}" as a new Home Assistant automation?\n\nThis saves the proposed draft, not later manual changes to Blockly blocks.`;
+    if (!window.confirm(question)) return;
+
+    button.disabled = true;
+    const originalLabel = button.textContent;
+    button.textContent = 'Pushing...';
+    try {
+      const saved = await pushYamlToHomeAssistant(draftYaml, existingId ? { id: existingId } : {});
+      artifact.automation_id = saved.id;
+      artifact.saved_to_ha = true;
+      button.textContent = 'Pushed to Home Assistant';
+      setStatus(status, 'done', 'Saved to Home Assistant');
+    } catch (error) {
+      console.error('[HA-SmartBlock] Automation push failed:', error);
+      button.textContent = originalLabel;
+      setStatus(status, 'error', 'Push failed');
+      appendMessage('assistant', `Failed to push to Home Assistant.\n${error?.message || error}`, 'ai-message-error');
+    } finally {
       button.disabled = false;
     }
   };
@@ -427,6 +461,11 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       }));
     });
     actions.appendChild(analyzeButton);
+
+    const pushButton = createElement('button', 'ai-draft-push-button', 'Push to Home Assistant');
+    pushButton.type = 'button';
+    pushButton.addEventListener('click', () => pushDraft(artifact, pushButton));
+    actions.appendChild(pushButton);
     card.appendChild(actions);
     messages.appendChild(card);
     scrollToLatest();
@@ -530,6 +569,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
             source: 'recent_draft',
             title: titleForAutomation(payload.automation),
             base_yaml: String(payload.normalized_yaml || payload.yaml || ''),
+            draft_yaml: String(payload.normalized_yaml || payload.yaml || ''),
             automation: payload.automation,
             enabled: payload.base_context?.enabled !== false,
             automation_id: payload.base_context?.automation_id || null,
