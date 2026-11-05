@@ -607,7 +607,10 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
 
       if (resolution.status === 'failed') {
         awaitingClarification = false;
-        appendMessage('assistant', result.message || 'The request could not be processed.');
+        const details = Array.isArray(result.validation?.errors)
+          ? [...new Set(result.validation.errors.filter((item) => typeof item === 'string' && item.trim()))].slice(0, 3)
+          : [];
+        appendMessage('assistant', [result.message || 'The request could not be processed.', ...details].join('\n'));
         if (Array.isArray(result.missing_fields) && result.missing_fields.includes('automation_context')) {
           pendingAutomationCommand = activeCommand;
           if (recentDrafts.length > 1) renderRecentDraftPicker();
