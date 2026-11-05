@@ -578,9 +578,11 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
             button.classList.add('is-selected');
             if (isAutomation) {
               const context = {
-                source: 'home_assistant',
-                title: String(candidate.title || candidate.display_name || candidate.automation_id || 'Home Assistant automation'),
+                source: ['home_assistant', 'recent_draft', 'workspace'].includes(candidate.source)
+                  ? candidate.source : 'home_assistant',
+                title: String(candidate.title || candidate.display_name || candidate.automation_id || 'Selected automation'),
                 automation_id: candidate.automation_id || null,
+                draft_id: candidate.draft_id || null,
                 enabled: candidate.enabled !== false,
                 base_yaml: String(candidate.base_yaml || ''),
               };
