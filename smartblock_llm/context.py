@@ -324,6 +324,21 @@ def public_context(home_context: Any, command: str) -> dict[str, Any]:
         "information_inventory": normalize_information_inventory(source.get("information_inventory")),
         "interaction_context": normalize_interaction_context(source.get("interaction_context"), cards),
         "default_person_entity": normalize_default_person_entity(source.get("default_person_entity"), cards),
+        "automation_catalog": [
+            {
+                "source": text(item.get("source"))[:32],
+                "id": text(item.get("id"))[:240],
+                "title": text(item.get("title"))[:240],
+                "enabled": item.get("enabled") is not False,
+            }
+            for item in (source.get("automation_catalog") or [])[:60]
+            if isinstance(item, dict) and text(item.get("id")) and text(item.get("title"))
+        ],
+        "selected_automation": {
+            "source": text(source["selected_automation"].get("source"))[:32],
+            "id": text(source["selected_automation"].get("id"))[:240],
+            "title": text(source["selected_automation"].get("title"))[:240],
+        } if isinstance(source.get("selected_automation"), dict) else None,
         "capabilities": {
             "services": list(capabilities.values()),
             "operations": operations,
