@@ -21,6 +21,22 @@ function actionName(action) {
   return String(action?.action || action?.service || '');
 }
 
+// Show each Home Assistant trigger using its own native fields.
+function describeTrigger(trigger = {}) {
+  const kind = String(trigger?.trigger || trigger?.platform || '').trim();
+  const value = (item) => Array.isArray(item) ? item.join(', ') : String(item ?? '').trim();
+  if (kind === 'time') return `Time · ${value(trigger.at) || '(unspecified)'}`;
+  if (kind === 'event') {
+    const goal = trigger.event_data?.goal_id ? ` · Goal: ${trigger.event_data.goal_id}` : '';
+    return `Event: ${trigger.event_type || 'unknown'}${goal}`;
+  }
+  if (kind === 'state') return `State · ${value(trigger.entity_id) || '(unspecified)'} · ${value(trigger.from) || '*'} → ${value(trigger.to) || '*'}`;
+  if (kind === 'numeric_state') return `Numeric state · ${value(trigger.entity_id) || '(unspecified)'}`;
+  if (kind === 'sun') return `Sun · ${value(trigger.event) || '(unspecified)'}`;
+  if (kind === 'time_pattern') return 'Time pattern';
+  return kind ? `${kind} · ${value(trigger.entity_id || trigger.event_type || '')}`.trim() : 'Unknown';
+}
+
 function setStatus(element, state, message) {
   element.className = `ai-assistant-status state-${state}`;
   element.textContent = message;
@@ -349,9 +365,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       'div',
       'ai-draft-row',
       hasTrigger
-        ? (trigger.trigger === 'event'
-          ? `Trigger · Event: ${trigger.event_type || 'unknown'}${trigger.event_data?.goal_id ? ` · Goal: ${trigger.event_data.goal_id}` : ''}`
-          : `Trigger · ${firstEntityId(trigger.entity_id)} · ${trigger.from || '*'} → ${trigger.to || '*'}`)
+        ? `Trigger · ${describeTrigger(trigger)}`
         : 'Trigger · Not specified',
     ));
     actionsList.forEach((action, index) => {
@@ -457,7 +471,13 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
       }
 
       if (result.system?.status === 'error') {
-        throw new Error(result.message || 'Assistant plan validation failed.');
+        // Preserve the host-validated failure reason for debugging bad plans.
+        const details = [
+          result.error,
+          ...(Array.isArray(result.validation?.errors) ? result.validation.errors : []),
+        ].filter((item) => typeof item === 'string' && item.trim());
+        const reason = [...new Set(details)].slice(0, 3).join('\n');
+        throw new Error([result.message || 'Assistant plan validation failed.', reason].filter(Boolean).join('\n'));
       }
       const resolution = result.resolution || {};
       if (resolution.status === 'success') {
