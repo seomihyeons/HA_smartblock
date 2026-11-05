@@ -40,6 +40,25 @@ function loadAutomation(baseYaml) {
   return normalized.automation;
 }
 
+// Structural equality is separate from preservation and conflict analysis.
+// A modification that leaves the automation identical is not a successful edit.
+function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])]));
+  }
+  return value;
+}
+
+export function hasAutomationChanged({ baseYaml, automation }) {
+  const before = loadAutomation(baseYaml);
+  const normalized = normalizeToAutomationIr(automation);
+  if (normalized.conflicts.length) {
+    throw new Error(normalized.conflicts.join('; '));
+  }
+  return JSON.stringify(canonical(before)) !== JSON.stringify(canonical(normalized.automation));
+}
+
 function permitsRemoval(command) {
   return /\b(remove|delete|replace|discard|clear)\b|삭제|제거|교체|대체/u.test(String(command || ''));
 }
