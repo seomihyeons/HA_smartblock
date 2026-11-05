@@ -290,7 +290,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
         const option = document.createElement('option');
         option.textContent = 'No provider available';
         providerSelect.appendChild(option);
-        setStatus(status, 'error', 'No configured LLM provider is available');
+        setStatus(status, 'error', 'LLM provider unavailable');
       }
     })();
     return providerLoadPromise;
@@ -333,9 +333,9 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
         selectContext(workspaceContext());
       }
       appendMessage('assistant', rawBlocks.length
-        ? `Draft imported with ${rawBlocks.length} Raw Block(s). Full native editability and round-trip equivalence have not been verified. Push to HA remains a separate action.`
-        : 'Draft imported to native Blockly blocks. Full round-trip equivalence has not yet been verified. Use Push to HA separately to save it.');
-      setStatus(status, 'done', 'Imported to Blockly · Round-trip not verified · Not saved to Home Assistant');
+        ? `Imported with ${rawBlocks.length} Raw Block(s). Round-trip not verified; use Push to HA to save.`
+        : 'Imported to Blockly. Round-trip not verified; use Push to HA to save.');
+      setStatus(status, 'done', 'Imported');
       if (button?.textContent === 'Import blocks') button.textContent = 'Re-import blocks';
       return true;
     } catch (error) {
@@ -436,7 +436,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     busy = true;
     sendButton.disabled = true;
     input.disabled = true;
-    setStatus(status, 'running', 'Understanding request · Loading Home Assistant context...');
+    setStatus(status, 'running', 'Processing...');
     try {
       const response = await fetch('/api/assistant/message', {
         method: 'POST',
@@ -515,12 +515,12 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
             };
           }
           appendMessage('assistant', result.message || payload.answer || 'Current Home Assistant information was retrieved.');
-          setStatus(status, 'done', 'Live Home Assistant state retrieved · Nothing executed');
+          setStatus(status, 'done', 'State retrieved');
           return;
         }
         if (payload.kind === 'automation_readonly') {
           appendMessage('assistant', result.message || payload.summary || 'Automation reviewed without making changes.');
-          setStatus(status, 'done', 'Read-only automation review · Nothing modified or saved');
+          setStatus(status, 'done', 'Automation reviewed');
           return;
         }
         if (payload.kind === 'automation') {
@@ -539,7 +539,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           recentDrafts = [artifact, ...recentDrafts].slice(0, 12);
           selectContext(artifact);
           renderDraft({ ...payload, operation: payload.operation || activeAutomationOperation }, artifact);
-          setStatus(status, 'done', `Validated draft · ${result.model || result.provider || 'provider'}`);
+          setStatus(status, 'done', 'Draft ready');
           selections = {};
           return;
         }
@@ -610,7 +610,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
         setStatus(
           status,
           'idle',
-          'Device selection required',
+          'Selection required',
         );
         return;
       }
@@ -625,14 +625,14 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           pendingAutomationCommand = activeCommand;
           if (recentDrafts.length > 1) renderRecentDraftPicker();
         }
-        setStatus(status, 'idle', `${resolution.failure_reason || 'Request'} · Nothing executed`);
+        setStatus(status, 'idle', 'Request not completed');
         return;
       }
 
       throw new Error(result.error || 'Draft generation failed.');
     } catch (error) {
       appendMessage('assistant', `The request could not be processed.\n${error?.message || error}`, 'ai-message-error');
-      setStatus(status, 'error', 'Assistant request failed · Nothing executed or saved');
+      setStatus(status, 'error', 'Request failed');
     } finally {
       busy = false;
       sendButton.disabled = false;
