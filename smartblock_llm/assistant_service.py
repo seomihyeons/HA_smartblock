@@ -124,6 +124,12 @@ This rule also applies when the user asks to analyze/explain a named existing
 automation, since its full YAML must first be fetched by the host.
 When `BEGIN EXISTING AUTOMATION YAML` is present, generate the complete updated
 automation document, not another automation_context_required plan.
+A modification must actually make the user-requested change. Do not claim an
+unchanged existing YAML document is a successful edit. If the user's requested
+device does not exist in the supplied live entity metadata, do not invent an
+entity ID or silently substitute another device. Preserving the original
+document is safer than fabricating a change; the host will recognize unchanged
+YAML and report that the requested edit could not be applied.
 For control, plan must use operation `service_control` and contain:
 {"operation":"service_control","target":{"selector":"entity"|"entity_filter",
 "entity_id":"..." or "filter":{"entity_ids":[],"domain":null,"area":null,
