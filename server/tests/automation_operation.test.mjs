@@ -24,3 +24,24 @@ test('Korean modification, inspection and explanation use the same operations', 
   assert.equal(automationOperationFor('현재 자동화 검사해줘', true), 'inspect');
   assert.equal(automationOperationFor('이 자동화 설명해줘', true), 'explain');
 });
+
+
+test('refines an existing automation using natural follow-up language', () => {
+  assert.equal(automationOperationFor('Make it more relaxing.', true), 'modify');
+  assert.equal(automationOperationFor('Also turn off the hallway light.', true), 'modify');
+  assert.equal(automationOperationFor('좀 더 편안한 분위기로 해줘.', true), 'modify');
+});
+
+test('does not infer edits without a selected automation', () => {
+  assert.equal(automationOperationFor('Make it more relaxing.', false), 'create');
+});
+
+test('explicit new automation is not silently treated as an edit', () => {
+  assert.equal(automationOperationFor('Create a new automation for guests.', true), 'create');
+});
+
+test('read-only requests and direct control remain distinct from refinement', () => {
+  assert.equal(automationOperationFor('Explain what this automation does.', true), 'explain');
+  assert.equal(automationOperationFor('Turn off the hallway light.', true), 'create');
+  assert.equal(automationOperationFor('Is the hallway light on?', true), 'create');
+});
