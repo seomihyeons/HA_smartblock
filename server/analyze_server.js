@@ -424,16 +424,35 @@ async function createDraftResponse(body = {}) {
     // The first model call sees metadata, not the selected YAML. The model
     // decides whether this request actually needs an existing automation.
     // Tests supplying mock EntityCards do not need a live HA connection.
-    const catalogRequest = LLM_ASSISTANT_BACKEND === "provider_neutral" && !suppliedCards
+    const catalogRequest = !suppliedCards
+        && (LLM_ASSISTANT_BACKEND === "provider_neutral" || automationOperation === "modify")
         ? loadActiveAutomationCatalog().catch(() => [])
         : Promise.resolve([]);
     const [homeContext, catalog] = await Promise.all([homeContextRequest, catalogRequest]);
+    if (LLM_ASSISTANT_BACKEND !== "provider_neutral" && automationOperation === 'modify') {
+        const match = resolveAutomationReference(requestCommand, catalog);
+        if (match.status === 'selected') {
+            automationContext = normalizeAutomationContext({ ...match.candidate, operation: 'modify' });
+        }
+        if (!automationContext) {
+            return {
+                status: "needs_automation_selection",
+                intent: "automation",
+                role: "automation_reference",
+                question: "Select an active Home Assistant automation to edit.",
+                candidates: match.status === 'ambiguous' ? match.candidates : catalog,
+                validation: { schema_valid: false, grounded: false, blockly_supported: false },
+            };
+        }
+    }
     const plannerCatalog = buildAutomationPlannerCatalog({
         haCatalog: catalog,
         recentAutomations: Array.isArray(body.recent_automations) ? body.recent_automations : [],
         selectedContext: automationContext,
     });
-    const plannerCommand = buildAutomationPlannerCommand(requestCommand, null);
+    const plannerCommand = buildAutomationPlannerCommand(
+        requestCommand, LLM_ASSISTANT_BACKEND === "provider_neutral" ? null : automationContext
+    );
     const entityCards = homeContext.entityCards;
     const fullLiveEntityCards = homeContext.entityCards;
     const fullLiveEntityIds = new Set(fullLiveEntityCards.map((card) => card.entity_id));
@@ -554,7 +573,7 @@ async function createDraftResponse(body = {}) {
             retrievedIds.add(card.entity_id);
         }
     }
-    let effectiveAutomationOperation = "create";
+    let effectiveAutomationOperation = LLM_ASSISTANT_BACKEND === "provider_neutral" ? "create" : automationOperation;
     let result = LLM_ASSISTANT_BACKEND === "provider_neutral"
         ? await providerNeutralAssistant.createDraft({
             command: plannerCommand,
@@ -651,6 +670,10 @@ async function createDraftResponse(body = {}) {
             model_calls: firstCalls + (result?.metrics?.attempts || 1),
             stages: ['intent_and_reference', 'automation_yaml_modification'],
         };
+    }
+    if (LLM_ASSISTANT_BACKEND === "provider_neutral" && result?.pipeline?.model_calls == null) {
+        result.pipeline = { ...(result.pipeline || {}), model_calls: result?.metrics?.attempts || 1,
+            stages: ['intent_and_plan'] };
     }
     // Ollama's draft adapter predates the provider-neutral intent envelope.
     // Normalize a successful automation without changing its YAML contents.
