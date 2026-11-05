@@ -9,6 +9,7 @@ export const AGENT_OPERATIONS = Object.freeze([
   // The planner can explicitly request a selected Blockly/HA automation
   // context instead of guessing a replacement from an ambiguous reference.
   { id: 'automation_context_required', intents: ['automation'], selectors: [] },
+  { id: 'automation_collection', intents: ['information'], selectors: [] },
   { id: 'entity_identity', intents: ['information'], selectors: ['entity'] },
   {
     id: 'entity_property',
