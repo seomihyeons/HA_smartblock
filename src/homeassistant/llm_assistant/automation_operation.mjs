@@ -22,12 +22,16 @@ export function automationOperationFor(command, hasActiveAutomationContext = fal
   if (creationRequest && !existingReference) return 'create';
   // Conversational conjunctions do not turn unrelated state questions or
   // explicit immediate controls into automation edits.
-  const readOnlyFollowup = /^(?:(?:also|and|then)\s+)?(?:what|which|who|how|where|is|are|does|do|show|tell)\b|^(?:그리고\s*)?(?:.*(?:상태|현재|몇\s*개|알려줘|보여줘|어떻게))/.test(request);
+  const readOnlyFollowup = /^(?:(?:also|and|then)\s+)?(?:what|which|who|how|where|is|are|does|do|show|tell)\b|^그리고\s+.*(?:상태|몇\s*개|알려줘|보여줘|어떻게)/.test(request);
   const immediateFollowup = /\b(?:now|right now|immediately)\b|지금\s*(?:바로|즉시)?/.test(request);
   if (readOnlyFollowup || immediateFollowup) return 'create';
   // Follow-up references are refinements only when a real automation draft is
   // selected. A new unrelated goal must not silently overwrite that draft.
   // Recognize grammatical references, not particular goal names or devices.
+  // An explicit read-only request takes precedence over a generic reference
+  // to the selected automation in Korean or English.
+  if (!directModification && /설명|무슨.{0,12}동작/.test(request)) return 'explain';
+  if (!directModification && /검사|점검|검토/.test(request)) return 'inspect';
   const contextualRefinement = /^(?:(?:also|instead|and|then|plus)\b|(?:please\s+)?(?:make|keep|set|adjust)\s+(?:it|this|that|them)\b|(?:could|can|would)\s+you\s+(?:make|keep|set|adjust)\s+(?:it|this|that|them)\b|(?:more|less)\s+)|\b(?:in that automation|to that rule|for those blocks)\b|(?:좀\s*더|더\s+|추가로|그리고|대신|차라리|그\s*자동화|이\s*자동화)/.test(request);
   // An explicit "modify/edit/update" command may name an automation stored in
   // Home Assistant. The server resolves that live catalog reference; it does
