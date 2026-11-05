@@ -1,7 +1,6 @@
 import './assistant.css';
 import { setModalOpenState } from '../../utils/floating_modal_state';
 import { yamlTextToInternalJson } from '../../import/yaml_import.js';
-import { automationOperationFor } from './automation_operation.mjs';
 
 const $ = (id) => document.getElementById(id);
 
@@ -686,11 +685,6 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     const command = input.value.trim();
     if (!command) return;
 
-    const mentionsRecentDraft = recentDrafts.some((draft) => {
-      const title = String(draft.title || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
-      const request = String(command).normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
-      return title.length >= 4 && request.includes(title);
-    });
     // Context selection is a UI hint. The first LLM decides the intent.
     const operation = 'auto';
     $('aiAssistantWelcome')?.remove();
