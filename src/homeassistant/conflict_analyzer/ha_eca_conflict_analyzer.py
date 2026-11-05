@@ -430,6 +430,20 @@ def _pull_editable_automations_from_ha(base_url: str, token: str, only_enabled: 
                 pass
     return configs
 
+def merge_ha_automations_with_draft(configs: List[Dict[str, Any]], draft_text: str, replaced_id: str = "") -> Tuple[List[Dict[str, Any]], Optional[Dict[str, int]]]:
+    """Replace an edited live rule with its unsaved Blockly draft, without HA writes."""
+    if not draft_text.strip():
+        return list(configs), None
+    draft = yaml.safe_load(draft_text)
+    if not isinstance(draft, dict):
+        raise ValueError("The analyzer expects one draft automation mapping")
+    if not (draft.get("triggers") or draft.get("trigger")) or not (draft.get("actions") or draft.get("action")):
+        raise ValueError("Draft must contain at least one trigger and action")
+    original_id = str(replaced_id or draft.get("id") or "").strip()
+    existing = [cfg for cfg in configs if not original_id or str(cfg.get("id") or "") != original_id]
+    return existing + [draft], {"existing_count": len(existing), "draft_count": 1}
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--in", dest="infile")
@@ -453,24 +467,10 @@ def main(argv=None) -> int:
             only_enabled=bool(args.only_enabled),
             concurrency=int(args.concurrency),
         )
-        # An unsaved Blockly automation is analyzed with active HA rules. When
-        # editing an existing rule, replace it rather than comparing it to its
-        # own prior version. No Home Assistant configuration is changed.
-        draft_text = sys.stdin.buffer.read().decode("utf-8", errors="replace").strip()
-        if draft_text:
-            draft = yaml.safe_load(draft_text)
-            if not isinstance(draft, dict):
-                raise ValueError("The analyzer expects one draft automation mapping")
-            if not (draft.get("triggers") or draft.get("trigger")) or not (draft.get("actions") or draft.get("action")):
-                raise ValueError("Draft must contain at least one trigger and action")
-            original_id = str(args.replaced_automation_id or draft.get("id") or "").strip()
-            if original_id:
-                configs = [cfg for cfg in configs if str(cfg.get("id") or "") != original_id]
-            existing_count = len(configs)
-            configs.append(draft)
-            analysis_scope = {"existing_count": existing_count, "draft_count": 1}
-        else:
-            analysis_scope = None
+        draft_text = sys.stdin.buffer.read().decode("utf-8", errors="replace")
+        configs, analysis_scope = merge_ha_automations_with_draft(
+            configs, draft_text, args.replaced_automation_id
+        )
         yaml_text = yaml.safe_dump(configs, allow_unicode=True, sort_keys=False)
     else:
         if args.infile:
