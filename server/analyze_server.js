@@ -28,6 +28,7 @@ import {
 } from "./entity_retriever.mjs";
 import { executeInformationQuery } from "./information_query.mjs";
 import { buildAutomationPlannerCommand, normalizeAutomationContext } from "./automation_context.mjs";
+import { buildAutomationPlannerCatalog, resolveAutomationPlannerReference } from "./automation_planner_context.mjs";
 import {
     catalogEntryFromConfig,
     isActiveAutomationState,
@@ -420,39 +421,19 @@ async function createDraftResponse(body = {}) {
             serviceCatalog: [],
         })
         : loadHomeCapabilityContext();
-    // An explicit selected context remains authoritative for generic edits
-    // ("change the delay"). A uniquely named active HA automation can replace
-    // it, which makes "edit Bedroom Climate" work without first loading it.
-    const catalogRequest = automationOperation === "modify"
+    // The first model call sees metadata, not the selected YAML. The model
+    // decides whether this request actually needs an existing automation.
+    // Tests supplying mock EntityCards do not need a live HA connection.
+    const catalogRequest = LLM_ASSISTANT_BACKEND === "provider_neutral" && !suppliedCards
         ? loadActiveAutomationCatalog().catch(() => [])
         : Promise.resolve([]);
     const [homeContext, catalog] = await Promise.all([homeContextRequest, catalogRequest]);
-    const catalogResolution = automationOperation === "modify"
-        ? resolveAutomationReference(requestCommand, catalog)
-        : { status: "no_match", candidates: [] };
-    if (catalogResolution.status === "selected") {
-        automationContext = normalizeAutomationContext({
-            ...catalogResolution.candidate,
-            operation: "modify",
-        });
-    }
-    if (automationOperation === "modify" && !automationContext) {
-        const candidates = catalogResolution.status === "ambiguous"
-            ? catalogResolution.candidates
-            : catalog;
-        return {
-            status: "needs_automation_selection",
-            intent: "automation",
-            role: "automation_reference",
-            question: candidates.length
-                ? "Select an active Home Assistant automation to edit."
-                : "No active Home Assistant automation is available to edit.",
-            candidates,
-            validation: { schema_valid: false, grounded: false, blockly_supported: false },
-            pipeline: { mode: "deterministic_automation_resolution", timings_ms: { total: 0 } },
-        };
-    }
-    const plannerCommand = buildAutomationPlannerCommand(requestCommand, automationContext);
+    const plannerCatalog = buildAutomationPlannerCatalog({
+        haCatalog: catalog,
+        recentAutomations: Array.isArray(body.recent_automations) ? body.recent_automations : [],
+        selectedContext: automationContext,
+    });
+    const plannerCommand = buildAutomationPlannerCommand(requestCommand, null);
     const entityCards = homeContext.entityCards;
     const fullLiveEntityCards = homeContext.entityCards;
     const fullLiveEntityIds = new Set(fullLiveEntityCards.map((card) => card.entity_id));
@@ -505,7 +486,7 @@ async function createDraftResponse(body = {}) {
     const entityById = new Map(entityCards.map((card) => [card.entity_id, card]));
     const unavailableBaseEntityIds = [...entityIdsInYaml(automationContext?.base_yaml)]
         .filter((entityId) => !fullLiveEntityIds.has(entityId));
-    if (automationOperation === "modify" && unavailableBaseEntityIds.length) {
+    if (LLM_ASSISTANT_BACKEND !== "provider_neutral" && automationOperation === "modify" && unavailableBaseEntityIds.length) {
         return {
             status: "base_automation_entities_unavailable",
             intent: "automation",
@@ -573,7 +554,8 @@ async function createDraftResponse(body = {}) {
             retrievedIds.add(card.entity_id);
         }
     }
-    const result = LLM_ASSISTANT_BACKEND === "provider_neutral"
+    let effectiveAutomationOperation = "create";
+    let result = LLM_ASSISTANT_BACKEND === "provider_neutral"
         ? await providerNeutralAssistant.createDraft({
             command: plannerCommand,
             conversation: body.conversation,
@@ -584,8 +566,10 @@ async function createDraftResponse(body = {}) {
             slots: body.slots,
             interactionContext,
             defaultPersonEntity: defaultPersonEntity(entityCards),
-            automationOperation,
-            baseYaml: automationContext?.base_yaml || '',
+            automationOperation: 'create',
+            baseYaml: '',
+            automationCatalog: plannerCatalog.summaries,
+            selectedAutomation: plannerCatalog.selectedSummary,
             informationInventory: inventory,
             retrieval: retrieval && {
                 method: retrieval.method,
@@ -603,6 +587,71 @@ async function createDraftResponse(body = {}) {
             entity_cards: entityCards,
             capability_context: homeContext.capabilityContext,
         });
+    // Only a host-verified reference can authorize a second LLM call with
+    // the entire YAML. A model-provided ID alone is not authorization.
+    if (LLM_ASSISTANT_BACKEND === "provider_neutral"
+        && result?.intent === 'automation'
+        && result?.plan?.operation === 'automation_context_required') {
+        const chosen = resolveAutomationPlannerReference(result.plan, plannerCatalog);
+        if (!chosen) {
+            return {
+                status: "needs_automation_selection",
+                intent: "automation",
+                role: "automation_reference",
+                question: plannerCatalog.entries.length
+                    ? "Select the Home Assistant automation or chat draft to edit."
+                    : "No automation is available to edit.",
+                candidates: plannerCatalog.entries.map(({ id, ...entry }) => entry),
+                validation: { valid: true, errors: [] },
+                pipeline: { mode: "llm_context_resolution", model_calls: result?.metrics?.attempts || 1 },
+            };
+        }
+        automationContext = normalizeAutomationContext({ ...chosen, operation: 'modify' });
+        effectiveAutomationOperation = 'modify';
+        const missingBaseIds = [...entityIdsInYaml(automationContext.base_yaml)]
+            .filter((entityId) => !fullLiveEntityIds.has(entityId));
+        if (missingBaseIds.length) {
+            return {
+                status: "base_automation_entities_unavailable",
+                intent: "automation",
+                unavailable_entity_ids: missingBaseIds,
+                validation: { valid: false, errors: missingBaseIds.map(
+                    (id) => `The selected automation references an unavailable Home Assistant entity: ${id}`
+                ) },
+            };
+        }
+        const secondCards = [...retrievedEntityCards];
+        const secondIds = new Set(secondCards.map((card) => card.entity_id));
+        for (const id of entityIdsInYaml(automationContext.base_yaml)) {
+            if (!secondIds.has(id) && entityById.has(id)) {
+                secondCards.push(entityById.get(id));
+                secondIds.add(id);
+            }
+        }
+        const firstCalls = result?.metrics?.attempts || 1;
+        result = await providerNeutralAssistant.createDraft({
+            command: buildAutomationPlannerCommand(requestCommand, automationContext),
+            conversation: body.conversation,
+            provider: body.provider,
+            entityCards: secondCards,
+            capabilityContext: homeContext.capabilityContext,
+            entityResolution,
+            slots: body.slots,
+            interactionContext,
+            defaultPersonEntity: defaultPersonEntity(entityCards),
+            automationOperation: 'modify',
+            baseYaml: automationContext.base_yaml,
+            informationInventory: inventory,
+            automationCatalog: plannerCatalog.summaries,
+            selectedAutomation: { source: chosen.source, id: chosen.id, title: chosen.title },
+        });
+        // Distinguish the intended two-stage request from provider retries.
+        result.pipeline = {
+            ...(result.pipeline || {}),
+            model_calls: firstCalls + (result?.metrics?.attempts || 1),
+            stages: ['intent_and_reference', 'automation_yaml_modification'],
+        };
+    }
     // Ollama's draft adapter predates the provider-neutral intent envelope.
     // Normalize a successful automation without changing its YAML contents.
     if (result?.automation && !result.intent) result.intent = 'automation';
@@ -622,7 +671,7 @@ async function createDraftResponse(body = {}) {
             host_valid: hostValidation.valid,
             errors: [...providerErrors, ...hostValidation.errors],
         };
-        if (automationOperation === 'modify' && automationContext?.base_yaml) {
+        if (effectiveAutomationOperation === 'modify' && automationContext?.base_yaml) {
             const preservation = validateModificationPreservation({
                 baseYaml: automationContext.base_yaml,
                 automation: result.automation,
@@ -662,8 +711,8 @@ async function createDraftResponse(body = {}) {
     }));
     return {
         ...result,
-        automation_operation: automationOperation,
-        automation_context: automationContext ? {
+        automation_operation: effectiveAutomationOperation,
+        automation_context: effectiveAutomationOperation === 'modify' && automationContext ? {
             source: automationContext.source,
             title: automationContext.title,
             draft_id: automationContext.draft_id,
