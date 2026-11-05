@@ -18,6 +18,7 @@ from .contracts import (
     OPERATION_SERVICE_COLLECTION,
     OPERATION_SERVICE_CONTROL,
     OPERATION_AUTOMATION_CONTEXT_REQUIRED,
+    OPERATION_AUTOMATION_COLLECTION,
     generation_failure,
     normalize_plan,
     normalize_to_automation_ir,
@@ -113,7 +114,7 @@ def validate_response(response: Any, home_context: Any) -> dict[str, Any]:
         target = plan.get("target") if isinstance(plan.get("target"), dict) else {}
         selector = str(target.get("selector") or "").strip()
         entity_operations = {OPERATION_ENTITY_PROPERTY, OPERATION_ENTITY_COLLECTION, OPERATION_ENTITY_IDENTITY}
-        if operation not in {*entity_operations, OPERATION_SERVICE_COLLECTION, OPERATION_SERVICE_CAPABILITY}:
+        if operation not in {*entity_operations, OPERATION_SERVICE_COLLECTION, OPERATION_SERVICE_CAPABILITY, OPERATION_AUTOMATION_COLLECTION}:
             errors.append("An information plan must use an advertised read-only operation.")
         if operation in entity_operations:
             if selector not in {"entity", "entity_filter", "unresolved"}:
