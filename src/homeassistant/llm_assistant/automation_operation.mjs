@@ -20,6 +20,11 @@ export function automationOperationFor(command, hasActiveAutomationContext = fal
   // "Create an automation that checks ..." remains a new rule, even when a
   // previously created draft happens to be selected in the editor.
   if (creationRequest && !existingReference) return 'create';
+  // Conversational conjunctions do not turn unrelated state questions or
+  // explicit immediate controls into automation edits.
+  const readOnlyFollowup = /^(?:(?:also|and|then)\s+)?(?:what|which|who|how|where|is|are|does|do|show|tell)\b|^(?:그리고\s*)?(?:.*(?:상태|현재|몇\s*개|알려줘|보여줘|어떻게))/.test(request);
+  const immediateFollowup = /\b(?:now|right now|immediately)\b|지금\s*(?:바로|즉시)?/.test(request);
+  if (readOnlyFollowup || immediateFollowup) return 'create';
   // Follow-up references are refinements only when a real automation draft is
   // selected. A new unrelated goal must not silently overwrite that draft.
   // Recognize grammatical references, not particular goal names or devices.
