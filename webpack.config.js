@@ -6,6 +6,12 @@ const dotenv = require('dotenv');
 dotenv.config();
 console.log('[dotenv]', process.cwd());
 
+const ANALYZER_PORT = Number.parseInt(process.env.ANALYZER_PORT || '8787', 10);
+if (!Number.isInteger(ANALYZER_PORT) || ANALYZER_PORT < 1 || ANALYZER_PORT > 65535) {
+  throw new Error('ANALYZER_PORT must be a valid TCP port.');
+}
+const ANALYZER_PROXY_TARGET = `http://127.0.0.1:${ANALYZER_PORT}`;
+
 const BASELINE_FILE = path.resolve(__dirname, 'test', 'task_alt', 'baseline.json');
 const BASELINE_MAX_BYTES = 2 * 1024 * 1024;
 const BASELINE_MAX_HISTORY = 10;
@@ -278,24 +284,24 @@ module.exports = (env, argv) => {
         },
 
         '/analyze': {
-          target: 'http://localhost:8787',
+          target: ANALYZER_PROXY_TARGET,
           changeOrigin: true,
           secure: false,
         },
 
         '/api/llm': {
-          target: 'http://localhost:8787',
+          target: ANALYZER_PROXY_TARGET,
           changeOrigin: true,
           secure: false,
         },
 
         '/api/control-now': {
-          target: 'http://localhost:8787',
+          target: ANALYZER_PROXY_TARGET,
           changeOrigin: true,
           secure: false,
         },
         '/api/assistant': {
-          target: 'http://localhost:8787',
+          target: ANALYZER_PROXY_TARGET,
           changeOrigin: true,
           secure: false,
         },

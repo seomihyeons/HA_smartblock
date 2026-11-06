@@ -788,7 +788,13 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
 
       if (resolution.status === 'failed') {
         awaitingClarification = false;
-        const details = Array.isArray(result.validation?.errors)
+        // Grounding failures are expected, safe host outcomes. Keep their
+        // structured validation data on the response for diagnostics, but do
+        // not expose internal parser/validator paths in the conversational UI.
+        const showValidationDetails = !['entity_not_found', 'unsupported_capability'].includes(
+          String(resolution.failure_reason || ''),
+        );
+        const details = showValidationDetails && Array.isArray(result.validation?.errors)
           ? [...new Set(result.validation.errors.filter((item) => typeof item === 'string' && item.trim()))].slice(0, 3)
           : [];
         appendMessage('assistant', [result.message || 'The request could not be processed.', ...details].join('\n'));

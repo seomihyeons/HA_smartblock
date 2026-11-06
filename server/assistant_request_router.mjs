@@ -50,7 +50,7 @@ const MESSAGE_TEMPLATES = {
     other_unsupported: '현재 스마트홈 Assistant가 지원하는 요청이 아닙니다.',
     routine_missing: '루틴을 만들기 위해 필요한 정보를 더 알려 주세요.',
     routine_unsupported: '요청하신 루틴 기능은 현재 지원하지 않습니다.',
-    entity_not_found: '요청하신 기기를 찾지 못했습니다.',
+    entity_not_found: '현재 Home Assistant에서 사용할 수 있는 기기 중 요청하신 대상을 찾지 못했습니다. 다른 기기로 임의 대체하거나 자동화를 만들지 않았습니다. 기기를 다시 연결하거나 활성화한 뒤 다시 시도해 주세요.',
     unsupported_capability: '요청하신 기능은 현재 지원하지 않습니다.',
     invalid_request: '요청을 처리하려면 필요한 정보를 더 알려 주세요.',
     information_retrieved: '현재 Home Assistant 정보를 조회했습니다.',
@@ -69,7 +69,7 @@ const MESSAGE_TEMPLATES = {
     other_unsupported: 'This request is outside the supported smart-home scope.',
     routine_missing: 'Please provide the information needed to create this routine.',
     routine_unsupported: 'The requested routine capability is not currently supported.',
-    entity_not_found: 'I could not find the requested device.',
+    entity_not_found: 'I could not find that device among the Home Assistant entities currently available, so I did not create an automation or substitute another device. Reconnect or enable the device, then try again.',
     unsupported_capability: 'The requested capability is not supported.',
     invalid_request: 'Please provide the information needed to process this request.',
     information_retrieved: 'Current Home Assistant information was retrieved.',
@@ -90,6 +90,33 @@ function responseLanguage(payload = {}) {
 
 function message(key, language) {
   return MESSAGE_TEMPLATES[language]?.[key] || MESSAGE_TEMPLATES.en[key] || key;
+}
+
+function displayEntityId(entityId) {
+  const id = text(entityId);
+  const suffix = id.includes('.') ? id.split('.', 2)[1] : id;
+  return suffix
+    .split('_')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ') || id;
+}
+
+function unavailableEntityFromValidation(validation) {
+  const errors = Array.isArray(validation?.errors) ? validation.errors : [];
+  for (const error of errors) {
+    const match = String(error || '').match(/(?:outside Home Assistant context|does not exist in the live Home Assistant context):\s*([a-z_]+\.[a-z0-9_]+)/i);
+    if (match?.[1]) return match[1];
+  }
+  return '';
+}
+
+function entityNotFoundMessage(language, entityId) {
+  if (!entityId) return message('entity_not_found', language);
+  const label = displayEntityId(entityId);
+  return language === 'ko'
+    ? `요청하신 ${label}을 현재 사용할 수 있는 Home Assistant 기기에서 찾지 못했습니다. 다른 기기로 임의 대체하거나 자동화를 만들지 않았습니다. 기기를 다시 연결하거나 활성화한 뒤 다시 시도해 주세요.`
+    : `I could not find the requested ${label} among the Home Assistant entities currently available, so I did not create an automation or substitute another device. Reconnect or enable the device, then try again.`;
 }
 
 function normalizedText(value) {
@@ -232,7 +259,10 @@ async function narrate(createResponse, {
 async function narratedFailure(createResponse, {
   payload, language, intent, failureReason, messageKey, extra = {},
 }) {
-  const fallback = message(messageKey, language);
+  const unavailableEntityId = text(extra.unavailable_entity_id);
+  const fallback = failureReason === 'entity_not_found'
+    ? entityNotFoundMessage(language, unavailableEntityId)
+    : message(messageKey, language);
   return {
     ...failed(intent, failureReason, messageKey, language, extra),
     message: await narrate(createResponse, {
@@ -240,6 +270,7 @@ async function narratedFailure(createResponse, {
       toolResult: {
         outcome: 'failed', intent, failure_reason: failureReason,
         missing_fields: Array.isArray(extra.missing_fields) ? extra.missing_fields : [],
+        unavailable_entity_id: unavailableEntityId || null,
       },
     }),
   };
@@ -281,7 +312,10 @@ function validationFailure(intent, result, language) {
   const errors = Array.isArray(result?.validation?.errors) ? result.validation.errors : [];
   const detail = errors.join(' ').toLowerCase();
   if (detail.includes('outside home assistant context') || detail.includes('omitted a server-resolved entity')) {
-    return failed(intent, 'entity_not_found', 'entity_not_found', language, { validation: result.validation });
+    return failed(intent, 'entity_not_found', 'entity_not_found', language, {
+      validation: result.validation,
+      unavailable_entity_id: unavailableEntityFromValidation(result.validation),
+    });
   }
   if (detail.includes('service') || detail.includes('capability')) {
     return failed(intent, 'unsupported_capability', 'unsupported_capability', language, { validation: result.validation });
@@ -542,7 +576,10 @@ export function createAssistantRequestRouter({
           payload, language, intent,
           failureReason: invalid.resolution.failure_reason,
           messageKey: invalid.message_key,
-          extra: { validation: invalid.validation },
+          extra: {
+            validation: invalid.validation,
+            unavailable_entity_id: invalid.unavailable_entity_id,
+          },
         });
       }
       if (missingFields.length) {
