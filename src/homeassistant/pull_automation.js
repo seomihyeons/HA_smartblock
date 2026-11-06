@@ -12,6 +12,30 @@ async function haFetch(path) {
     return res.json();
 }
 
+async function haServiceCall(domain, service, payload) {
+    const res = await fetch(`${API_BASE}/services/${encodeURIComponent(domain)}/${encodeURIComponent(service)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload || {}),
+    });
+    if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`HA service ${domain}.${service} failed: ${res.status} ${text}`);
+    }
+    return res.json().catch(() => null);
+}
+
+/**
+ * Toggle a live Home Assistant automation without changing its YAML config.
+ * The caller must pass the HA entity_id (automation.<slug>), not the config id.
+ */
+export async function setAutomationEnabled(entityId, enabled) {
+    const target = String(entityId || '').trim();
+    if (!target.startsWith('automation.')) throw new Error('Missing Home Assistant automation entity ID');
+    return haServiceCall('automation', enabled ? 'turn_on' : 'turn_off', { entity_id: target });
+}
+
 export async function pullAutomationIndex() {
     const states = await haFetch('/states');
 

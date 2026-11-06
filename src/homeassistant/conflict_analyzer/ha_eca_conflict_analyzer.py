@@ -37,6 +37,11 @@ class Action:
     entity_id: Optional[str]
     value: Optional[str] = None
     extra: Tuple[Tuple[str, Any], ...] = ()
+    # Keep the originating automation in the graph identity. Otherwise two
+    # identical actions from different rules collapse into one set member and
+    # the conflict report cannot name the rules involved.
+    source_id: str = ""
+    source_alias: str = ""
     def label(self) -> str:
         base = f"{self.domain}.{self.service}"
         if self.entity_id:
@@ -146,7 +151,7 @@ def _normalize_event(trigger: Dict[str, Any]) -> List[Event]:
         extra=make_hashable(tuple(sorted(extra.items())))
     )]
 
-def _normalize_action(step: Dict[str, Any]) -> List[Action]:
+def _normalize_action(step: Dict[str, Any], source_id: str = "", source_alias: str = "") -> List[Action]:
     out: List[Action] = []
     if "service" in step or "action" in step:
         service = step.get("service") or step.get("action")
@@ -176,19 +181,27 @@ def _normalize_action(step: Dict[str, Any]) -> List[Action]:
                 for k, v in step.items()
                 if k not in ("service", "entity_id", "target", "data", "data_template")
             }.items()))
-            out.append(Action(domain=domain, service=svc, entity_id=e, value=value, extra=extra))
+            out.append(Action(
+                domain=domain,
+                service=svc,
+                entity_id=e,
+                value=value,
+                extra=extra,
+                source_id=source_id,
+                source_alias=source_alias,
+            ))
 
     elif "choose" in step and isinstance(step["choose"], list):
         for choice in step["choose"]:
             for act in choice.get("sequence", []):
-                out.extend(_normalize_action(act))
+                out.extend(_normalize_action(act, source_id, source_alias))
         if "default" in step:
             for act in step["default"]:
-                out.extend(_normalize_action(act))
+                out.extend(_normalize_action(act, source_id, source_alias))
 
     elif "repeat" in step and isinstance(step["repeat"], dict):
         for act in step["repeat"].get("sequence", []):
-            out.extend(_normalize_action(act))
+            out.extend(_normalize_action(act, source_id, source_alias))
 
     return make_hashable(out)
 
@@ -248,7 +261,8 @@ def build_efg(automations: List[Dict[str, Any]]) -> EFG:
     rules: List[Tuple[List[Event], List[Action], str]] = []
 
     for i, auto in enumerate(automations):
-        name = str(auto.get("alias") or auto.get("id") or auto.get("description") or f"rule_{i}")
+        source_id = str(auto.get("id") or f"rule_{i}")
+        source_alias = str(auto.get("alias") or auto.get("description") or source_id)
         triggers = auto.get("trigger") or auto.get("triggers") or []
         triggers = triggers if isinstance(triggers, list) else [triggers]
         events: List[Event] = []
@@ -259,13 +273,13 @@ def build_efg(automations: List[Dict[str, Any]]) -> EFG:
         steps = steps if isinstance(steps, list) else [steps]
         actions: List[Action] = []
         for s in steps:
-            actions.extend(_normalize_action(s))
+            actions.extend(_normalize_action(s, source_id, source_alias))
 
         if not events or not actions:
             continue
 
         for a in actions:
-            rules.append((events, [a], name))
+            rules.append((events, [a], source_alias))
 
     for evs, acts, _name in rules:
         for e in evs:
@@ -342,6 +356,76 @@ def _conflict_key(a: Action) -> Tuple[str, str]:
         return (a.domain, f"{a.service}:{mode}")
     return (a.domain, a.service)
 
+def _event_report(e: Event) -> Dict[str, Any]:
+    return {
+        "platform": e.kind,
+        "entity_id": e.entity_id,
+        "to": e.to,
+    }
+
+def _action_report(a: Action) -> Dict[str, Any]:
+    return {
+        "service": f"{a.domain}.{a.service}",
+        "entity_id": a.entity_id,
+        "resulting_state": a.value,
+        "automation": {
+            "id": a.source_id,
+            "alias": a.source_alias,
+        },
+    }
+
+def _cycle_node_report(g: EFG, node_id: int) -> Dict[str, Any]:
+    """Return structured cycle details without exposing EFG debug labels."""
+    kind, obj = g.rev_id_map[node_id]
+    if kind == "E":
+        return {"kind": "trigger", "trigger": _event_report(obj)}
+    return {"kind": "action", "action": _action_report(obj)}
+
+def _automation_reports(actions: List[Action]) -> List[Dict[str, str]]:
+    """Return stable, de-duplicated automation provenance for an issue."""
+    seen: Set[Tuple[str, str]] = set()
+    result: List[Dict[str, str]] = []
+    for action in actions:
+        key = (action.source_id, action.source_alias)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append({"id": action.source_id, "alias": action.source_alias})
+    return result
+
+def detect_redundancy(g: EFG) -> List[Dict[str, Any]]:
+    """Find an action reachable by multiple distinct EFG paths from one event."""
+    issues = []
+    for e in g.events:
+        e_id = g._get_id(("E", e))
+        multiset = reachable_actions_from_event(g, e_id, path_limit=6)
+        # Action provenance is intentionally part of Action identity so that
+        # inconsistency reports can name both rules. For redundancy, however,
+        # two equivalent service calls from different rules are precisely what
+        # we need to group together.
+        by_effect: Dict[Tuple[Any, ...], List[Tuple[int, int, Action]]] = defaultdict(list)
+        for a_id, count in multiset.items():
+            action = g.rev_id_map[a_id][1]
+            key = (action.domain, action.service, action.entity_id, action.value, action.extra)
+            by_effect[key].append((a_id, int(count), action))
+        for entries in by_effect.values():
+            count = sum(entry[1] for entry in entries)
+            if count < 2:
+                continue
+            action = entries[0][2]
+            actions = [entry[2] for entry in entries]
+            issues.append({
+                "issue_code": "duplicate_action_path",
+                "trigger": _event_report(e),
+                "action": _action_report(action),
+                "automations": _automation_reports(actions),
+                "paths_count": int(count),
+                # Legacy diagnostic fields remain for the standalone debug view.
+                "event": g.label(e_id),
+                "issue": "Redundancy",
+            })
+    return issues
+
 def detect_inconsistency(g: EFG) -> List[Dict[str, Any]]:
     issues = []
     for e in g.events:
@@ -356,10 +440,20 @@ def detect_inconsistency(g: EFG) -> List[Dict[str, Any]]:
             for i in range(n):
                 for j in range(i + 1, n):
                     a1, a2 = acts[i], acts[j]
+                    # A sequential on → delay → off inside one automation is
+                    # often intentional. This analyzer card is reserved for
+                    # interactions between distinct automation rules.
+                    if a1.source_id and a1.source_id == a2.source_id:
+                        continue
                     k1, k2 = _conflict_key(a1), _conflict_key(a2)
                     if (k1 in CONFLICT_CATALOG and k2 in CONFLICT_CATALOG[k1]) or \
                        (k2 in CONFLICT_CATALOG and k1 in CONFLICT_CATALOG[k2]):
                         issues.append({
+                            "issue_code": "inconsistent_actions",
+                            "trigger": _event_report(e),
+                            "action_1": _action_report(a1),
+                            "action_2": _action_report(a2),
+                            "entity_id": entity,
                             "event": g.label(e_id),
                             "action1": a1.label(),
                             "action2": a2.label(),
@@ -368,19 +462,46 @@ def detect_inconsistency(g: EFG) -> List[Dict[str, Any]]:
                         })
     return issues
 
+def detect_circularity(g: EFG) -> List[Dict[str, Any]]:
+    """Find event/action cycles with Tarjan SCC, preserving source provenance."""
+    issues = []
+    for component in tarjan_scc(g.nodes(), g.edges):
+        is_self_loop = len(component) == 1 and component[0] in g.edges.get(component[0], set())
+        if len(component) < 2 and not is_self_loop:
+            continue
+        nodes = [_cycle_node_report(g, node_id) for node_id in component]
+        actions = [g.rev_id_map[node_id][1] for node_id in component if g.rev_id_map[node_id][0] == "A"]
+        issues.append({
+            "issue_code": "circular_automation_flow",
+            "cycle": nodes,
+            "automations": _automation_reports(actions),
+            "size": len(component),
+            # Legacy diagnostic field remains for the standalone debug view.
+            "cycle_nodes": " → ".join(g.label(node_id) for node_id in component),
+            "issue": "Circularity",
+        })
+    return issues
+
 def analyze_ha_automations(yaml_text: str) -> Dict[str, Any]:
     automations = parse_ha_automations(yaml_text)
     g = build_efg(automations)
+    redundancy = detect_redundancy(g)
     inconsistency = detect_inconsistency(g)
+    circularity = detect_circularity(g)
     return {
         "summary": {
             "automations": len(automations),
             "events": len(g.events),
             "actions": len(g.actions),
             "edges": sum(len(v) for v in g.edges.values()),
+            "redundancy_issues": len(redundancy),
             "inconsistency_issues": len(inconsistency),
+            "circularity_issues": len(circularity),
+            "total_issues": len(redundancy) + len(inconsistency) + len(circularity),
         },
+        "redundancy": redundancy,
         "inconsistency": inconsistency,
+        "circularity": circularity,
     }
 
 def _ha_get_json(base_url: str, token: str, path: str) -> Any:

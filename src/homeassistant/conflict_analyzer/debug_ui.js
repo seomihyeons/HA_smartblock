@@ -1,6 +1,6 @@
 import { runConflictAnalyzer } from "./run_conflict_analyzer";
 import { setModalOpenState } from "../../utils/floating_modal_state";
-import { buildConflictSummary, classifyConflictError } from "./conflict_report_format.js";
+import { allConflictIssues, buildConflictSummary, classifyConflictError } from "./conflict_report_format.js";
 
 function $(id) { return document.getElementById(id); }
 function setText(el, text) { if (el) el.textContent = text; }
@@ -16,13 +16,13 @@ function renderIssueCards(host, report) {
     if (!host) return;
     host.innerHTML = "";
 
-    const issues = Array.isArray(report?.inconsistency) ? report.inconsistency : [];
-    const incCount = report?.summary?.inconsistency_issues ?? issues.length ?? 0;
-    if (!issues.length && incCount === 0) {
+    const issues = allConflictIssues(report);
+    const total = report?.summary?.total_issues ?? issues.length ?? 0;
+    if (!issues.length && total === 0) {
         return;
     }
 
-    const summary = createNode("div", "debug-issue-summary", `Detected ${incCount} inconsistency issue(s)`);
+    const summary = createNode("div", "debug-issue-summary", `Detected ${total} structural issue(s)`);
     host.appendChild(summary);
 
     if (!issues.length) {
@@ -36,16 +36,27 @@ function renderIssueCards(host, report) {
 
         const head = createNode("div", "debug-issue-head");
         head.appendChild(createNode("div", "debug-issue-title", `Issue ${index + 1}`));
-        head.appendChild(createNode("span", "debug-issue-badge", String(iss?.issue || "Issue")));
+        head.appendChild(createNode("span", "debug-issue-badge", String(iss?.issue || iss?.issue_code || "Issue")));
         card.appendChild(head);
 
         const body = createNode("div", "debug-issue-body");
-        const rows = [
-            ["Trigger", iss?.event],
-            ["Action 1", iss?.action1],
-            ["Action 2", iss?.action2],
-            ["Entity", iss?.entity],
-        ];
+        const rows = iss?.issue_code === "duplicate_action_path"
+            ? [
+                ["Trigger", iss?.event],
+                ["Action", iss?.action?.service],
+                ["Paths", iss?.paths_count],
+            ]
+            : iss?.issue_code === "circular_automation_flow"
+                ? [
+                    ["Cycle", iss?.cycle_nodes],
+                    ["Automations", (iss?.automations || []).map((item) => item?.alias || item?.id).filter(Boolean).join(" ↔ ")],
+                ]
+                : [
+                    ["Trigger", iss?.event],
+                    ["Action 1", iss?.action1],
+                    ["Action 2", iss?.action2],
+                    ["Entity", iss?.entity],
+                ];
 
         rows.forEach(([label, value]) => {
             if (value == null || String(value).trim() === "") return;
@@ -60,13 +71,6 @@ function renderIssueCards(host, report) {
     });
     host.appendChild(list);
 
-    host.appendChild(
-        createNode(
-            "div",
-            "debug-issue-note",
-            "Two rules triggered by the same event produce conflicting actions."
-        )
-    );
 }
 
 export function initConflictAnalyzerUI() {
@@ -107,7 +111,7 @@ export function initConflictAnalyzerUI() {
     const setSummary = (text) => {
         if (!summaryEl) return;
         summaryEl.classList.remove("hidden");
-        summaryEl.textContent = text || "Automations analyzed: -\nEvents: -\nActions: -\nRule edges: -\nInconsistency issues: -\nConflict types: -\nConflicting entities: -\nElapsed: -";
+        summaryEl.textContent = text || "Automations analyzed: -\nEvents: -\nActions: -\nRule edges: -\nRedundancy issues: -\nInconsistency issues: -\nCircularity issues: -\nTotal issues: -\nConflict types: -\nConflicting entities: -\nElapsed: -";
     };
 
     const setError = (text) => {
@@ -129,7 +133,7 @@ export function initConflictAnalyzerUI() {
     let pendingDraft = null;
     const run = async () => {
         setText(out, "");
-        setSummary("Automations analyzed: -\nEvents: -\nActions: -\nRule edges: -\nInconsistency issues: -\nConflict types: -\nConflicting entities: -\nElapsed: running...");
+        setSummary("Automations analyzed: -\nEvents: -\nActions: -\nRule edges: -\nRedundancy issues: -\nInconsistency issues: -\nCircularity issues: -\nTotal issues: -\nConflict types: -\nConflicting entities: -\nElapsed: running...");
         setError("");
         setStatus("running", "Analyzing...");
         toggleSpinner(true);
@@ -176,7 +180,7 @@ export function initConflictAnalyzerUI() {
     btnRun.addEventListener("click", run);
 
     setStatus("idle", "Ready");
-    setSummary("Automations analyzed: -\nEvents: -\nActions: -\nRule edges: -\nInconsistency issues: -\nConflict types: -\nConflicting entities: -\nElapsed: -");
+    setSummary("Automations analyzed: -\nEvents: -\nActions: -\nRule edges: -\nRedundancy issues: -\nInconsistency issues: -\nCircularity issues: -\nTotal issues: -\nConflict types: -\nConflicting entities: -\nElapsed: -");
     setError("");
     toggleSpinner(false);
     btnCopy.disabled = false;

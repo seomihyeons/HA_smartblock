@@ -21,6 +21,7 @@
   "author": "",
   "license": "MIT AND Apache-2.0",
   "dependencies": {
+    "@mdi/js": "7.4.47",
     "ajv": "^8.17.1",
     "blockly": "^11.0.0",
     "dotenv": "^17.2.3",

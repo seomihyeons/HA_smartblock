@@ -10,6 +10,14 @@ export function summarizeConflictTypes(issues = []) {
     return names.length ? names.map((name) => `${name}=${counts[name]}`).join(", ") : "-";
 }
 
+export function allConflictIssues(report = {}) {
+    return [
+        ...(Array.isArray(report?.redundancy) ? report.redundancy : []),
+        ...(Array.isArray(report?.inconsistency) ? report.inconsistency : []),
+        ...(Array.isArray(report?.circularity) ? report.circularity : []),
+    ];
+}
+
 export function countConflictingEntities(issues = []) {
     const entities = new Set();
     for (const issue of Array.isArray(issues) ? issues : []) {
@@ -21,8 +29,11 @@ export function countConflictingEntities(issues = []) {
 
 export function buildConflictSummary(report, elapsedMs = null) {
     const s = report?.summary || {};
-    const issues = Array.isArray(report?.inconsistency) ? report.inconsistency : [];
-    const incCount = s.inconsistency_issues ?? issues.length ?? "-";
+    const issues = allConflictIssues(report);
+    const redCount = s.redundancy_issues ?? (Array.isArray(report?.redundancy) ? report.redundancy.length : "-");
+    const incCount = s.inconsistency_issues ?? (Array.isArray(report?.inconsistency) ? report.inconsistency.length : "-");
+    const cirCount = s.circularity_issues ?? (Array.isArray(report?.circularity) ? report.circularity.length : "-");
+    const totalCount = s.total_issues ?? (issues.length || (incCount === "-" ? "-" : Number(redCount) + Number(incCount) + Number(cirCount)));
     const elapsed = elapsedMs != null ? `${elapsedMs} ms` : "-";
     const lines = [
         `Automations analyzed: ${s.automations ?? "-"}`,
@@ -32,23 +43,33 @@ export function buildConflictSummary(report, elapsedMs = null) {
         `Events: ${s.events ?? "-"}`,
         `Actions: ${s.actions ?? "-"}`,
         `Rule edges: ${s.edges ?? "-"}`,
+        `Redundancy issues: ${redCount}`,
         `Inconsistency issues: ${incCount}`,
+        `Circularity issues: ${cirCount}`,
+        `Total issues: ${totalCount}`,
         `Conflict types: ${summarizeConflictTypes(issues)}`,
         `Conflicting entities: ${incCount === "-" ? "-" : countConflictingEntities(issues)}`,
         `Elapsed: ${elapsed}`,
     ];
-    if (incCount === 0) {
-        lines.push("", "No inconsistency detected.", "System logic is consistent.");
+    if (totalCount === 0) {
+        lines.push("", "No structural issue detected.", "System logic is consistent.");
     }
     return lines.join("\n");
 }
 
 export function formatConflictChatReport(report, elapsedMs = null) {
-    const summary = buildConflictSummary(report, elapsedMs);
-    const issues = Array.isArray(report?.inconsistency) ? report.inconsistency : [];
-    const count = Number(report?.summary?.inconsistency_issues ?? issues.length) || 0;
-    if (count === 0) return summary;
-    const lines = [summary, "", `Detected ${count} inconsistency issue(s)`];
+    const issues = allConflictIssues(report);
+    const count = Number(report?.summary?.total_issues ?? issues.length) || 0;
+    // The assistant panel is a conversational summary, not the analyzer's
+    // diagnostics surface. Keep its no-conflict result to one factual line.
+    const existingCount = report?.analysis_scope?.existing_count
+        ?? report?.summary?.automations
+        ?? 0;
+    if (count === 0) {
+        return `No conflicts found with ${existingCount} active Home Assistant automations.`;
+    }
+
+    const lines = [`${count} potential conflict${count === 1 ? '' : 's'} found`];
     issues.forEach((issue, index) => {
         lines.push("", `Issue ${index + 1} · ${String(issue?.issue || "Issue")}`);
         for (const [label, value] of [
@@ -59,9 +80,16 @@ export function formatConflictChatReport(report, elapsedMs = null) {
         ]) {
             if (value != null && String(value).trim()) lines.push(`${label}: ${value}`);
         }
+        const action1 = String(issue?.action1 || 'Action 1').trim();
+        const action2 = String(issue?.action2 || 'Action 2').trim();
+        const entity = String(issue?.entity || '').trim();
+        const event = String(issue?.event || '').trim();
+        lines.push(
+            `${action1} and ${action2} may produce incompatible results`
+            + `${entity ? ` for ${entity}` : ''}${event ? ` following the trigger: ${event}` : ''}.`,
+        );
     });
     if (!issues.length) lines.push("No detailed issue list provided by analyzer.");
-    else lines.push("", "Two rules triggered by the same event produce conflicting actions.");
     return lines.join("\n");
 }
 

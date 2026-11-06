@@ -19,6 +19,9 @@ import { initTaskAltUI } from '../test/task_alt/task_alt_ui';
 import { initAiAssistantUI } from './homeassistant/llm_assistant/assistant_ui';
 import { initBlockSearchFlyout } from './block_search_flyout.js';
 import { installEntityDropdownSearch } from './blocks/utils/searchable_entity_dropdown.js';
+import { decorateBlockDefinitionsWithFilledIcons, installFilledIconsOnWorkspace } from './icons/block_filled_icons.js';
+import { createEntityStateStore } from './icons/entity_state_store.js';
+import { installLiveEntityIcons, setEntityIconStateStore } from './icons/entity_dropdown_icons.js';
 import { createWorkspaceDirtyTracker } from './utils/workspace_dirty_tracker.js';
 import { replaceWorkspaceSafely } from './utils/safe_workspace_replace.js';
 import { confirmDiscardUnsavedChanges } from './utils/unsaved_changes_dialog.js';
@@ -116,6 +119,17 @@ Blockly.common.defineBlocks(actionScriptBlocks);
 Blockly.common.defineBlocks(actionNotifyTagBlocks);
 Blockly.common.defineBlocks(actionMqttBlocks);
 
+// Icons are presentation-only fields. Install them after every block
+// definition exists, before Blockly creates its Toolbox preview blocks.
+decorateBlockDefinitionsWithFilledIcons();
+const entityStateStore = createEntityStateStore({
+  initialEntities: dummyEntities,
+  // The current Node backend does not expose the icon branch's SSE endpoint.
+  // Poll the existing Home Assistant proxy instead.
+  eventSourceFactory: null,
+});
+setEntityIconStateStore(entityStateStore);
+
 const codeDiv = document.getElementById('generatedCode');
 const blocklyDiv = document.getElementById('blocklyDiv');
 let latestYamlPreview = { yaml: '', ranges: new Map() };
@@ -139,9 +153,14 @@ const ws = Blockly.inject(blocklyDiv, {
   },
 });
 
+installFilledIconsOnWorkspace(ws);
 window.Blockly = Blockly;
 window.ws = ws;
-const refreshEntityDropdownSearch = installEntityDropdownSearch(ws);
+installLiveEntityIcons(ws, entityStateStore);
+const nativeFlyoutWorkspace = ws.getToolbox?.()?.getFlyout?.()?.getWorkspace?.();
+if (nativeFlyoutWorkspace) installLiveEntityIcons(nativeFlyoutWorkspace, entityStateStore);
+const refreshEntityDropdownSearch = installEntityDropdownSearch(ws, entityStateStore);
+entityStateStore.start();
 const workspaceChangeTracker = createWorkspaceDirtyTracker(ws);
 
 ws.addChangeListener((event) => {
@@ -233,7 +252,7 @@ const initWorkspaceTools = () => {
     getWorkspaceYaml: () => generateScopedYaml(ws),
     confirmBeforeReplace: (proceed) => workspaceChangeTracker.confirmBeforeReplace(proceed),
   });
-  initBlockSearchFlyout({ workspace: ws });
+  initBlockSearchFlyout({ workspace: ws, entityStateStore });
 };
 initWorkspaceTools();
 

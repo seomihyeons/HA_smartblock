@@ -1,4 +1,4 @@
-import { pullAutomationIndexWithEditability, pullAutomationConfig } from './pull_automation';
+import { pullAutomationIndexWithEditability, pullAutomationConfig, setAutomationEnabled } from './pull_automation';
 import { renderAutomationToWorkspace } from '../import/yamlToBlocks';
 import { normalizeAutomationObject } from '../import/yaml_import';
 import { showImportDebugJson } from '../import/import_debug_panel';
@@ -34,7 +34,9 @@ function el(tag, props = {}, children = []) {
 }
 
 function setStatus(host, msg, isError = false) {
+    if (!host) return;
     host.textContent = msg;
+    host.style.display = msg ? '' : 'none';
     host.style.color = isError ? '#ef4444' : '#10b981';
 }
 
@@ -96,11 +98,6 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode', workspaceChan
         row.appendChild(btnLoad);
         row.appendChild(btnRefresh);
 
-        const status = el('div', { id: 'haPullStatus', innerText: '' });
-        status.style.fontSize = '12px';
-        status.style.marginBottom = '8px';
-        status.style.minHeight = '16px';
-
         const searchInput = el('input', {
             id: 'haAutomationSearch', type: 'search', placeholder: 'Search automations...', autocomplete: 'off',
         });
@@ -122,9 +119,13 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode', workspaceChan
 
         panel.appendChild(title);
         panel.appendChild(row);
-        panel.appendChild(status);
         panel.appendChild(searchInput);
         panel.appendChild(listBox);
+
+        // This compact panel intentionally has no status row. Loading and
+        // fetch failures remain observable in the browser console instead of
+        // consuming vertical space above the automation list.
+        const status = null;
 
         if (yamlButtons) {
             yamlButtons.insertAdjacentElement('afterend', panel);
@@ -180,7 +181,13 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode', workspaceChan
                 title.style.textOverflow = 'ellipsis';
                 title.style.whiteSpace = 'nowrap';
 
-                const stateBadge = el('span', { innerText: enabled ? 'Enabled' : 'Disabled' });
+                const stateBadge = el('button', {
+                    type: 'button',
+                    innerText: enabled ? 'Enabled' : 'Disabled',
+                    title: enabled ? 'Disable this Home Assistant automation' : 'Enable this Home Assistant automation',
+                });
+                stateBadge.setAttribute('aria-label', `${enabled ? 'Disable' : 'Enable'} ${name}`);
+                stateBadge.setAttribute('aria-pressed', String(enabled));
                 stateBadge.style.flex = '0 0 auto';
                 stateBadge.style.padding = '2px 6px';
                 stateBadge.style.border = `1px solid ${enabled ? '#86efac' : '#d1d5db'}`;
@@ -189,6 +196,21 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode', workspaceChan
                 stateBadge.style.color = enabled ? '#166534' : '#6b7280';
                 stateBadge.style.fontSize = '10px';
                 stateBadge.style.fontWeight = '700';
+                stateBadge.style.cursor = 'pointer';
+                stateBadge.addEventListener('click', async (event) => {
+                    event.stopPropagation();
+                    stateBadge.disabled = true;
+                    stateBadge.textContent = enabled ? 'Disabling…' : 'Enabling…';
+                    try {
+                        await setAutomationEnabled(item.entity_id, !enabled);
+                        // Re-read HA state instead of trusting an optimistic UI update.
+                        await loadList();
+                    } catch (error) {
+                        console.error(`Failed to ${enabled ? 'disable' : 'enable'} automation`, error);
+                        stateBadge.disabled = false;
+                        stateBadge.textContent = enabled ? 'Enabled' : 'Disabled';
+                    }
+                });
                 top.appendChild(title);
                 top.appendChild(stateBadge);
 
@@ -284,15 +306,13 @@ export function setupHaPullPanel({ ws, outputId = 'generatedCode', workspaceChan
                     return String(a.name || '').localeCompare(String(b.name || ''), 'en');
                 });
 
-                const okCount = cache.filter((x) => x.editable).length;
-                const enabledCount = cache.filter(isAutomationEnabled).length;
-                const disabledCount = cache.length - enabledCount;
-
                 btnRefresh.disabled = false;
                 btnRefresh.style.opacity = '1';
                 searchInput.style.display = '';
 
-                setStatus(status, `Loaded ${cache.length}. Enabled: ${enabledCount}. Disabled: ${disabledCount}. Editable: ${okCount}. Click an editable item to open.`);
+                // The list itself communicates availability; reserve this area
+                // for transient loading and actionable error messages only.
+                setStatus(status, '');
                 renderList();
             } catch (e) {
                 console.error(e);

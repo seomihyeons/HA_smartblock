@@ -1,109 +1,224 @@
 import * as Blockly from 'blockly';
+import { enhanceBlockEntityIcons, refreshEntityIcon } from '../../icons/entity_dropdown_icons.js';
+import { resolveActualIcon } from '../../icons/icon_semantics.js';
+import { mdiDataUri } from '../../icons/mdi_svg.js';
 
-// Keep ordinary dropdowns untouched; only entity selectors receive type-ahead.
-const ENTITY_FIELD_NAMES = new Set(['ENTITY', 'ENTITY_ID', 'AFTER_ENTITY', 'BEFORE_ENTITY', 'TARGET']);
+// These fields represent entities in the current block.  Other dropdowns
+// (state, service, mode, etc.) deliberately retain Blockly's normal menu.
+const ENTITY_FIELD_NAMES = new Set(['ENTITY', 'ENTITY_ID', 'AFTER_ENTITY', 'BEFORE_ENTITY', 'TARGET', 'USER']);
 const SEARCH_ENABLED = Symbol('haEntitySearchEnabled');
 
-function optionsFor(field) {
-  return (field.getOptions?.(false) || []).map(([label, value]) => [
-    typeof label === 'string' && label.trim() ? label : String(value || ''),
-    String(value ?? ''),
-  ]);
+function optionText(option) {
+  const [label, value] = option;
+  return typeof label === 'string' && label.trim() ? label : String(value || '');
+}
+function getEntityOptions(field) {
+  // false deliberately bypasses FieldDropdown's dynamic-option cache so a
+  // freshly loaded Home Assistant entity list is reflected when the menu opens.
+  return (field.getOptions?.(false) || [])
+    .map(([label, value]) => [optionText([label, value]), String(value ?? '')]);
 }
 
-function openSearch(field) {
+function getEntityFieldCategory(field) {
+  const type = String(field.getSourceBlock()?.type || '');
+  if (type.startsWith('event_') || type.startsWith('ha_event_')) return 'trigger';
+  if (type.startsWith('condition_')) return 'condition';
+  if (type.startsWith('action_')) return 'action';
+  return 'action';
+}
+
+function openEntitySearch(field, stateStore) {
   const content = Blockly.DropDownDiv.getContentDiv();
   content.replaceChildren();
+
   const root = document.createElement('div');
-  root.className = 'ha-entity-search-dropdown';
+  root.className = `ha-entity-search-dropdown ha-entity-search--${getEntityFieldCategory(field)}`;
+
   const input = document.createElement('input');
-  input.type = 'search';
   input.className = 'ha-entity-search-input';
+  input.type = 'search';
   input.placeholder = 'Search entities…';
   input.autocomplete = 'off';
+  input.setAttribute('aria-label', 'Search entities');
+
   const results = document.createElement('div');
   results.className = 'ha-entity-search-results';
+  results.setAttribute('role', 'listbox');
+  results.setAttribute('aria-label', 'Entity results');
+
   root.append(input, results);
   content.appendChild(root);
 
-  const options = optionsFor(field);
-  let matches = options;
-  let active = -1;
+  const options = getEntityOptions(field);
+  const iconNodes = new Map();
+  let matchingOptions = options;
+  let activeIndex = -1;
+
   const choose = (value) => {
+    // Use Blockly's normal setter so existing validators continue to update
+    // dependent fields (for example, Numeric State units and state choices).
     field.setValue(value);
+    refreshEntityIcon(field);
     Blockly.DropDownDiv.hideIfOwner(field, true);
   };
-  const render = () => {
+
+  const renderResults = () => {
     results.replaceChildren();
-    if (!matches.length) {
+    iconNodes.clear();
+    if (!matchingOptions.length) {
       const empty = document.createElement('div');
       empty.className = 'ha-entity-search-empty';
       empty.textContent = 'No matching entities';
       results.appendChild(empty);
+      activeIndex = -1;
       return;
     }
-    matches.forEach(([label, value], index) => {
+
+    if (activeIndex >= matchingOptions.length) activeIndex = -1;
+    matchingOptions.forEach(([label, value], index) => {
       const option = document.createElement('button');
       option.type = 'button';
       option.className = 'ha-entity-search-option';
-      option.classList.toggle('is-active', index === active);
+      option.setAttribute('role', 'option');
+      option.setAttribute('aria-selected', value === field.getValue() ? 'true' : 'false');
+      option.classList.toggle('is-active', index === activeIndex);
       option.classList.toggle('is-selected', value === field.getValue());
-      option.textContent = label;
+
+      const icon = document.createElement('img');
+      icon.className = 'ha-entity-search-icon';
+      icon.width = 16;
+      icon.height = 16;
+      icon.alt = '';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.setAttribute('data-ha-entity-id', value);
+      const resolved = resolveActualIcon(value, stateStore?.get(value) || null);
+      icon.src = mdiDataUri(resolved.name, resolved.color);
+      if (!iconNodes.has(value)) iconNodes.set(value, []);
+      iconNodes.get(value).push(icon);
+
+      const name = document.createElement('span');
+      name.className = 'ha-entity-search-name';
+      name.textContent = label;
+      option.append(icon, name);
+
       option.addEventListener('pointerdown', (event) => event.preventDefault());
       option.addEventListener('click', () => choose(value));
       results.appendChild(option);
     });
   };
+
   const filter = () => {
-    const query = input.value.trim().toLowerCase();
-    matches = !query ? options : options.filter(([label, value]) =>
-      `${label} ${value}`.toLowerCase().includes(query));
-    active = -1;
-    render();
+    const query = input.value.trim().toLocaleLowerCase();
+    matchingOptions = !query
+      ? options
+      : options.filter(([label, value]) => `${label} ${value}`.toLocaleLowerCase().includes(query));
+    activeIndex = -1;
+    renderResults();
   };
+
   input.addEventListener('input', filter);
   input.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
       event.preventDefault();
       Blockly.DropDownDiv.hideIfOwner(field, true);
-    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      if (!matches.length) return;
+      return;
+    }
+    if (!matchingOptions.length) return;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
-      active = event.key === 'ArrowDown'
-        ? (active + 1 + matches.length) % matches.length
-        : (active - 1 + matches.length) % matches.length;
-      render();
+      const direction = event.key === 'ArrowDown' ? 1 : -1;
+      activeIndex = activeIndex < 0
+        ? (direction > 0 ? 0 : matchingOptions.length - 1)
+        : (activeIndex + direction + matchingOptions.length) % matchingOptions.length;
+      renderResults();
       results.querySelector('.is-active')?.scrollIntoView({ block: 'nearest' });
-    } else if (event.key === 'Enter' && active >= 0 && matches[active]) {
+      return;
+    }
+    if (event.key === 'Enter') {
       event.preventDefault();
-      choose(matches[active][1]);
+      const selected = matchingOptions[activeIndex];
+      if (selected) choose(selected[1]);
     }
   });
-  render();
+
+  renderResults();
+  // Update only affected image nodes. Never rebuild the list on a live
+  // state event: keep text input, scroll offset, focus and keyboard selection.
+  const unsubscribe = stateStore?.subscribe((changedIds) => {
+    for (const id of changedIds) {
+      const nodes = iconNodes.get(id);
+      if (!nodes) continue;
+      const resolved = resolveActualIcon(id, stateStore.get(id));
+      const src = mdiDataUri(resolved.name, resolved.color);
+      for (const icon of nodes) icon.src = src;
+    }
+  });
   Blockly.DropDownDiv.setColour('#ffffff', '#b8c0cc');
-  Blockly.DropDownDiv.showPositionedByField(field, () => content.replaceChildren());
+  Blockly.DropDownDiv.showPositionedByField(field, () => {
+    unsubscribe?.();
+    iconNodes.clear();
+    content.replaceChildren();
+  });
+  // The DropdownDiv must be visible before the input can reliably receive focus.
   requestAnimationFrame(() => input.focus());
 }
 
-export function enableEntitySearch(field) {
+export function enableEntitySearch(field, stateStore) {
   if (!(field instanceof Blockly.FieldDropdown) || field[SEARCH_ENABLED]) return;
   field[SEARCH_ENABLED] = true;
-  field.showEditor_ = function showEntitySearchEditor() { openSearch(this); };
+  field.showEditor_ = function showEntitySearchEditor() {
+    openEntitySearch(this, stateStore);
+  };
 }
 
-export function installEntityDropdownSearch(workspace) {
-  const enhance = (block) => {
-    if (!block?.getField) return;
-    ENTITY_FIELD_NAMES.forEach((name) => enableEntitySearch(block.getField(name)));
+function enhanceBlockEntityFields(block, stateStore) {
+  if (!block?.getField) return;
+  enhanceBlockEntityIcons(block);
+  for (const fieldName of ENTITY_FIELD_NAMES) {
+    enableEntitySearch(block.getField(fieldName), stateStore);
+  }
+}
+
+/**
+ * Adds entity-only search behavior to blocks in one workspace without changing
+ * their saved values, menu generators, or validators.
+ */
+export function installEntityDropdownSearch(workspace, stateStore) {
+  const enhance = (block) => enhanceBlockEntityFields(block, stateStore);
+  const enhanceAll = () => workspace.getAllBlocks(false).forEach(enhance);
+  const pendingBlockIds = new Set();
+  let blockRefreshQueued = false;
+
+  const refreshChangedBlocks = () => {
+    blockRefreshQueued = false;
+    for (const blockId of pendingBlockIds) {
+      enhance(workspace.getBlockById(blockId));
+    }
+    pendingBlockIds.clear();
   };
-  const refresh = () => workspace.getAllBlocks(false).forEach(enhance);
-  refresh();
+
+  const scheduleChangedBlockRefresh = (blockId) => {
+    if (!blockId) return;
+    pendingBlockIds.add(blockId);
+    if (blockRefreshQueued) return;
+    blockRefreshQueued = true;
+    queueMicrotask(refreshChangedBlocks);
+  };
+
+  enhanceAll();
+
   workspace.addChangeListener((event) => {
     if (event.type === Blockly.Events.BLOCK_CREATE || event.type === Blockly.Events.FINISHED_LOADING) {
-      queueMicrotask(refresh);
-    } else if (event.type === Blockly.Events.BLOCK_CHANGE) {
-      queueMicrotask(() => enhance(workspace.getBlockById(event.blockId)));
+      queueMicrotask(enhanceAll);
+      return;
+    }
+    if (event.type === Blockly.Events.BLOCK_CHANGE) {
+      // Dynamic blocks such as time conditions can remove and recreate an
+      // entity dropdown after their mode changes. Re-attach search only to the
+      // affected block, after that shape update completes.
+      scheduleChangedBlockRefresh(event.blockId);
     }
   });
-  return refresh;
+
+  return enhanceAll;
 }

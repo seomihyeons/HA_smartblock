@@ -41,8 +41,24 @@ body.floating-buttons-hidden #btnAiAssistant { opacity: 0 !important; pointer-ev
 .ai-draft-card { width:100%; box-sizing:border-box; margin:8px 0 14px; padding:12px; border:1px solid #d1d5db; border-radius:10px; background:#fff; font-size:12px; line-height:1.5; }
 .ai-draft-title { margin-bottom:8px; font-size:13px; font-weight:700; }
 .ai-draft-row { margin:5px 0; }
+.ai-draft-row-added,
+.ai-draft-row-changed { color:#1d4ed8; font-weight:600; }
 .ai-draft-validation { margin:9px 0; padding-top:8px; border-top:1px solid #e5e7eb; color:#166534; }
 .ai-draft-assumptions { margin:9px 0; padding:8px 10px; border:1px solid #f3d08a; border-radius:8px; background:#fffbeb; color:#92400e; }
+.ai-conflict-card { width:100%; box-sizing:border-box; margin:8px 0 14px; padding:12px; border:1px solid #d1d5db; border-radius:10px; background:#fff; color:#111827; font-size:12px; line-height:1.5; }
+.ai-conflict-card-clear { border-color:#86efac; background:#f0fdf4; }
+.ai-conflict-card-warning { border-color:#f3d08a; background:#fffdf8; }
+.ai-conflict-title { font-size:13px; font-weight:700; }
+.ai-conflict-card-clear .ai-conflict-title { color:#166534; }
+.ai-conflict-card-warning .ai-conflict-title { color:#92400e; }
+.ai-conflict-summary { margin-top:3px; color:#64748b; font-size:11px; }
+.ai-conflict-issue-card { margin-top:10px; padding:10px; border:1px solid #fed7aa; border-radius:8px; background:#fff; }
+.ai-conflict-issue-title { font-weight:700; color:#9a3412; }
+.ai-conflict-automations { margin:3px 0 7px; color:#475569; font-weight:600; }
+.ai-conflict-row { display:grid; grid-template-columns:64px minmax(0,1fr); gap:8px; margin:3px 0; }
+.ai-conflict-key { color:#64748b; }
+.ai-conflict-value { min-width:0; color:#1f2937; overflow-wrap:anywhere; }
+.ai-conflict-description { margin-top:8px; padding-top:8px; border-top:1px solid #fed7aa; color:#7c2d12; }
 .ai-draft-actions, .ai-candidate-list { display:flex; flex-wrap:wrap; gap:7px; margin-top:10px; }
 .ai-assistant-status { display:inline-flex; align-items:center; padding:4px 10px; border:1px solid #d1d5db; border-radius:999px; color:#374151; background:#e5e7eb; font-size:12px; font-weight:700; }
 .ai-assistant-status.state-error { color:#991b1b; background:#fee2e2; border-color:#fca5a5; }

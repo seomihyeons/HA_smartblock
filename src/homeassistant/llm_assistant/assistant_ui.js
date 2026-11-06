@@ -4,7 +4,8 @@ import { yamlTextToInternalJson } from '../../import/yaml_import.js';
 import { pushYamlToHomeAssistant } from '../push_automation.js';
 import YAML from 'js-yaml';
 import { runConflictAnalyzer } from '../conflict_analyzer/run_conflict_analyzer.js';
-import { formatConflictChatReport, classifyConflictError } from '../conflict_analyzer/conflict_report_format.js';
+import { classifyConflictError } from '../conflict_analyzer/conflict_report_format.js';
+import { dummyEntities } from '../../data/entities_index.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -101,6 +102,57 @@ function describeAction(action = {}) {
   return `${service}${targets ? ` · ${targets}` : ''}`;
 }
 
+function canonicalValue(value) {
+  if (Array.isArray(value)) return value.map(canonicalValue);
+  if (!value || typeof value !== 'object') return value;
+  return Object.keys(value).sort().reduce((result, key) => {
+    result[key] = canonicalValue(value[key]);
+    return result;
+  }, {});
+}
+
+function sameAutomationItem(left, right) {
+  return JSON.stringify(canonicalValue(left)) === JSON.stringify(canonicalValue(right));
+}
+
+function itemIdentity(kind, item = {}) {
+  const entityId = displayValue(item.entity_id || item.target?.entity_id || item.target?.device_id);
+  if (kind === 'trigger') return [item.trigger || item.platform || '', entityId, item.event_type || ''].join('|');
+  if (kind === 'condition') return [item.condition || item.type || '', entityId].join('|');
+  if (kind === 'action') return [actionName(item) || (item.delay != null ? 'delay' : ''), entityId].join('|');
+  return '';
+}
+
+function automationItems(automation, kind) {
+  const plural = `${kind}s`;
+  const value = automation?.[plural] ?? automation?.[kind] ?? [];
+  return Array.isArray(value) ? value : [value].filter(Boolean);
+}
+
+function parseComparisonAutomation(yaml) {
+  if (!yaml || typeof yaml !== 'string') return null;
+  try {
+    const parsed = YAML.load(yaml);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+// Only presentation is derived here: unchanged lines remain neutral, additions
+// are green, and edits to an existing semantic item are blue. This does not
+// affect the generated YAML, validation, or import behavior.
+function draftRowChangeClass(kind, item, baseline) {
+  if (!baseline) return '';
+  const prior = automationItems(baseline, kind);
+  if (prior.some((previous) => sameAutomationItem(previous, item))) return '';
+  const identity = itemIdentity(kind, item);
+  if (identity && prior.some((previous) => itemIdentity(kind, previous) === identity)) {
+    return 'ai-draft-row-changed';
+  }
+  return 'ai-draft-row-added';
+}
+
 function setStatus(element, state, message) {
   element.className = `ai-assistant-status state-${state}`;
   element.textContent = message;
@@ -115,6 +167,156 @@ function responseLanguageFor(command) {
 
 function titleForAutomation(automation, fallback = 'Automation draft') {
   return String(automation?.alias || automation?.id || fallback);
+}
+
+function entityRecord(entityId) {
+  return (dummyEntities || []).find((entity) => entity?.entity_id === entityId) || null;
+}
+
+function friendlyEntityName(entityId) {
+  const id = String(entityId || '').trim();
+  const entity = entityRecord(id);
+  return String(entity?.attributes?.friendly_name || entity?.friendly_name || entity?.name || id || 'Unknown entity');
+}
+
+function readableState(entityId, value) {
+  const state = String(value || '').trim();
+  const deviceClass = String(entityRecord(entityId)?.attributes?.device_class || '').toLowerCase();
+  if (deviceClass === 'motion') return state === 'on' ? 'detected' : state === 'off' ? 'cleared' : state;
+  if (deviceClass === 'door') return state === 'on' ? 'open' : state === 'off' ? 'closed' : state;
+  return state || 'a new state';
+}
+
+function describeConflictTrigger(trigger = {}) {
+  const platform = String(trigger?.platform || '').trim();
+  const entityId = String(trigger?.entity_id || '').trim();
+  if (platform === 'state' && entityId) {
+    return `${friendlyEntityName(entityId)} changes to ${readableState(entityId, trigger?.to)}`;
+  }
+  if (platform.startsWith('event:')) return `Event ${platform.slice('event:'.length)}`;
+  return platform || 'Unknown trigger';
+}
+
+function describeConflictAction(action = {}) {
+  const service = String(action?.service || '').trim();
+  const entityId = String(action?.entity_id || '').trim();
+  const verb = {
+    turn_on: 'Turn on', turn_off: 'Turn off', lock: 'Lock', unlock: 'Unlock',
+    open_cover: 'Open', close_cover: 'Close', open_valve: 'Open', close_valve: 'Close',
+    play: 'Play', stop: 'Stop', pause: 'Pause', mute: 'Mute', unmute: 'Unmute',
+  }[service.split('.').pop()] || service.split('.').pop()?.replace(/_/g, ' ').replace(/^./, (char) => char.toUpperCase()) || 'Run';
+  return entityId ? `${verb} ${friendlyEntityName(entityId)}` : verb;
+}
+
+function conflictAutomationLabel(action = {}) {
+  const source = action?.automation || {};
+  return String(source.alias || source.id || 'Unknown automation');
+}
+
+function allConflictIssues(report = {}) {
+  return [
+    ...(Array.isArray(report?.redundancy) ? report.redundancy : []),
+    ...(Array.isArray(report?.inconsistency) ? report.inconsistency : []),
+    ...(Array.isArray(report?.circularity) ? report.circularity : []),
+  ];
+}
+
+function describeCycleNode(node = {}) {
+  if (node?.kind === 'trigger') return describeConflictTrigger(node.trigger);
+  if (node?.kind === 'action') return describeConflictAction(node.action);
+  return 'Unknown step';
+}
+
+function conflictIssuePresentation(issue = {}) {
+  const type = String(issue?.issue_code || '');
+  if (type === 'duplicate_action_path') {
+    const action = issue?.action || {};
+    const automations = Array.isArray(issue?.automations) ? issue.automations : [];
+    const labels = automations.map((automation) => String(automation?.alias || automation?.id || '')).filter(Boolean);
+    return {
+      title: 'Duplicate action path',
+      automations: labels.length ? `Automations: ${labels.join(' ↔ ')}` : `Automation: ${conflictAutomationLabel(action)}`,
+      rows: [
+        ['Trigger', describeConflictTrigger(issue?.trigger)],
+        ['Action', describeConflictAction(action)],
+        ['Paths', `${Number(issue?.paths_count || 0)} execution paths`],
+      ],
+      description: `${describeConflictAction(action)} can be reached through multiple paths after ${describeConflictTrigger(issue?.trigger)}.`,
+    };
+  }
+  if (type === 'circular_automation_flow') {
+    const automations = Array.isArray(issue?.automations) ? issue.automations : [];
+    const labels = automations.map((automation) => String(automation?.alias || automation?.id || '')).filter(Boolean);
+    const cycle = (Array.isArray(issue?.cycle) ? issue.cycle : []).map(describeCycleNode).join(' → ');
+    return {
+      title: 'Circular automation flow',
+      automations: labels.length ? `Automations: ${labels.join(' ↔ ')}` : '',
+      rows: [['Cycle', cycle || 'A state change can trigger the flow again']],
+      description: 'This automation flow can feed back into one of its own triggers and repeat.',
+    };
+  }
+  const action1 = issue?.action_1 || {};
+  const action2 = issue?.action_2 || {};
+  const trigger = issue?.trigger || {};
+  const entityId = String(issue?.entity_id || action1.entity_id || action2.entity_id || '').trim();
+  return {
+    title: 'Inconsistent device actions',
+    automations: `Automations: ${conflictAutomationLabel(action1)} ↔ ${conflictAutomationLabel(action2)}`,
+    rows: [
+      ['Trigger', describeConflictTrigger(trigger)],
+      ['Action 1', describeConflictAction(action1)],
+      ['Action 2', describeConflictAction(action2)],
+      ['Entity', friendlyEntityName(entityId)],
+    ],
+    description: `${describeConflictAction(action1)} and ${describeConflictAction(action2)} may produce incompatible results for ${friendlyEntityName(entityId)} following ${describeConflictTrigger(trigger)}.`,
+  };
+}
+
+function createConflictChatCard(report) {
+  const issues = allConflictIssues(report);
+  const count = Number(report?.summary?.total_issues ?? issues.length) || 0;
+  const existingCount = report?.analysis_scope?.existing_count ?? report?.summary?.automations ?? 0;
+  const card = createElement('section', `ai-conflict-card ${count ? 'ai-conflict-card-warning' : 'ai-conflict-card-clear'}`);
+
+  if (!count) {
+    card.appendChild(createElement('div', 'ai-conflict-title', 'No conflicts found'));
+    card.appendChild(createElement(
+      'div',
+      'ai-conflict-summary',
+      `No conflicts found with ${existingCount} active Home Assistant automations.`,
+    ));
+    return card;
+  }
+
+  card.appendChild(createElement(
+    'div',
+    'ai-conflict-title',
+    `${count} potential conflict${count === 1 ? '' : 's'} found`,
+  ));
+  card.appendChild(createElement(
+    'div',
+    'ai-conflict-summary',
+    `Compared with ${existingCount} active Home Assistant automations`,
+  ));
+
+  issues.forEach((issue, index) => {
+    const presentation = conflictIssuePresentation(issue);
+    const issueCard = createElement('section', 'ai-conflict-issue-card');
+    issueCard.appendChild(createElement('div', 'ai-conflict-issue-title', `Issue ${index + 1} · ${presentation.title}`));
+    if (presentation.automations) issueCard.appendChild(createElement('div', 'ai-conflict-automations', presentation.automations));
+    presentation.rows.forEach(([label, value]) => {
+      const row = createElement('div', 'ai-conflict-row');
+      row.append(createElement('span', 'ai-conflict-key', label), createElement('span', 'ai-conflict-value', value));
+      issueCard.appendChild(row);
+    });
+    issueCard.appendChild(createElement(
+      'div',
+      'ai-conflict-description',
+      presentation.description,
+    ));
+    card.appendChild(issueCard);
+  });
+  return card;
 }
 
 import { confirmDiscardUnsavedChanges } from '../../utils/unsaved_changes_dialog.js';
@@ -489,32 +691,37 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
 
   const renderDraft = (result, artifact) => {
     const automation = result.automation || {};
-    const trigger = automation.triggers?.[0] || {};
-    const hasTrigger = Array.isArray(automation.triggers) && automation.triggers.length > 0;
-    const actionsList = Array.isArray(automation.actions) ? automation.actions : [];
+    const triggers = automationItems(automation, 'trigger');
+    const conditionsList = automationItems(automation, 'condition');
+    const actionsList = automationItems(automation, 'action');
     const card = createElement('section', 'ai-draft-card');
     const isModification = result.operation === 'modify';
+    const baseline = isModification ? parseComparisonAutomation(result.comparison_base_yaml) : null;
     card.appendChild(createElement('div', 'ai-draft-title', isModification
       ? `Proposed update · ${automation.alias || 'Automation'}`
       : automation.alias || 'Automation draft'));
-    card.appendChild(createElement(
-      'div',
-      'ai-draft-row',
-      hasTrigger
-        ? `Trigger · ${describeTrigger(trigger)}`
-        : 'Trigger · Not specified',
-    ));
-    (Array.isArray(automation.conditions) ? automation.conditions : []).forEach((condition, index) => {
+    if (!triggers.length) {
+      card.appendChild(createElement('div', 'ai-draft-row', 'Trigger · Not specified'));
+    }
+    triggers.forEach((trigger, index) => {
+      const label = triggers.length === 1 ? 'Trigger' : `Trigger ${index + 1}`;
       card.appendChild(createElement(
         'div',
-        'ai-draft-row',
+        `ai-draft-row ${draftRowChangeClass('trigger', trigger, baseline)}`.trim(),
+        `${label} · ${describeTrigger(trigger)}`,
+      ));
+    });
+    conditionsList.forEach((condition, index) => {
+      card.appendChild(createElement(
+        'div',
+        `ai-draft-row ${draftRowChangeClass('condition', condition, baseline)}`.trim(),
         `Condition ${index + 1} · ${describeCondition(condition)}`,
       ));
     });
     actionsList.forEach((action, index) => {
       card.appendChild(createElement(
         'div',
-        'ai-draft-row',
+        `ai-draft-row ${draftRowChangeClass('action', action, baseline)}`.trim(),
         `Action ${index + 1} · ${describeAction(action)}`,
       ));
     });
@@ -575,7 +782,8 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           || report.analysis_scope?.draft_count !== 1) {
           throw new Error('The analyzer did not confirm that the imported draft was included.');
         }
-        appendMessage('assistant', formatConflictChatReport(report, Math.round(performance.now() - started)));
+        messages.appendChild(createConflictChatCard(report));
+        scrollToLatest();
         setStatus(status, 'done', 'Analysis complete');
       } catch (error) {
         appendMessage('assistant', classifyConflictError(error), 'ai-message-error');
@@ -601,6 +809,7 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     sendButton.disabled = true;
     input.disabled = true;
     setStatus(status, 'running', 'Processing...');
+    const comparisonBaseYaml = activeAutomationContext?.base_yaml || '';
     try {
       const response = await fetch('/api/assistant/message', {
         method: 'POST',
@@ -703,7 +912,11 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
           };
           recentDrafts = [artifact, ...recentDrafts].slice(0, 12);
           selectContext(artifact);
-          renderDraft({ ...payload, operation: payload.operation || activeAutomationOperation }, artifact);
+          renderDraft({
+            ...payload,
+            operation: payload.operation || activeAutomationOperation,
+            comparison_base_yaml: comparisonBaseYaml,
+          }, artifact);
           setStatus(status, 'done', 'Draft ready');
           selections = {};
           return;
