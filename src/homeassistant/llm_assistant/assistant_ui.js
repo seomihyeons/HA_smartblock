@@ -389,10 +389,6 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
     scrollToLatest();
   };
 
-  const contextBar = createElement('section', 'ai-automation-context');
-  contextBar.setAttribute('aria-label', 'Automation editing context');
-  panel.querySelector('.ai-assistant-meta')?.insertAdjacentElement('afterend', contextBar);
-
   const selectContext = (context) => {
     activeAutomationContext = context || null;
     renderContextBar();
@@ -428,40 +424,19 @@ export function initAiAssistantUI({ ws, renderAutomationToWorkspace, getWorkspac
   };
 
   function renderContextBar() {
-    contextBar.textContent = '';
-    const context = activeAutomationContext;
-    contextBar.hidden = !context;
-    if (!context) return;
-    const source = context.source === 'recent_draft'
-      ? 'recent draft'
-      : context.source === 'home_assistant'
-        ? 'Home Assistant'
-        : 'current Blockly workspace';
-    contextBar.appendChild(createElement('span', 'ai-automation-context-label', `Editing: ${context.title} · ${source}`));
+    // Editing context remains in activeAutomationContext for follow-up
+    // requests, but is intentionally not shown as a persistent chat banner.
   }
 
   const renderWelcome = () => {
     messages.textContent = '';
     const section = createElement('section', 'ai-assistant-welcome');
     section.id = 'aiAssistantWelcome';
-    section.appendChild(createElement('h2', '', 'Ask HA-SmartBlock'));
+    section.appendChild(createElement('h2', '', 'How can I help?'));
     section.appendChild(createElement(
       'p',
       '',
-      'Describe a smart-home goal, create an automation, or request a supported device action. Goal-based automation drafts can be reviewed as blocks; saving still requires Push to HA.',
-    ));
-    const example = createElement('div', 'ai-welcome-example');
-    example.appendChild(createElement('span', '', 'Examples'));
-    example.appendChild(createElement(
-      'code',
-      '',
-      'Prepare for sleep. · When entrance motion is detected, turn on the living room light. · Turn on the coffee maker.',
-    ));
-    section.appendChild(example);
-    section.appendChild(createElement(
-      'div',
-      'ai-welcome-safety',
-      'Requests are routed automatically · Ambiguous device requests require a choice · Automation saving still requires Push to HA',
+      'Describe what you want to automate or control, or ask about your Home Assistant. Automation drafts can be reviewed and refined as blocks before you save them.',
     ));
     messages.appendChild(section);
   };

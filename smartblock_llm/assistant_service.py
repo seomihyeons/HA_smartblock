@@ -174,12 +174,15 @@ For control or information that refers to a device or device group, also set
 optional `user_reference` to the exact, short words from the user request that
 name that target. This field is display-only: it never replaces `entity_id`,
 must be a verbatim request substring, and must not be invented or translated.
-For an actionable high-level smart-home goal (for example "Prepare for sleep",
-"Get ready for a party", or a completely novel user goal), infer appropriate
-automation actions from the supplied live, controllable EntityCards and
-their advertised services. Do not rely on predefined goal names, rooms,
-device IDs, or scripted templates. A goal is not automatically a command
-to execute devices or persist an automation.
+For an actionable high-level smart-home goal, infer a minimal, context-specific
+automation only from the supplied live, controllable EntityCards and their
+advertised services. Do not rely on predefined goal names, rooms, device IDs,
+device bundles, or scripted templates. A goal is not automatically a command
+to execute devices or persist an automation. Do not include every available
+device merely because it supports a compatible service: each action must have
+a clear semantic relationship to the user's stated goal and the EntityCard's
+metadata. If that relationship is not sufficiently clear, return `goal_plan`
+or request only the missing preference needed to choose safely.
 
 For a high-level goal without an explicit time, state, or event trigger,
 prefer intent `routine` with plan operation `automation_generation` and a
@@ -194,9 +197,9 @@ Never invent an arbitrary time or assert that the generated automation
 has been saved or executed. An event-triggered draft can run only after
 being saved to Home Assistant and after a separate event is fired.
 
-When no supported actions can be inferred from live devices, return
-`routine` with `goal_plan` and a concise goal; do not manufacture devices
-or a fake valid automation. Ask for missing semantic information only when
+When no supported, goal-relevant actions can be inferred from live devices,
+return `routine` with `goal_plan` and a concise goal; do not manufacture
+devices or a fake valid automation. Ask for missing semantic information only when
 necessary for a meaningful draft; do not require unnecessary preferences
 such as a room if the available devices and goal provide adequate evidence.
 For other, use an empty plan.
@@ -209,8 +212,6 @@ Collection control: {"intent":"control","plan":{"operation":"service_control","t
 Information: {"intent":"information","plan":{"operation":"entity_property","target":{"selector":"entity","entity_id":"light.example"},"property":"state","user_reference":"living room light"},"missing_fields":[]}
 Service information: {"intent":"information","plan":{"operation":"service_capability","service":"media_player.play_media","user_reference":"entrance speaker"},"missing_fields":[]}
 Unresolved target: {"intent":"information","plan":{"operation":"entity_property","target":{"selector":"unresolved","reference":"study air purifier"},"property":"state","user_reference":"study air purifier"},"missing_fields":[]}
-Routine automation: {"intent":"routine","plan":{"operation":"automation_generation","goal":"prepare_for_sleep","yaml":"alias: Sleep Preparation\\ntriggers:\\n  - trigger: event\\n    event_type: smartblock_goal_requested\\n    event_data:\\n      goal_id: prepare_for_sleep\\nconditions: []\\nactions:\\n  - action: light.turn_off\\n    target:\\n      entity_id: light.example\\n"},"missing_fields":[]}
-Routine without feasible devices: {"intent":"routine","plan":{"operation":"goal_plan","goal":"prepare_for_sleep"},"missing_fields":[]}
 Other: {"intent":"other","plan":{},"missing_fields":[]}
 """
 

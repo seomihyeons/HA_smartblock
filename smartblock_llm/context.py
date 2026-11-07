@@ -137,7 +137,15 @@ def normalize_default_person_entity(value: Any, cards: list[dict[str, Any]]) -> 
 
 
 def retrieve_candidates(command: str, entity_cards: list[dict[str, Any]], *, limit: int = 24) -> list[dict[str, Any]]:
-    """Rank Cards from their own names and IDs; no room/device alias dictionary is used."""
+    """Return bounded name matches, or generic live capability coverage.
+
+    Normal HA-SmartBlock requests are ranked by the Node retriever. This
+    fallback serves direct API callers. An abstract request has no device-name
+    evidence, so returning an empty context would force the model to invent a
+    target. In that case select a small, deterministic sample of controllable
+    live cards, diversified by domain and area. This is capability-based and
+    intentionally does not map lifestyle goals to device types.
+    """
     query_tokens = tokens(command)
     query_compact_ngrams = compact_ngrams(command)
     ranked: list[tuple[int, str, dict[str, Any]]] = []
@@ -171,7 +179,36 @@ def retrieve_candidates(command: str, entity_cards: list[dict[str, Any]], *, lim
         if score:
             ranked.append((score, card["entity_id"], card))
     ranked.sort(key=lambda item: (-item[0], item[1]))
-    return [card for _, _, card in ranked[:limit]]
+    if ranked:
+        return [card for _, _, card in ranked[:limit]]
+
+    action_cards = sorted(
+        (
+            card
+            for card in entity_cards
+            if card.get("domain") != "automation" and card.get("supported_actions")
+        ),
+        key=lambda card: (
+            text(card.get("domain")),
+            text(card.get("area")),
+            text(card.get("entity_id")),
+        ),
+    )
+    selected: list[dict[str, Any]] = []
+    seen = set()
+    for card in action_cards:
+        coverage_key = (text(card.get("domain")), text(card.get("area")))
+        if coverage_key not in seen:
+            selected.append(card)
+            seen.add(coverage_key)
+            if len(selected) >= limit:
+                return selected
+    for card in action_cards:
+        if card not in selected:
+            selected.append(card)
+            if len(selected) >= limit:
+                break
+    return selected
 
 
 def resolved_entity_references(command: str, entity_cards: list[dict[str, Any]]) -> list[dict[str, str]]:
@@ -279,7 +316,8 @@ def public_context(home_context: Any, command: str) -> dict[str, Any]:
     capabilities = normalize_capabilities(source.get("capabilities"))
     candidates, retrieval_metadata = _host_candidates(source, cards)
     if not candidates:
-        # Direct private-API users retain a deterministic lexical fallback.
+        # Direct private-API users retain deterministic lexical matching with
+        # bounded live-capability coverage for requests that name no device.
         # Normal HA-SmartBlock traffic is ranked by server/entity_retriever.mjs.
         candidates = retrieve_candidates(command, cards, limit=16)
         retrieval_metadata = {"method": "private_lexical_fallback", "fallback": False, "ranking": []}

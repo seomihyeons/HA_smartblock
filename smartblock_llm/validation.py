@@ -204,13 +204,6 @@ def validate_response(response: Any, home_context: Any) -> dict[str, Any]:
     errors: list[str] = []
     automation = result["automation"]
 
-    resolved_ids = {
-        str(item.get("entity_id"))
-        for item in source.get("entity_resolution", []) if isinstance(item, dict)
-        and item.get("status") == "resolved" and item.get("entity_id")
-    }
-    referenced_ids: set[str] = set()
-
     contract = source.get("automation_dialect_contract") or {}
     trigger_kinds = set(contract.get("trigger_kinds") or ["state", "numeric_state", "time", "time_pattern", "sun", "homeassistant", "event", "mqtt", "template"])
     condition_kinds = set(contract.get("condition_kinds") or ["state", "numeric_state", "time", "sun", "template", "and", "or", "not", "zone.in_zone", "zone.not_in_zone"])
@@ -224,7 +217,6 @@ def validate_response(response: Any, home_context: Any) -> dict[str, Any]:
             for key, child in node.items():
                 if key == "entity_id":
                     for entity_id in _entity_ids(child):
-                        referenced_ids.add(entity_id)
                         if entity_id not in cards:
                             errors.append(f"{path} references an entity outside Home Assistant context: {entity_id}")
                 references(child, f"{path}.{key}")
@@ -288,9 +280,6 @@ def validate_response(response: Any, home_context: Any) -> dict[str, Any]:
         condition(node, f"conditions[{index}]")
     for index, node in enumerate(automation["actions"]):
         action(node, f"actions[{index}]")
-
-    for entity_id in sorted(resolved_ids - referenced_ids):
-        errors.append(f"The generated automation omitted a server-resolved entity: {entity_id}")
 
     if errors:
         result["validation"] = {"valid": False, "errors": errors}

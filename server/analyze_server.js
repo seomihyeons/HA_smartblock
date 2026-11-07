@@ -699,7 +699,6 @@ async function createDraftResponse(body = {}) {
             const preservation = validateModificationPreservation({
                 baseYaml: automationContext.base_yaml,
                 automation: result.automation,
-                command: requestCommand,
             });
             result.validation = {
                 ...result.validation,

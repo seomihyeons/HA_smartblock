@@ -258,7 +258,7 @@ function isEventSource(card) {
     || (!isActionTarget(card) && Boolean(text(card.device_class)));
 }
 
-function balancedOperationalRanking(ranking, maxCards) {
+function balancedOperationalRanking(ranking, maxCards, { preferActionTargets = false } = {}) {
   // A single global top-k can contain only one side of an ECA request (for
   // example, many environmental sensors but no controllable target). Reserve
   // bounded slots for live event sources and action targets, then fill the
@@ -277,6 +277,15 @@ function balancedOperationalRanking(ranking, maxCards) {
     }
   };
 
+  if (preferActionTargets) {
+    // An abstract request with no name or metadata match has no deterministic
+    // device reference. Keep a bounded set of live controllable options so
+    // the model can reason from advertised capabilities, without relying on
+    // lifestyle scenarios or a goal-to-device dictionary.
+    const actionReserve = Math.max(1, Math.min(limit, Math.ceil((limit * 2) / 3)));
+    ranking.filter(({ card }) => isActionTarget(card)).slice(0, actionReserve).forEach(add);
+  }
+
   // Prefer binary state transitions inside the event-source reserve.  This
   // uses the standard Home Assistant entity kind, rather than matching words
   // such as “motion” or maintaining a sensor-name dictionary.  It prevents a
@@ -294,7 +303,9 @@ function balancedOperationalRanking(ranking, maxCards) {
   ranking.filter(({ card }) => isEventSource(card)).forEach((entry) => {
     if (eventCount < reserve) addEvent(entry);
   });
-  ranking.filter(({ card }) => isActionTarget(card)).slice(0, reserve).forEach(add);
+  ranking.filter(({ card }) => isActionTarget(card))
+    .slice(0, preferActionTargets ? Math.max(0, reserve - 1) : reserve)
+    .forEach(add);
   ranking.forEach(add);
   return selected;
 }
@@ -341,7 +352,9 @@ export async function retrieveEntityContext(query, cards, options = {}) {
     throw new Error(`Unsupported entity retrieval mode: ${mode}. Use lexical or fastembed_hybrid.`);
   }
   if (mode === 'lexical' || lexical.length < 2) {
-    const ranking = balancedOperationalRanking(diversifiedLexical, maxCards);
+    const ranking = balancedOperationalRanking(diversifiedLexical, maxCards, {
+      preferActionTargets: lexicalEvidence.length === 0,
+    });
     return {
       cards: ranking.map(({ card }) => card),
       ranking: ranking.map(({ card, score }, index) => ({
@@ -363,6 +376,7 @@ export async function retrieveEntityContext(query, cards, options = {}) {
     const ranking = balancedOperationalRanking(
       reciprocalRankFusion(lexicalEvidence.length ? [lexicalEvidence, dense] : [dense]),
       maxCards,
+      { preferActionTargets: lexicalEvidence.length === 0 },
     );
     return {
       cards: ranking.map(({ card }) => card),
@@ -377,7 +391,9 @@ export async function retrieveEntityContext(query, cards, options = {}) {
       fallback: false,
     };
   } catch (error) {
-    const ranking = balancedOperationalRanking(diversifiedLexical, maxCards);
+    const ranking = balancedOperationalRanking(diversifiedLexical, maxCards, {
+      preferActionTargets: lexicalEvidence.length === 0,
+    });
     return {
       cards: ranking.map(({ card }) => card),
       ranking: ranking.map(({ card, score }, index) => ({
