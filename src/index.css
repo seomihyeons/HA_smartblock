@@ -453,8 +453,7 @@ body.floating-buttons-hidden #btnTaskAlt {
   margin: 8px 16px 0 16px;
   padding: 8px 10px;
   border-radius: 10px;
-  /* Two points larger than Blockly's default 11pt block field text. */
-  font-size: 13pt;
+  font-size: 12px;
   line-height: 1.4;
   border: 1px solid transparent;
   white-space: pre-wrap;
