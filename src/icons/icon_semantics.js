@@ -80,7 +80,6 @@ const HELPERS = Object.freeze({
   'event_sensor_numeric_state': 'gauge',
   'condition_numeric_state_entity': 'gauge',
   'condition_numeric_state_attribute': 'numeric',
-  'condition_zone_membership': 'map-marker',
   'condition_logic': 'source-merge',
   'action_notify': 'message-text',
   'action_delay': 'timer',

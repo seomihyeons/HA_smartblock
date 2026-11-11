@@ -625,22 +625,6 @@ yamlGenerator.forBlock['condition_sun_phase'] = function (block) {
   return `- condition: ${phase}\n`;
 };
 
-yamlGenerator.forBlock['condition_zone_membership'] = function (block) {
-  const condition = String(block.getFieldValue('MEMBERSHIP') || '');
-  const user = String(block.getFieldValue('USER') || '').trim();
-  const zone = String(block.getFieldValue('ZONE') || '').trim();
-  if (!['zone.in_zone', 'zone.not_in_zone'].includes(condition) || !user || !zone) return '';
-
-  return [
-    `- condition: ${condition}`,
-    '  target:',
-    `    entity_id: ${user}`,
-    '  options:',
-    `    zone: ${zone}`,
-    '',
-  ].join('\n');
-};
-
 yamlGenerator.forBlock['condition_sun_after'] = function (block, generator) {
   const event = String(block.getFieldValue('EVENT') || '').trim();
   if (!event) return '';

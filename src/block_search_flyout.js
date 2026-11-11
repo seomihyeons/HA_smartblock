@@ -51,7 +51,6 @@ const BLOCK_SEARCH_ALIASES = {
   action_lock: 'door lock unlock',
   action_cover: 'door garage shutter blind open close',
   condition_logic: 'and or logical',
-  condition_zone_membership: 'zone home away presence location in not',
 };
 
 // Static terms are taken from the actual Blockly block definition, rather

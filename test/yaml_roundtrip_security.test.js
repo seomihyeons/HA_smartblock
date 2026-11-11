@@ -24,7 +24,6 @@ import { eventMqttBlocks } from '../src/blocks/event/event_mqtt.js';
 import { conditionLogicBlocks } from '../src/blocks/condition/condition_logic.js';
 import { conditionStateBlocks } from '../src/blocks/condition/condition_entity_state.js';
 import { conditionSunBlocks } from '../src/blocks/condition/condition_sun.js';
-import { conditionZoneBlocks } from '../src/blocks/condition/condition_zone.js';
 import { conditionTimeBlocks } from '../src/blocks/condition/condition_time.js';
 import { conditionTemplateBlocks } from '../src/blocks/condition/condition_template.js';
 import { conditionNumericStateEntityBlocks } from '../src/blocks/condition/condition_numeric_state_entity.js';
@@ -41,7 +40,7 @@ import { actionNotifyTagBlocks } from '../src/blocks/action/action_notify_tag.js
 import { actionDataBlocks } from '../src/blocks/action/action_data.js';
 import { actionMqttBlocks } from '../src/blocks/action/action_mqtt.js';
 
-for(const blocks of [ruleBlocks,ruleMetadataBlocks,rawLinesBlocks,haEventStateBlocks,eventEntityBlocks,eventGroupBlocks,eventNumericSensorBlocks,eventTimeStateBlocks,eventTemplateBlocks,eventForBlocks,haEventSunBlocks,eventSunStateBlocks,eventEventBlocks,eventMqttBlocks,conditionLogicBlocks,conditionStateBlocks,conditionSunBlocks,conditionZoneBlocks,conditionTimeBlocks,conditionTemplateBlocks,conditionNumericStateEntityBlocks,conditionNumericStateAttributeBlocks,actionEntityBlocks,actionEcobeeBlocks,actionDataBlocks,actionDelayBlocks,actionIfBlocks,actionNotifyBlocks,actionGroupBlocks,actionJoinBlocks,actionScriptBlocks,actionNotifyTagBlocks,actionMqttBlocks]) Blockly.common.defineBlocks(blocks);
+for(const blocks of [ruleBlocks,ruleMetadataBlocks,rawLinesBlocks,haEventStateBlocks,eventEntityBlocks,eventGroupBlocks,eventNumericSensorBlocks,eventTimeStateBlocks,eventTemplateBlocks,eventForBlocks,haEventSunBlocks,eventSunStateBlocks,eventEventBlocks,eventMqttBlocks,conditionLogicBlocks,conditionStateBlocks,conditionSunBlocks,conditionTimeBlocks,conditionTemplateBlocks,conditionNumericStateEntityBlocks,conditionNumericStateAttributeBlocks,actionEntityBlocks,actionEcobeeBlocks,actionDataBlocks,actionDelayBlocks,actionIfBlocks,actionNotifyBlocks,actionGroupBlocks,actionJoinBlocks,actionScriptBlocks,actionNotifyTagBlocks,actionMqttBlocks]) Blockly.common.defineBlocks(blocks);
 
 setStudyRuntimeEntities([
   {entity_id:'binary_sensor.living_motion',state:'off',attributes:{device_class:'motion',friendly_name:'Living Room Motion'}},

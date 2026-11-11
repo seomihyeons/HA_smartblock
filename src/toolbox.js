@@ -155,8 +155,6 @@ export function createToolbox(entities = []) {
         { kind: 'block', type: 'condition_sun_after' },
         { kind: 'block', type: 'condition_sun_before' },
         { kind: 'block', type: 'condition_sun_offset' },
-        { kind: 'label', text: 'Zone' },
-        { kind: 'block', type: 'condition_zone_membership' },
         { kind: 'label', text: 'Numeric State' },
         { kind: 'block', type: 'condition_numeric_state_entity' },
         { kind: 'block', type: 'condition_numeric_state_attribute' },

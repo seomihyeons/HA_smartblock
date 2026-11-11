@@ -512,10 +512,6 @@ export function getStudyPersonOptions() {
   return getExactRuntimeEntityOptions('person.test_user', '(No study user)');
 }
 
-export function getStudyZoneOptions() {
-  return getExactRuntimeEntityOptions('zone.home', '(No home zone)');
-}
-
 /* ============================================================
  * CONDITION / EVENT OPTIONS
  * ============================================================ */

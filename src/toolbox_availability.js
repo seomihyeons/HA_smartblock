@@ -25,7 +25,6 @@ const SPECIAL_LABELS = {
   event_sensor_numeric_state: 'Sensor Numeric State',
   condition_numeric_state_entity: 'Numeric State',
   condition_numeric_state_attribute: 'Numeric Attribute',
-  condition_zone_membership: 'Zone Membership',
   action_ecobee_service: 'Ecobee Service',
   action_script_call: 'Script Call',
   action_script_target_entity: 'Script Target Entity',
@@ -116,8 +115,6 @@ export function isToolboxBlockAvailable(type, entities) {
       return capabilities.numericState;
     case 'condition_numeric_state_attribute':
       return capabilities.numericAttribute;
-    case 'condition_zone_membership':
-      return capabilities.entityIds.has('zone.home');
     case 'action_ecobee_service':
       return capabilities.domains.has('climate');
     case 'action_script_call':
