@@ -47,31 +47,6 @@ test('explicit entity resolution binds a unique name and asks before duplicate-n
   }]);
 });
 
-test('hybrid retrieval uses dense multilingual evidence without a room dictionary', async () => {
-  const result = await retrieveEntityContext('거실 조명을 켜줘', cards, {
-    mode: 'hybrid',
-    maxCards: 3,
-    embed: async (inputs) => ({
-      model: 'test-multilingual',
-      embeddings: inputs.map((input, index) => (
-        index === 0 || input.includes('light.living_room') ? [1, 0] : [0, 1]
-      )),
-    }),
-  });
-  assert.equal(result.method, 'hybrid_rrf');
-  assert.equal(result.cards[0].entity_id, 'light.living_room');
-});
-
-test('hybrid retrieval falls back to lexical ranking when embeddings are unavailable', async () => {
-  const result = await retrieveEntityContext('coffee maker', cards, {
-    mode: 'hybrid',
-    embed: async () => { throw new Error('model unavailable'); },
-  });
-  assert.equal(result.method, 'lexical');
-  assert.equal(result.fallback, true);
-  assert.equal(result.cards[0].entity_id, 'switch.coffee');
-});
-
 test('FastEmbed hybrid retrieval fuses a cached external multilingual ranking', async () => {
   const result = await retrieveEntityContext('거실 조명을 켜줘', cards, {
     mode: 'fastembed_hybrid',

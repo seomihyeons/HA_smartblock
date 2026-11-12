@@ -140,7 +140,7 @@ test('catalog-backed toolbox exposes applicable blocks for every loaded runtime 
     .map((item) => item.type);
 
   for (const domain of ['binary_sensor', 'person', 'light', 'cover', 'weather', 'switch']) {
-    assert.ok(blockTypes('Event').includes(`event_${domain}_state`), `${domain}: Event toolbox block`);
+    assert.ok(blockTypes('Trigger').includes(`event_${domain}_state`), `${domain}: Trigger toolbox block`);
     assert.ok(blockTypes('Condition').includes(`condition_state_${domain}`), `${domain}: Condition toolbox block`);
   }
   for (const domain of ['light', 'cover', 'switch']) {

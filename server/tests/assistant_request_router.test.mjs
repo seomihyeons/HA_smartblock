@@ -61,7 +61,7 @@ test('uses an English request reference for an English information response', as
       property: 'state', user_reference: 'living room light',
     }, validation: { valid: true },
   })).handle({ command: 'What is the status of the living room light?', response_language: 'en' });
-  assert.equal(result.message, 'living room light is currently on.');
+  assert.equal(result.message, 'Living room light is currently on.');
 });
 
 test('does not echo a model-created device reference that is absent from the request', async () => {
@@ -92,7 +92,8 @@ test('maps live entity validation failure to entity_not_found', async () => {
   assert.equal(result.resolution.status, 'failed');
   assert.equal(result.resolution.failure_reason, 'entity_not_found');
   assert.equal(result.message_key, 'entity_not_found');
-  assert.equal(result.message, '요청하신 기기를 찾지 못했습니다.');
+  assert.match(result.message, /Study/);
+  assert.equal(result.message.includes('fan.study'), false);
 });
 
 test('maps a model grounding abstention to server-owned entity_not_found', async () => {
@@ -156,7 +157,8 @@ test('formats server-owned outcome messages in the requested language', async ()
     validation: { valid: false, errors: ['The control entity is outside Home Assistant context: fan.study'] },
   })).handle({ command: 'Turn on the study air purifier', response_language: 'en' });
   assert.equal(result.message_key, 'entity_not_found');
-  assert.equal(result.message, 'I could not find the requested device.');
+  assert.match(result.message, /requested Study/);
+  assert.equal(result.message.includes('fan.study'), false);
 });
 
 test('maps a live capability validation failure to unsupported_capability', async () => {

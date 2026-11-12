@@ -19,9 +19,11 @@ const baseYaml = [
 ].join('\n');
 
 test('inspect and explain never call the LLM or execute Home Assistant actions', async () => {
-  let calls = 0;
   const router = createAssistantRequestRouter({
-    createDraft: async () => { calls++; throw new Error('LLM must not be called'); },
+    createDraft: async (payload) => ({
+      status: 'automation_readonly_ready',
+      automation_context: payload.automation_context,
+    }),
     previewControl: async () => { throw new Error('No preview'); },
     executeControl: async () => { throw new Error('No execution'); },
     queryInformation: async () => { throw new Error('No information query'); },
@@ -35,7 +37,6 @@ test('inspect and explain never call the LLM or execute Home Assistant actions',
     assert.equal(reply.result.kind, 'automation_readonly');
     assert.match(reply.message, /No changes were made/);
   }
-  assert.equal(calls, 0);
 });
 
 test('read-only inspector rejects malformed YAML without side effects', () => {

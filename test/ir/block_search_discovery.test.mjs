@@ -88,7 +88,7 @@ test('runtime semantic state labels are searchable for binary sensors', () => {
 test('supported entity blocks remain in the toolbox when runtime has no entities', () => {
   const emptyRuntimeToolbox = createToolbox([]);
 
-  assert.ok(categoryBlockTypes(emptyRuntimeToolbox, 'Event').includes('event_binary_sensor_state'));
+  assert.ok(categoryBlockTypes(emptyRuntimeToolbox, 'Trigger').includes('event_binary_sensor_state'));
   assert.ok(categoryBlockTypes(emptyRuntimeToolbox, 'Condition').includes('condition_state_binary_sensor'));
   assert.ok(categoryBlockTypes(emptyRuntimeToolbox, 'Action').includes('action_light'));
   assert.ok(categoryBlockTypes(emptyRuntimeToolbox, 'Action').includes('action_lock'));

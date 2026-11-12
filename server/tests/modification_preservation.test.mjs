@@ -37,15 +37,13 @@ test('accepts a single-item Blockly YAML list as one automation, not numeric met
   assert.deepEqual(result, { valid: true, errors: [] });
 });
 
-test('still rejects silent removal of existing entity and action', () => {
+test('leaves action-removal intent to the full-YAML LLM modification stage', () => {
   const result = validateModificationPreservation({
     baseYaml: base,
     automation: { ...modified, actions: modified.actions.slice(0, 2) },
     command: 'Make it more relaxing.',
   });
-  assert.equal(result.valid, false);
-  assert.match(result.errors.join(' '), /cover\.bedroom_curtain/);
-  assert.match(result.errors.join(' '), /removed existing actions/);
+  assert.deepEqual(result, { valid: true, errors: [] });
 });
 
 test('still protects real HA root metadata', () => {
