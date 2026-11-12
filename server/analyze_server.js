@@ -33,6 +33,7 @@ import {
     isActiveAutomationState,
 } from "./automation_catalog.mjs";
 import { filterAssistantEntityStates } from "./entity_visibility_policy.mjs";
+import { assessContextSufficiencyShadow } from "./context_sufficiency_adapter.mjs";
 import { validateHostAutomation } from "./automation_host_validation.mjs";
 import { validateModificationPreservation, hasAutomationChanged } from "./modification_preservation.mjs";
 
@@ -64,6 +65,7 @@ const AUTOMATION_CONFIG_CACHE_TTL_MS = Math.max(5_000, Number(process.env.HA_AUT
 const AUTOMATION_CONFIG_CONCURRENCY = Math.max(1, Math.min(8, Number(process.env.HA_AUTOMATION_FETCH_CONCURRENCY || "4")));
 const cachedAutomationConfigs = new Map();
 const GROUNDING_MIN_MARGIN = Math.max(0, Number(process.env.LLM_GROUNDING_MIN_MARGIN || "0.02"));
+const CONTEXT_SUFFICIENCY_SHADOW = process.env.LLM_CONTEXT_SUFFICIENCY_SHADOW === "1";
 
 function buildHaBaseUrl() {
     if (process.env.HA_BASE_URL) return process.env.HA_BASE_URL;
@@ -556,6 +558,22 @@ async function createDraftResponse(body = {}) {
             retrievedIds.add(card.entity_id);
         }
     }
+    // Observe-only evaluation of actual first-call LLM context. It cannot
+    // prove complete semantics and never changes routing or Tool execution.
+    let contextSufficiencyShadow = null;
+    if (CONTEXT_SUFFICIENCY_SHADOW) {
+        try {
+            contextSufficiencyShadow = assessContextSufficiencyShadow({
+                fullEntityCards: entityCards,
+                retrievedEntityCards,
+                entityResolution,
+                plannerCatalog,
+            });
+            console.info("[context-sufficiency-shadow]", JSON.stringify(contextSufficiencyShadow));
+        } catch {
+            console.warn("[context-sufficiency-shadow] unavailable");
+        }
+    }
     let effectiveAutomationOperation = "create";
     let result = await providerNeutralAssistant.createDraft({
         command: plannerCommand,
@@ -680,6 +698,9 @@ async function createDraftResponse(body = {}) {
             model_calls: firstCalls + (result?.metrics?.attempts || 1),
             stages: ['intent_and_reference', 'automation_yaml_modification'],
         };
+    }
+    if (contextSufficiencyShadow) {
+        result.pipeline = { ...(result.pipeline || {}), context_sufficiency_shadow: contextSufficiencyShadow };
     }
     if (result?.pipeline?.model_calls == null) {
         result.pipeline = { ...(result.pipeline || {}), model_calls: result?.metrics?.attempts || 1,
