@@ -31,6 +31,7 @@ const SAFE_CAPABILITY_ATTRIBUTES = [
 export function buildEntityCards(states, options = {}) {
   if (!Array.isArray(states)) return [];
   const registry = options.registry || createCapabilityRegistry();
+  const areaByEntityId = options.areaByEntityId instanceof Map ? options.areaByEntityId : null;
 
   return states.flatMap((state) => {
     if (!state || typeof state !== 'object') return [];
@@ -53,7 +54,10 @@ export function buildEntityCards(states, options = {}) {
       domain,
       state: state.state ?? null,
       device_class: text(attributes.device_class) || null,
-      area: text(state.area || attributes.area) || null,
+      // Prefer authoritative HA registry area over optional state metadata.
+      area: areaByEntityId?.has(entityId)
+        ? text(areaByEntityId.get(entityId)) || null
+        : text(state.area || attributes.area) || null,
       capabilities: uniqueStrings([
         ...(Array.isArray(attributes.supported_color_modes)
           ? attributes.supported_color_modes

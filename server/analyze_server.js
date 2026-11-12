@@ -8,6 +8,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 import dotenv from "dotenv";
 import { buildEntityCards } from "./entity_cards.mjs";
+import { createAreaRegistryCache } from "./ha_registry_client.mjs";
 import { ControlNowError, createControlNowService } from "./control_now_service.mjs";
 import { createAssistantRequestRouter } from "./assistant_request_router.mjs";
 import {
@@ -54,6 +55,11 @@ if (process.env.LLM_ASSISTANT_BACKEND && process.env.LLM_ASSISTANT_BACKEND.trim(
 const CAPABILITY_CACHE_TTL_MS = Math.max(5_000, Number(process.env.HA_CAPABILITY_CACHE_TTL_MS || "60000"));
 const providerNeutralAssistant = createProviderNeutralAssistantAdapter();
 let cachedCapabilityRegistry = null;
+const homeAreaRegistry = createAreaRegistryCache({
+    ttlMs: Math.max(5_000, Number(process.env.HA_AREA_REGISTRY_CACHE_TTL_MS || '60000')),
+    timeoutMs: Math.max(800, Math.min(7_000, Number(process.env.HA_AREA_REGISTRY_TIMEOUT_MS || '3000'))),
+    onError: (error) => console.warn('[HA area context]', error.message),
+});
 const AUTOMATION_CONFIG_CACHE_TTL_MS = Math.max(5_000, Number(process.env.HA_AUTOMATION_CACHE_TTL_MS || "60000"));
 const AUTOMATION_CONFIG_CONCURRENCY = Math.max(1, Math.min(8, Number(process.env.HA_AUTOMATION_FETCH_CONCURRENCY || "4")));
 const cachedAutomationConfigs = new Map();
@@ -251,7 +257,9 @@ async function loadHomeCapabilityContext() {
     // request waits for the slower HA endpoint once rather than twice.
     const statesRequest = fetchHomeAssistantStates();
     const servicesRequest = registryExpired ? fetchHomeAssistantServices() : null;
-    const [rawStates, services] = await Promise.all([statesRequest, servicesRequest]);
+    // Registry lookup is read-only, cached, and parallel with live state/service reads.
+    const areaRequest = homeAreaRegistry.get({ baseUrl: buildHaBaseUrl(), token: process.env.HA_TOKEN || '' });
+    const [rawStates, services, areaByEntityId] = await Promise.all([statesRequest, servicesRequest, areaRequest]);
     const states = filterAssistantEntityStates(rawStates);
     if (registryExpired) {
         cachedCapabilityRegistry = {
@@ -262,7 +270,7 @@ async function loadHomeCapabilityContext() {
     }
     const registry = cachedCapabilityRegistry.registry;
     return {
-        entityCards: buildEntityCards(states, { registry }),
+        entityCards: buildEntityCards(states, { registry, areaByEntityId }),
         capabilityContext: {
             ...publicCapabilityContext(registry),
             information_services: publicInformationServices(cachedCapabilityRegistry.serviceCatalog),
