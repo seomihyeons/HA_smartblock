@@ -1,0 +1,31 @@
+name: LLM area registry grounding
+on:
+  push:
+    branches: [feature/llm-tool-orchestration]
+  pull_request:
+    paths:
+      - "server/**"
+      - "smartblock_llm/**"
+      - "package*.json"
+      - ".github/workflows/llm-area-registry.yml"
+
+jobs:
+  node-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Backend syntax
+        run: |
+          node --check server/analyze_server.js
+          node --check server/ha_registry_client.mjs
+          node --check server/entity_cards.mjs
+      - name: LLM and IR regression
+        run: npm test
+      - name: Production webpack build
+        run: npm run build
