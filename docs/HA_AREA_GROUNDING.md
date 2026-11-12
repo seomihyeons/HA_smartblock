@@ -35,19 +35,17 @@ HA_AREA_REGISTRY_CACHE_TTL_MS=60000
 HA_AREA_REGISTRY_TIMEOUT_MS=3000
 ```
 
-## Local validation
+## Local setup
 
-1. Create six areas in isolated Home Assistant: Bedroom, Living Room,
-   Bathroom, Kitchen, Entrance, Hallway.
-2. Confirm virtual devices are correctly assigned. MQTT `suggested_area`
-   does not overwrite existing user-selected areas.
-3. Configure a local HA token and run:
-   ```bash
-   HA_BASE_URL=http://127.0.0.1:8124 HA_TOKEN=... node scripts/check-ha-areas.mjs
-   ```
-4. Try area-based prompts on the existing LLM path. Check unrelated room
-   devices are not selected.
+1. Create six areas in the isolated Home Assistant installation: Bedroom,
+   Living Room, Bathroom, Kitchen, Entrance and Hallway.
+2. Check the virtual devices' actual area assignments in HA Settings > Devices.
+   MQTT `suggested_area` does not overwrite an existing manual assignment.
+3. Configure `HA_BASE_URL` and `HA_TOKEN` in the local server environment.
+   The next assistant request reads HA area metadata; the default cache TTL
+   is 60 seconds.
+4. Area-based requests use the same existing EntityCard retrieval and planning
+   path, without requiring another LLM call.
 
-The automated tests use WebSocket fixtures and do not require a live HA
-installation. The actual HA registry and area assignments must still be
-checked on the user's isolated Home Assistant installation.
+Any verification scripts, screenshots, or results should be kept outside the
+repository in an ignored local-only directory, not committed to GitHub.

@@ -41,3 +41,11 @@ test/test_xhome_demo/2_xhome_demo_entrance_mood_lamp.yaml
 /docs/*sources*.json
 /docs/sage_dependency_resolution.md
 /docs/sasha_dataset_schema.md
+
+# Verification scripts and outputs stay local (do not publish).
+/.local-tests/
+/local-tests/
+/test-results/
+/coverage/
+/playwright-report/
+/.nyc_output/
