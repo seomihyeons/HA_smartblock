@@ -103,6 +103,8 @@ Blockly.Extensions.register('action_smart_sync_domain', function () {
   const syncAction = () => {
     if (this.isDisposed?.()) return;
     const validActions = getSmartActionOptions(this.getFieldValue('ENTITY_ID'));
+    // Force Blockly to refresh the dynamic menu before validating the new value.
+    actionField.getOptions(false);
     const current = actionField.getValue();
     if (!validActions.some(([, value]) => value === current)) {
       actionField.setValue(validActions[0][1]);
