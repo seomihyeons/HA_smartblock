@@ -156,6 +156,12 @@ let selectedYamlBlockId = null;
 const ws = Blockly.inject(blocklyDiv, {
   toolbox,
   theme: customTheme,
+  // Use the media directory emitted with this application instead of Blockly's
+  // public demo CDN. This keeps the stock trashcan and its deleted-block
+  // history available in the standalone user-study image.
+  media: '/blockly-media/',
+  trashcan: true,
+  maxTrashcanContents: 32,
   move: {
     scrollbars: true,
     drag: true,

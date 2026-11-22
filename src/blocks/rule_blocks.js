@@ -5,7 +5,7 @@ import * as Blockly from 'blockly';
 const RULE_LABEL_WIDTH = 88;
 const RULE_LABEL_HEIGHT = 22;
 const RULE_LABEL_PADDING_X = 8;
-const RULE_TOOLTIP_DELAY_MS = 100;
+const RULE_TOOLTIP_DELAY_MS = 300;
 const RULE_TOOLTIP_HIDE_DELAY_MS = 100;
 let activeRuleSectionTooltipField = null;
 const RULE_SECTION_TOOLTIPS = Object.freeze({

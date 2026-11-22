@@ -10,6 +10,35 @@ const BASELINE_FILE = path.resolve(__dirname, 'test', 'task_alt', 'baseline.json
 const BASELINE_MAX_BYTES = 2 * 1024 * 1024;
 const BASELINE_MAX_HISTORY = 10;
 
+// Blockly references its native controls (including the trashcan) as runtime
+// media files.  A Docker/production build serves only `dist`, so keeping these
+// files in node_modules is not enough: copy the upstream assets into the
+// emitted bundle under the same explicit path used by Blockly.inject.
+class BlocklyMediaAssetsPlugin {
+  apply(compiler) {
+    compiler.hooks.thisCompilation.tap('BlocklyMediaAssetsPlugin', (compilation) => {
+      const { Compilation, sources } = compiler.webpack;
+      compilation.hooks.processAssets.tapPromise(
+        {
+          name: 'BlocklyMediaAssetsPlugin',
+          stage: Compilation.PROCESS_ASSETS_STAGE_ADDITIONAL,
+        },
+        async () => {
+          const mediaDirectory = path.resolve(__dirname, 'node_modules', 'blockly', 'media');
+          const entries = await fs.readdir(mediaDirectory, { withFileTypes: true });
+          await Promise.all(entries
+            .filter((entry) => entry.isFile())
+            .map(async (entry) => {
+              const assetName = `blockly-media/${entry.name}`;
+              const contents = await fs.readFile(path.join(mediaDirectory, entry.name));
+              compilation.emitAsset(assetName, new sources.RawSource(contents));
+            }));
+        },
+      );
+    });
+  }
+}
+
 function createEmptyBaselineStore() {
   return {
     version: 2,
@@ -240,6 +269,7 @@ const config = {
     ],
   },
   plugins: [
+    new BlocklyMediaAssetsPlugin(),
     new HtmlWebpackPlugin({
       template: 'src/index.html',
     }),
