@@ -82,7 +82,7 @@ export function createToolbox(entities = []) {
       : [{ kind: 'block', type: `condition_state_${domain}` }]);
 
   const actionBlocks = (ACTION_DOMAINS || [])
-    .filter((domain) => !['ecobee', 'script', 'python_script', 'mqtt'].includes(domain))
+    .filter((domain) => !['ecobee', 'script', 'python_script', 'mqtt', 'homeassistant'].includes(domain))
     .map((domain) => ({ kind: 'block', type: `action_${domain}` }));
 
   const toolboxDefinition = {
@@ -170,6 +170,7 @@ export function createToolbox(entities = []) {
       contents: [
         { kind: 'label', text: 'Action' },
         ...actionBlocks,
+        { kind: 'block', type: 'action_smart' },
         { kind: 'block', type: 'action_ecobee_service' },
         { kind: 'block', type: 'action_script_call' },
         { kind: 'block', type: 'action_script_target_entity' },
