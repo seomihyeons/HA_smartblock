@@ -12,7 +12,7 @@ test('Rule section labels expose styled Home Assistant guidance on hover', () =>
   assert.match(source, /'Then do'/);
   assert.match(source, /this\.setTooltip\(''\)/);
   assert.match(source, /ha-rule-section-tooltip/);
-  assert.match(source, /RULE_TOOLTIP_DELAY_MS = 100/);
+  assert.match(source, /RULE_TOOLTIP_DELAY_MS = 300/);
   assert.match(source, /RULE_TOOLTIP_HIDE_DELAY_MS = 100/);
   assert.match(source, /togglePinnedSectionTooltip_/);
   assert.match(source, /dismissPinnedTooltipOnOutsideClick_/);
