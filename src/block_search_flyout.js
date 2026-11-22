@@ -213,6 +213,11 @@ export function getBlockSearchResults(query) {
   const searchText = normalize(query);
   const result = [];
 
+  // An empty Search drawer is a prompt, not a second full Toolbox.
+  // Rendering every block here previously inflated the flyout to almost the
+  // entire workspace width before the user typed anything.
+  if (!searchText) return result;
+
   toolbox.contents
     .filter((category) => category.kind === 'category' && SEARCHABLE_CATEGORIES.has(category.name))
     .forEach((category) => {
@@ -298,7 +303,10 @@ export function getSearchDefinition(query) {
   });
 
   if (!matches.length) {
-    result.push({ kind: 'label', text: 'No matching blocks' });
+    result.push({
+      kind: 'label',
+      text: normalize(query) ? 'No matching blocks' : 'Type to search blocks',
+    });
   }
   return result;
 }
@@ -307,16 +315,20 @@ class StableWidthSearchFlyout extends Blockly.VerticalFlyout {
   fixedWidth_ = 0;
 
   lockCurrentWidth() {
-    this.fixedWidth_ = this.getWidth();
+    // Match the search header instead of sizing the drawer from the longest
+    // result block. Very long Entity labels must not stretch Search over the
+    // whole editing workspace.
+    const viewWidth = this.targetWorkspace.getMetrics?.()?.viewWidth ||
+      this.targetWorkspace.getParentSvg()?.getBoundingClientRect()?.width || 460;
+    this.fixedWidth_ = Math.min(450, Math.max(180, viewWidth - 40));
+    this.width_ = this.fixedWidth_;
     this.position();
   }
 
   reflowInternal_() {
     super.reflowInternal_();
-    if (!this.fixedWidth_ || this.width_ >= this.fixedWidth_) return;
-
-    // Keep the right edge anchored while retaining the width calculated from
-    // the complete initial result set. Filtering must not resize the drawer.
+    if (!this.fixedWidth_ || this.width_ === this.fixedWidth_) return;
+    // Preserve a stable, bounded search drawer as results come and go.
     this.width_ = this.fixedWidth_;
     this.position();
     this.targetWorkspace.recordDragTargets();
