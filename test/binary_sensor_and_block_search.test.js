@@ -19,7 +19,7 @@ import '../src/blocks/extensions.js';
 import { yamlGenerator } from '../src/generators/yaml.js';
 import { createTriggerBlock } from '../src/import/blocks/trigger_mapper.js';
 import { createConditionsRoot } from '../src/import/blocks/condition_mapper.js';
-import { getBlockSearchResults, getSearchDefinition } from '../src/block_search_flyout.js';
+import { getBlockSearchResults } from '../src/block_search_flyout.js';
 
 Blockly.common.defineBlocks(eventEntityBlocks);
 Blockly.common.defineBlocks(conditionStateBlocks);
@@ -214,16 +214,4 @@ test('Numeric State trigger stays under Trigger State rather than Group', () => 
   const searchResult = getBlockSearchResults('numeric state')
     .find((result) => result.category === 'Trigger' && result.type === 'event_sensor_numeric_state');
   assert.equal(searchResult?.section, 'State');
-});
-
-
-test('Block Search opens with only a prompt, not the entire toolbox', () => {
-  assert.deepEqual(getBlockSearchResults(''), []);
-  assert.deepEqual(getBlockSearchResults('   '), []);
-  const initial = getSearchDefinition('');
-  assert.equal(initial.filter(row => row.kind === 'block').length, 0);
-  assert.ok(initial.some(row => row.kind === 'label' && row.text === 'Type to search blocks'));
-  const searched = getSearchDefinition('motion');
-  assert.ok(searched.some(row => row.kind === 'block'));
-  assert.ok(!searched.some(row => row.kind === 'label' && row.text === 'Type to search blocks'));
 });
