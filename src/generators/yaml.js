@@ -159,7 +159,7 @@ yamlGenerator.forBlock['ha_event_homeassistant'] = function (block) {
 
 
 /* ===== Events (compact) ===== */
-import { STATE_DOMAINS, ACTION_DOMAINS } from '../data/options.js';
+import { STATE_DOMAINS, ACTION_DOMAINS, getActions, HOMEASSISTANT_TARGET_DOMAINS } from '../data/options.js';
 
 /* ===== Events (unified, compact) ===== */
 
@@ -1115,6 +1115,36 @@ for (const domain of (ACTION_DOMAINS || [])) {
     return lines.join('\n');
   };
 }
+
+// Entity-aware actions are newly authored using the Entity's actual domain.
+// Existing action_homeassistant blocks deliberately preserve their original
+// homeassistant.* YAML actions when imported.
+yamlGenerator.forBlock['action_smart'] = function (block, generator) {
+  const entityId = String(block.getFieldValue('ENTITY_ID') || '').trim();
+  const action = String(block.getFieldValue('ACTION') || '').trim();
+  if (!entityId || !action) return '';
+
+  const domain = entityId.split('.', 1)[0];
+  const available = getActions(domain);
+  if (!HOMEASSISTANT_TARGET_DOMAINS.includes(domain) ||
+      !available.some(([, service]) => service === action)) return '';
+
+  const i = yamlGenerator.INDENT;
+  const ii = i + i;
+  const lines = [
+    `- action: ${domain}.${action}`,
+    `${i}target:`,
+    `${ii}entity_id: ${entityId}`,
+  ];
+  const dataCode = block.getInput('DATA')
+    ? (generator.statementToCode(block, 'DATA') || '') : '';
+  if (dataCode.trim()) {
+    lines.push(`${i}data:`);
+    lines.push(generator.prefixLines(dataCode, i));
+  }
+  lines.push('');
+  return lines.join('\n');
+};
 
 function normalizeScriptEntityActionValue(raw) {
   const s = String(raw || '').trim();
