@@ -64,7 +64,7 @@ import { conditionTemplateBlocks } from './blocks/condition/condition_template';
 import { conditionNumericStateEntityBlocks } from './blocks/condition/condition_numeric_state_entity';
 import { conditionNumericStateAttributeBlocks } from './blocks/condition/condition_numeric_state_attribute';
 
-import { actionEntityBlocks } from './blocks/action/action_entity';
+import { actionEntityBlocks, actionSmartBlocks } from './blocks/action/action_entity';
 import { actionEcobeeBlocks } from './blocks/action/action_ecobee';
 import { actionDelayBlocks } from './blocks/action/action_delay';
 import { actionIfBlocks } from './blocks/action/action_if';
@@ -132,6 +132,7 @@ Blockly.common.defineBlocks(conditionNumericStateEntityBlocks);
 Blockly.common.defineBlocks(conditionNumericStateAttributeBlocks);
 
 Blockly.common.defineBlocks(actionEntityBlocks);
+Blockly.common.defineBlocks(actionSmartBlocks);
 Blockly.common.defineBlocks(actionEcobeeBlocks);
 Blockly.common.defineBlocks(actionDataBlocks);
 Blockly.common.defineBlocks(actionDelayBlocks);
