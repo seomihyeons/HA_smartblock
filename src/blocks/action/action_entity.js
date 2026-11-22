@@ -69,3 +69,75 @@ export const actionEntityBlocks =
       extensions: ['action_entity_template_input'],
     }))
   );
+
+
+/**
+ * Study-friendly device action. Unlike action_homeassistant, its menu and
+ * generated service are derived from the selected Entity's domain.
+ *
+ * Keep action_homeassistant registered for lossless import of legacy
+ * homeassistant.turn_on/off/toggle YAML; only newly authored actions use this.
+ */
+export function getSmartActionDomain(entityId) {
+  const domain = String(entityId || '').split('.', 1)[0];
+  return HOMEASSISTANT_TARGET_DOMAINS.includes(domain) && getActions(domain)[0]?.[1]
+    ? domain : '';
+}
+
+export function getSmartActionOptions(entityId) {
+  const domain = getSmartActionDomain(entityId);
+  return domain ? getActions(domain) : [['Select an entity', '']];
+}
+
+function getSmartEntityOptions() {
+  const options = getEntityOptions('homeassistant')
+    .filter(([, id]) => getSmartActionDomain(id));
+  return options.length ? options : [['(No compatible entities)', '']];
+}
+
+Blockly.Extensions.register('action_smart_sync_domain', function () {
+  const entityField = this.getField('ENTITY_ID');
+  const actionField = this.getField('ACTION');
+  if (!entityField || !actionField) return;
+
+  const syncAction = () => {
+    if (this.isDisposed?.()) return;
+    const validActions = getSmartActionOptions(this.getFieldValue('ENTITY_ID'));
+    const current = actionField.getValue();
+    if (!validActions.some(([, value]) => value === current)) {
+      actionField.setValue(validActions[0][1]);
+    }
+    actionField.forceRerender?.();
+  };
+
+  // A FieldDropdown validator runs before ENTITY_ID has its new value.
+  // Reconcile ACTION after the Entity field finishes applying its change.
+  entityField.setValidator((newValue) => {
+    setTimeout(syncAction, 0);
+    return newValue;
+  });
+  syncAction();
+});
+
+export const actionSmartBlocks =
+  Blockly.common.createBlockDefinitionsFromJsonArray([{
+    type: 'action_smart',
+    message0: 'device %1 to %2',
+    args0: [
+      { type: 'field_dropdown', name: 'ENTITY_ID', options: getSmartEntityOptions },
+      {
+        type: 'field_dropdown',
+        name: 'ACTION',
+        options: function () {
+          return getSmartActionOptions(this.getSourceBlock?.()?.getFieldValue('ENTITY_ID'));
+        },
+      },
+    ],
+    previousStatement: 'HA_ACTION',
+    nextStatement: 'HA_ACTION',
+    colour: '#E3CC57',
+    tooltip: 'Choose a device; available actions follow its domain.',
+    helpUrl: '',
+    mutator: 'ha_action_optional_data',
+    extensions: ['action_smart_sync_domain'],
+  }]);
